@@ -2,3 +2,5 @@ scripts
 .env
 node_modules
 *.sqlite
+.DS_Store
+config.json
