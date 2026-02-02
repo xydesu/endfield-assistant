@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
 const User = require('../../models/User');
+const { encrypt } = require('../../utils/encryption');
+const { EMBED_COLOR } = require('../../utils/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -9,7 +11,7 @@ module.exports = {
     async execute(interaction) {
         // 1. Create Embed Guide
         const embed = new EmbedBuilder()
-            .setColor('#F8F546')
+            .setColor(EMBED_COLOR)
             .setTitle('Endfield 自動簽到綁定教學')
             .setDescription('請依照以下步驟獲取您的憑證並進行綁定：')
             .addFields(
@@ -113,7 +115,7 @@ module.exports = {
             try {
                 await User.upsert({
                     discordId: discordId,
-                    cred: cred,
+                    cred: encrypt(cred),
                     uid: uid,
                     serverId: serverId
                 });

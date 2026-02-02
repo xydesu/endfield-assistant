@@ -1,5 +1,6 @@
 const https = require('https');
 const User = require('../models/User');
+const { decrypt } = require('./encryption');
 
 async function request(method, endpoint, user, data = null) {
     return new Promise((resolve, reject) => {
@@ -31,7 +32,7 @@ async function request(method, endpoint, user, data = null) {
             'Content-Type': 'application/json',
             'sk-language': 'zh_Hant', // User example uses 'en', previously 'zh-TW', sticking to example
             'sk-game-role': `3_${user.uid}_${user.serverId}`,
-            'cred': user.cred,
+            'cred': decrypt(user.cred),
             'platform': '3', // User example uses variable 'platform', assuming 3
             'vName': '1.0.0', // User example uses variable 'vName', assuming 1.0.0
             'timestamp': Math.floor(Date.now() / 1000).toString(),
