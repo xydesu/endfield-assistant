@@ -2,6 +2,8 @@ const https = require('https');
 const User = require('../models/User');
 const { decrypt } = require('./encryption');
 
+const REQUEST_TIMEOUT_MS = 15000;
+
 async function request(method, endpoint, user, data = null) {
     return new Promise((resolve, reject) => {
         let url;
@@ -9,11 +11,7 @@ async function request(method, endpoint, user, data = null) {
             if (endpoint.startsWith('http')) {
                 url = new URL(endpoint);
             } else {
-                // Ensure baseUrl doesn't end with slash if endpoint starts with one, or handle neatly
-                let base = 'https://zonai.skport.com';
-
-
-                url = new URL(endpoint, base);
+                url = new URL(endpoint, 'https://zonai.skport.com');
             }
         } catch (e) {
             return reject(e);
@@ -30,11 +28,11 @@ async function request(method, endpoint, user, data = null) {
             'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Referer': 'https://game.skport.com/',
             'Content-Type': 'application/json',
-            'sk-language': 'zh_Hant', // User example uses 'en', previously 'zh-TW', sticking to example
+            'sk-language': 'zh_Hant',
             'sk-game-role': `3_${user.uid}_${user.serverId}`,
             'cred': decrypt(user.cred),
-            'platform': '3', // User example uses variable 'platform', assuming 3
-            'vName': '1.0.0', // User example uses variable 'vName', assuming 1.0.0
+            'platform': '3',
+            'vName': '1.0.0',
             'timestamp': Math.floor(Date.now() / 1000).toString(),
             'Origin': 'https://game.skport.com',
             'Connection': 'keep-alive',
@@ -50,28 +48,18 @@ async function request(method, endpoint, user, data = null) {
             headers: headers
         };
 
-
         const req = https.request(options, (res) => {
-
             let body = '';
             res.on('data', (chunk) => body += chunk);
             res.on('end', () => {
-
-                // Accept 403 because the API uses it for "Already Signed In" (code 10001)
+                // The API returns HTTP 403 with a JSON body for "Already Signed In" (code 10001)
                 if ((res.statusCode >= 200 && res.statusCode < 300) || res.statusCode === 403) {
                     try {
                         resolve(JSON.parse(body));
                     } catch (e) {
-                        // If response is not JSON, check for HTML
                         if (body.trim().startsWith('<')) {
-                            // If it was 403 and HTML, it really is a forbidden error, not the JSON logic we expect
-                            if (res.statusCode === 403) {
-                                reject({ statusCode: res.statusCode, body: body.substring(0, 500) });
-                            } else {
-                                resolve({ code: -1, msg: 'Server returned HTML (likely error page)', raw: body.substring(0, 500) });
-                            }
+                            reject({ statusCode: res.statusCode, body: body.substring(0, 500) });
                         } else {
-                            // If plain text (not JSON, not HTML), generic resolve if valid status
                             if (res.statusCode === 403) reject({ statusCode: res.statusCode, body: body.substring(0, 500) });
                             else resolve(body);
                         }
@@ -82,7 +70,16 @@ async function request(method, endpoint, user, data = null) {
             });
         });
 
-        req.on('error', (e) => reject(e));
+        const timer = setTimeout(() => {
+            req.destroy(new Error(`Request timed out after ${REQUEST_TIMEOUT_MS}ms`));
+        }, REQUEST_TIMEOUT_MS);
+
+        req.on('error', (e) => {
+            clearTimeout(timer);
+            reject(e);
+        });
+
+        req.on('close', () => clearTimeout(timer));
 
         if (method === 'POST' && data) {
             req.write(JSON.stringify(data));
@@ -94,14 +91,7 @@ async function request(method, endpoint, user, data = null) {
 async function signIn(user) {
     try {
         const gameId = "3";
-        // const gameIdInt = parseInt(gameId, 10); // Not used if payload is removed
-
-        // Sign in directly (POST) as per example logic
-        // Important: User example UrlFetchApp.fetch(attendanceUrl, options) implies NO BODY if options has no payload.
-        // We will append gameId to query string as per API analysis, even if example didn't explicit show URL.
         const postUrl = `/web/v1/game/endfield/attendance?gameId=${gameId}`;
-
-        // Pass null as data to avoid sending JSON body
         const result = await request('POST', postUrl, user, null);
 
         if (result.code === 0) {
