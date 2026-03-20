@@ -104,7 +104,7 @@ async function signIn(user) {
             if (result.data && result.data.awardIds) {
                 awardsText = result.data.awardIds.map(award => {
                     const resource = result.data.resourceInfoMap ? result.data.resourceInfoMap[award.id] : null;
-                    return resource ? `${resource.name} x${resource.count}` : `Item(ID:${award.id}) x${award.count}`;
+                    return resource ? `${resource.name} x${resource.count}` : `Item(ID:${award.id})`;
                 }).join(', ');
             }
             return { success: true, message: '簽到成功！', data: awardsText };
