@@ -17,5 +17,8 @@
         "node-schedule": "^2.1.1",
         "sequelize": "^6.37.8",
         "sqlite3": "^6.0.1"
+    },
+    "overrides": {
+        "undici": "^6.24.1"
     }
 }
