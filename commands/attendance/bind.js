@@ -18,7 +18,7 @@ module.exports = {
                 { name: '步驟 1', value: '使用電腦瀏覽器開啟 [每日簽到網站](https://game.skport.com/endfield/sign-in) 並登入帳號。' },
                 { name: '步驟 2', value: '按下 `F12` 開啟開發者工具，切換至 `Console` 分頁。' },
                 { name: '步驟 3', value: '複製下方指令並貼上到 Console 中執行：' },
-                { name: '指令', value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/588fd21394fb7fd62710fa1b88bb4777/raw/4ddf96196fb9cd9572cf2ddba0c6f61f9769442b/get_cred.js").then(r=>r.text()).then(t=>eval(t))\n```' },
+                { name: '指令', value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/588fd21394fb7fd62710fa1b88bb4777/raw/bab7ac35faf461b2ad17a71b6a9143f58a0eaf58/get_cred.js").then(r=>r.text()).then(t=>eval(t))\n```' },
                 { name: '步驟 4', value: '執行後 Console 將會直接顯示一段 **JSON**，請完整複製。' },
                 { name: '步驟 5', value: '點擊下方「輸入 Config」按鈕，將 JSON 貼上並送出。' }
             )
