@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const User = require('../../models/User');
 const scheduler = require('../../utils/scheduler');
+const { EMBED_COLOR } = require('../../utils/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,7 +22,7 @@ module.exports = {
 
         if (!timeRegex.test(time)) {
             const embed = new EmbedBuilder()
-                .setColor('#e74c3c')
+                .setColor(EMBED_COLOR)
                 .setTitle('❌ 格式錯誤')
                 .setDescription('時間格式錯誤，請使用 HH:mm (例如 09:00 或 23:30)。')
                 .setTimestamp();
@@ -35,7 +36,7 @@ module.exports = {
             const user = await User.findByPk(discordId);
             if (!user) {
                 const embed = new EmbedBuilder()
-                    .setColor('#e74c3c')
+                    .setColor(EMBED_COLOR)
                     .setTitle('❌ 尚未綁定')
                     .setDescription('尚未綁定帳號，請先使用 `/bind`。')
                     .setTimestamp();
@@ -58,7 +59,7 @@ module.exports = {
             replyMsg += `\n🔔 通知提及 (Tag): ${isTag ? '開啟' : '關閉'}`;
 
             const embed = new EmbedBuilder()
-                .setColor('#2ecc71')
+                .setColor(EMBED_COLOR)
                 .setTitle('✅ 設定成功')
                 .setDescription(replyMsg)
                 .setTimestamp();
@@ -66,7 +67,7 @@ module.exports = {
         } catch (error) {
             console.error(error);
             const embed = new EmbedBuilder()
-                .setColor('#e74c3c')
+                .setColor(EMBED_COLOR)
                 .setTitle('❌ 設定失敗')
                 .setDescription('資料庫發生錯誤或排程失敗。')
                 .setTimestamp();

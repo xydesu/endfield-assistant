@@ -166,15 +166,30 @@ async function signIn(user) {
             const today = new Date().toISOString().split('T')[0];
             await user.update({ lastSignDate: today });
 
-            // Format rewards
-            let awardsText = '無';
-            if (result.data && result.data.awardIds) {
-                awardsText = result.data.awardIds.map(award => {
-                    const resource = result.data.resourceInfoMap ? result.data.resourceInfoMap[award.id] : null;
-                    return resource ? `${resource.name} x${resource.count}` : `Item(ID:${award.id})`;
-                }).join(', ');
+            // Parse structured reward data
+            let awards = [];
+            let tomorrowAwards = [];
+            if (result.data) {
+                if (result.data.awardIds && result.data.resourceInfoMap) {
+                    awards = result.data.awardIds.map(award => {
+                        const resource = result.data.resourceInfoMap[award.id];
+                        // count falls back to 1 when the resource is not present in the map
+                        return resource
+                            ? { name: resource.name, count: resource.count, icon: resource.icon }
+                            : { name: `Item(ID:${award.id})`, count: 1, icon: null };
+                    });
+                }
+                if (result.data.tomorrowAwardIds && result.data.resourceInfoMap) {
+                    tomorrowAwards = result.data.tomorrowAwardIds.map(award => {
+                        const resource = result.data.resourceInfoMap[award.id];
+                        // count falls back to 1 when the resource is not present in the map
+                        return resource
+                            ? { name: resource.name, count: resource.count, icon: resource.icon }
+                            : { name: `Item(ID:${award.id})`, count: 1, icon: null };
+                    });
+                }
             }
-            return { success: true, message: '簽到成功！', data: awardsText };
+            return { success: true, message: '簽到成功！', awards, tomorrowAwards };
 
         } else if (result.code === 10001) {
             // Already signed in
@@ -197,4 +212,27 @@ async function signIn(user) {
     }
 }
 
-module.exports = { signIn };
+function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result) {
+    const embed = new EmbedBuilder()
+        .setColor(EMBED_COLOR)
+        .setTitle(title)
+        .setTimestamp();
+
+    if (result.awards && result.awards.length > 0) {
+        const awardsText = result.awards.map(a => `• ${a.name} x${a.count}`).join('\n');
+        embed.addFields({ name: '🎁 今日獎勵', value: awardsText, inline: false });
+        const firstIcon = result.awards.find(a => a.icon)?.icon;
+        if (firstIcon) embed.setThumbnail(firstIcon);
+    } else {
+        embed.setDescription(result.message);
+    }
+
+    if (result.tomorrowAwards && result.tomorrowAwards.length > 0) {
+        const tomorrowText = result.tomorrowAwards.map(a => `• ${a.name} x${a.count}`).join('\n');
+        embed.addFields({ name: '📅 明日獎勵', value: tomorrowText, inline: false });
+    }
+
+    return embed;
+}
+
+module.exports = { signIn, buildAttendanceEmbed };

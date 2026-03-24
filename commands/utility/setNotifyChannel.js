@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
 const Server = require('../../models/Server');
+const { EMBED_COLOR } = require('../../utils/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -22,7 +23,7 @@ module.exports = {
             });
 
             const embed = new EmbedBuilder()
-                .setColor('#2ecc71')
+                .setColor(EMBED_COLOR)
                 .setTitle('✅ 設定成功')
                 .setDescription(`已將自動簽到通知頻道設定為 ${channel}。`)
                 .setTimestamp();
@@ -31,7 +32,7 @@ module.exports = {
         } catch (error) {
             console.error(error);
             const errorEmbed = new EmbedBuilder()
-                .setColor('#e74c3c')
+                .setColor(EMBED_COLOR)
                 .setTitle('❌ 設定失敗')
                 .setDescription('資料庫發生錯誤，請稍後再試。')
                 .setTimestamp();

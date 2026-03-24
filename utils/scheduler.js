@@ -1,7 +1,8 @@
 const schedule = require('node-schedule');
 const { EmbedBuilder } = require('discord.js');
 const User = require('../models/User');
-const { signIn } = require('./attendance');
+const { signIn, buildAttendanceEmbed } = require('./attendance');
+const { EMBED_COLOR } = require('./constants');
 
 const jobs = new Map();
 
@@ -40,17 +41,7 @@ async function runSignIn(userId, client) {
                         await guild.members.fetch(userId);
                         const channel = guild.channels.cache.get(serverConfig.notifyChannelId);
                         if (channel) {
-                            const embed = new EmbedBuilder()
-                                .setColor('#0099ff')
-                                .setTitle('📅 自動簽到報告')
-                                .setDescription(result.message)
-                                .setTimestamp();
-
-                            if (result.data) {
-                                embed.addFields(
-                                    { name: '🎁 獲得獎勵', value: `\`\`\`json\n${JSON.stringify(result.data, null, 2)}\n\`\`\``, inline: false }
-                                );
-                            }
+                            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, '📅 自動簽到報告', result);
 
                             const content = user.isTag ? `<@${userId}>` : '';
                             await channel.send({ content: content, embeds: [embed] });

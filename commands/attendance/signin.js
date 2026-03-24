@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const User = require('../../models/User');
-const { signIn } = require('../../utils/attendance');
+const { signIn, buildAttendanceEmbed } = require('../../utils/attendance');
+const { EMBED_COLOR } = require('../../utils/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -14,7 +15,7 @@ module.exports = {
 
         if (!user) {
             const embed = new EmbedBuilder()
-                .setColor('#e74c3c')
+                .setColor(EMBED_COLOR)
                 .setTitle('❌ 尚未綁定')
                 .setDescription('您尚未綁定帳號，請先使用 `/bind` 指令進行綁定。')
                 .setTimestamp();
@@ -24,20 +25,11 @@ module.exports = {
         const result = await signIn(user);
 
         if (result.success) {
-            const embed = new EmbedBuilder()
-                .setColor('#2ecc71')
-                .setTitle('✅ 簽到成功')
-                .setDescription(result.message)
-                .setTimestamp();
-
-            if (result.data && result.data !== '無') {
-                embed.addFields({ name: '🎁 獲得獎勵', value: `\`\`\`json\n${JSON.stringify(result.data, null, 2)}\n\`\`\``, inline: false });
-            }
-
+            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, '✅ 簽到成功', result);
             await interaction.editReply({ embeds: [embed] });
         } else {
             const embed = new EmbedBuilder()
-                .setColor('#e74c3c')
+                .setColor(EMBED_COLOR)
                 .setTitle('❌ 簽到失敗')
                 .setDescription(result.message)
                 .setTimestamp();
