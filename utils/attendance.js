@@ -6,16 +6,61 @@ const { PLATFORM, VNAME } = require('./constants');
 
 const REQUEST_TIMEOUT_MS = 15000;
 
-function computeSign(path, body, timestamp, signToken) {
+function computeSign(path, body, timestamp, token) {
     // headerObj key names must match the server's expected sign format exactly
     const headerObj = { platform: PLATFORM, timestamp: timestamp, dId: '', vName: VNAME };
     const headersJson = JSON.stringify(headerObj);
     const signString = path + body + timestamp + headersJson;
-    const hmacHex = crypto.createHmac('sha256', signToken).update(signString, 'utf8').digest('hex');
+    const hmacHex = crypto.createHmac('sha256', token).update(signString, 'utf8').digest('hex');
     return crypto.createHash('md5').update(hmacHex, 'utf8').digest('hex');
 }
 
-async function request(method, endpoint, user, data = null) {
+async function refreshSignToken(user) {
+    return new Promise((resolve, reject) => {
+        const url = new URL('/web/v1/auth/refresh', 'https://zonai.skport.com');
+        const options = {
+            hostname: url.hostname,
+            path: url.pathname,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+                'Accept': 'application/json, text/plain, */*',
+                'cred': decrypt(user.cred),
+                'platform': PLATFORM,
+                'vName': VNAME,
+                'Origin': 'https://game.skport.com',
+                'Referer': 'https://game.skport.com/'
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', (chunk) => body += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(body);
+                    if (json.code === 0 && json.data && json.data.token) {
+                        resolve(json.data.token);
+                    } else {
+                        reject(new Error(`Refresh failed (Code: ${json.code}, Msg: ${json.message})`));
+                    }
+                } catch (e) {
+                    reject(new Error(`Refresh response parse error: ${e.message}`));
+                }
+            });
+        });
+
+        const timer = setTimeout(() => {
+            req.destroy(new Error(`Refresh request timed out after ${REQUEST_TIMEOUT_MS}ms`));
+        }, REQUEST_TIMEOUT_MS);
+
+        req.on('error', (e) => { clearTimeout(timer); reject(e); });
+        req.on('close', () => clearTimeout(timer));
+        req.end();
+    });
+}
+
+async function request(method, endpoint, user, data = null, signToken = '') {
     return new Promise((resolve, reject) => {
         let url;
         try {
@@ -34,7 +79,6 @@ async function request(method, endpoint, user, data = null) {
 
         const timestamp = Math.floor(Date.now() / 1000).toString();
         const bodyStr = (method === 'POST' && data) ? JSON.stringify(data) : '';
-        const decryptedSignToken = user.signToken ? decrypt(user.signToken) : null;
 
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
@@ -49,16 +93,13 @@ async function request(method, endpoint, user, data = null) {
             'platform': PLATFORM,
             'vName': VNAME,
             'timestamp': timestamp,
+            'sign': computeSign(url.pathname, bodyStr, timestamp, signToken),
             'Origin': 'https://game.skport.com',
             'Connection': 'keep-alive',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-site'
         };
-
-        if (decryptedSignToken) {
-            headers['sign'] = computeSign(url.pathname, bodyStr, timestamp, decryptedSignToken);
-        }
 
         const options = {
             hostname: url.hostname,
@@ -109,8 +150,16 @@ async function request(method, endpoint, user, data = null) {
 
 async function signIn(user) {
     try {
+        let token = '';
+        try {
+            token = await refreshSignToken(user);
+        } catch (e) {
+            console.error(`[${user.uid}] Token refresh failed, proceeding with empty token: ${e.message}`);
+            // Proceed with empty token; sign will be computed with empty string key
+        }
+
         const postUrl = `/web/v1/game/endfield/attendance`;
-        const result = await request('POST', postUrl, user, null);
+        const result = await request('POST', postUrl, user, null, token);
 
         if (result.code === 0) {
             // Success
