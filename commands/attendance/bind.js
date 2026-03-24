@@ -117,7 +117,7 @@ module.exports = {
                     discordId: discordId,
                     cred: encrypt(cred),
                     uid: uid,
-                    serverId: serverId
+                    serverId: serverId,
                 });
 
                 const embed = new EmbedBuilder()
