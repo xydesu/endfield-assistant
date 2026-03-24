@@ -60,7 +60,7 @@ module.exports = {
                 .setCustomId('jsonInput')
                 .setLabel("請貼上腳本生成的 JSON")
                 .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('{"cred": "...", "uid": "...", "serverId": "..."}')
+                .setPlaceholder('{"cred": "...", "uid": "...", "serverId": "...", "signToken": "..."}')
                 .setRequired(true);
 
             const firstActionRow = new ActionRowBuilder().addComponents(jsonInput);
@@ -90,6 +90,7 @@ module.exports = {
             let cred = config.cred;
             let uid = config.uid;
             let serverId = config.serverId;
+            let signToken = config.signToken || null;
 
             // Backward compatibility / robustness
             if (!uid && config.headers && config.headers['sk-game-role']) {
@@ -105,7 +106,7 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setColor('#e74c3c')
                     .setTitle('❌ 缺少必要欄位')
-                    .setDescription('無法解析 JSON。請確認您使用了最新的腳本並複製了完整內容 (需包含 cred, uid, serverId)。')
+                    .setDescription('無法解析 JSON。請確認您使用了最新的腳本並複製了完整內容 (需包含 cred, uid, serverId；signToken 為選填)。')
                     .setTimestamp();
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
@@ -117,7 +118,8 @@ module.exports = {
                     discordId: discordId,
                     cred: encrypt(cred),
                     uid: uid,
-                    serverId: serverId
+                    serverId: serverId,
+                    signToken: signToken ? encrypt(signToken) : null,
                 });
 
                 const embed = new EmbedBuilder()

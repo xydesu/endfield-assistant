@@ -1,8 +1,19 @@
 const https = require('https');
+const crypto = require('crypto');
 const User = require('../models/User');
 const { decrypt } = require('./encryption');
+const { PLATFORM, VNAME } = require('./constants');
 
 const REQUEST_TIMEOUT_MS = 15000;
+
+function computeSign(path, body, timestamp, signToken) {
+    // headerObj key names must match the server's expected sign format exactly
+    const headerObj = { platform: PLATFORM, timestamp: timestamp, dId: '', vName: VNAME };
+    const headersJson = JSON.stringify(headerObj);
+    const signString = path + body + timestamp + headersJson;
+    const hmacHex = crypto.createHmac('sha256', signToken).update(signString, 'utf8').digest('hex');
+    return crypto.createHash('md5').update(hmacHex, 'utf8').digest('hex');
+}
 
 async function request(method, endpoint, user, data = null) {
     return new Promise((resolve, reject) => {
@@ -21,8 +32,12 @@ async function request(method, endpoint, user, data = null) {
             Object.keys(data).forEach(key => url.searchParams.append(key, data[key]));
         }
 
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const bodyStr = (method === 'POST' && data) ? JSON.stringify(data) : '';
+        const decryptedSignToken = user.signToken ? decrypt(user.signToken) : null;
+
         const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
             'Accept': '*/*',
             'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
@@ -31,15 +46,19 @@ async function request(method, endpoint, user, data = null) {
             'sk-language': 'zh_Hant',
             'sk-game-role': `3_${user.uid}_${user.serverId}`,
             'cred': decrypt(user.cred),
-            'platform': '3',
-            'vName': '1.0.0',
-            'timestamp': Math.floor(Date.now() / 1000).toString(),
+            'platform': PLATFORM,
+            'vName': VNAME,
+            'timestamp': timestamp,
             'Origin': 'https://game.skport.com',
             'Connection': 'keep-alive',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-site'
         };
+
+        if (decryptedSignToken) {
+            headers['sign'] = computeSign(url.pathname, bodyStr, timestamp, decryptedSignToken);
+        }
 
         const options = {
             hostname: url.hostname,
@@ -82,7 +101,7 @@ async function request(method, endpoint, user, data = null) {
         req.on('close', () => clearTimeout(timer));
 
         if (method === 'POST' && data) {
-            req.write(JSON.stringify(data));
+            req.write(bodyStr);
         }
         req.end();
     });
@@ -90,8 +109,7 @@ async function request(method, endpoint, user, data = null) {
 
 async function signIn(user) {
     try {
-        const gameId = "3";
-        const postUrl = `/web/v1/game/endfield/attendance?gameId=${gameId}`;
+        const postUrl = `/web/v1/game/endfield/attendance`;
         const result = await request('POST', postUrl, user, null);
 
         if (result.code === 0) {

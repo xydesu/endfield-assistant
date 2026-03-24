@@ -27,6 +27,11 @@ const User = sequelize.define('users', {
         type: Sequelize.STRING, // Format: "YYYY-MM-DD"
         defaultValue: null,
     },
+    signToken: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+        defaultValue: null,
+    },
     isTag: {
         type: Sequelize.BOOLEAN,
         defaultValue: true,
