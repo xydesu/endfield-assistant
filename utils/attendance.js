@@ -1,5 +1,6 @@
 const https = require('https');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const User = require('../models/User');
 const { decrypt } = require('./encryption');
 const { PLATFORM, VNAME, USER_AGENT } = require('./constants');
@@ -41,23 +42,37 @@ async function refreshSignToken(user) {
         };
 
         const req = https.request(options, (res) => {
-            let body = '';
-            res.on('data', (chunk) => body += chunk);
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
             res.on('end', () => {
-                try {
-                    const json = JSON.parse(body);
-                    if (json.code === 0 && json.data && json.data.token) {
-                        resolve(json.data.token);
-                    } else {
+                const rawBuffer = Buffer.concat(chunks);
+                const encoding = (res.headers['content-encoding'] || '').toLowerCase();
+                const decompress = encoding === 'br'
+                    ? (buf, cb) => zlib.brotliDecompress(buf, cb)
+                    : (encoding === 'gzip' || encoding === 'deflate')
+                        ? (buf, cb) => zlib.unzip(buf, cb)
+                        : (buf, cb) => cb(null, buf);
+                decompress(rawBuffer, (err, decompressed) => {
+                    if (err) {
+                        reject(new Error(`Refresh response decompression failed: ${err.message}`));
+                        return;
+                    }
+                    const body = decompressed.toString('utf8');
+                    try {
+                        const json = JSON.parse(body);
+                        if (json.code === 0 && json.data && json.data.token) {
+                            resolve(json.data.token);
+                        } else {
+                            console.error('[refreshSignToken] uid=%s reqHeaders=%j status=%d resHeaders=%j body=%s',
+                                user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
+                            reject(new Error(`Refresh failed (Code: ${json.code}, Msg: ${json.message})`));
+                        }
+                    } catch (e) {
                         console.error('[refreshSignToken] uid=%s reqHeaders=%j status=%d resHeaders=%j body=%s',
                             user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
-                        reject(new Error(`Refresh failed (Code: ${json.code}, Msg: ${json.message})`));
+                        reject(new Error(`Refresh response parse error: ${e.message}`));
                     }
-                } catch (e) {
-                    console.error('[refreshSignToken] uid=%s reqHeaders=%j status=%d resHeaders=%j body=%s',
-                        user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
-                    reject(new Error(`Refresh response parse error: ${e.message}`));
-                }
+                });
             });
         });
 
@@ -123,28 +138,42 @@ async function request(method, endpoint, user, data = null, signToken = '') {
         };
 
         const req = https.request(options, (res) => {
-            let body = '';
-            res.on('data', (chunk) => body += chunk);
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
             res.on('end', () => {
-                // The API returns HTTP 403 with a JSON body for "Already Signed In" (code 10001)
-                if ((res.statusCode >= 200 && res.statusCode < 300) || res.statusCode === 403) {
-                    try {
-                        resolve(JSON.parse(body));
-                    } catch (e) {
-                        console.error('[request] %s %s parse error — reqHeaders=%j status=%d resHeaders=%j body=%s',
-                            method, url.toString(), sanitizeHeaders(headers), res.statusCode, res.headers, body.substring(0, 1000));
-                        if (body.trim().startsWith('<')) {
-                            reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
-                        } else {
-                            if (res.statusCode === 403) reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
-                            else resolve(body);
-                        }
+                const rawBuffer = Buffer.concat(chunks);
+                const encoding = (res.headers['content-encoding'] || '').toLowerCase();
+                const decompress = encoding === 'br'
+                    ? (buf, cb) => zlib.brotliDecompress(buf, cb)
+                    : (encoding === 'gzip' || encoding === 'deflate')
+                        ? (buf, cb) => zlib.unzip(buf, cb)
+                        : (buf, cb) => cb(null, buf);
+                decompress(rawBuffer, (err, decompressed) => {
+                    if (err) {
+                        console.error('[request] decompression error — encoding=%s err=%s', encoding, err.message);
+                        return reject(new Error(`Response decompression failed: ${err.message}`));
                     }
-                } else {
-                    console.error('[request] %s %s — reqHeaders=%j status=%d resHeaders=%j body=%s',
-                        method, url.toString(), sanitizeHeaders(headers), res.statusCode, res.headers, body.substring(0, 1000));
-                    reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
-                }
+                    const body = decompressed.toString('utf8');
+                    // The API returns HTTP 403 with a JSON body for "Already Signed In" (code 10001)
+                    if ((res.statusCode >= 200 && res.statusCode < 300) || res.statusCode === 403) {
+                        try {
+                            resolve(JSON.parse(body));
+                        } catch (e) {
+                            console.error('[request] %s %s parse error — reqHeaders=%j status=%d resHeaders=%j body=%s',
+                                method, url.toString(), sanitizeHeaders(headers), res.statusCode, res.headers, body.substring(0, 1000));
+                            if (body.trim().startsWith('<')) {
+                                reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
+                            } else {
+                                if (res.statusCode === 403) reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
+                                else resolve(body);
+                            }
+                        }
+                    } else {
+                        console.error('[request] %s %s — reqHeaders=%j status=%d resHeaders=%j body=%s',
+                            method, url.toString(), sanitizeHeaders(headers), res.statusCode, res.headers, body.substring(0, 1000));
+                        reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
+                    }
+                });
             });
         });
 
