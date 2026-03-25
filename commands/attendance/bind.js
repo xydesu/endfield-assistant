@@ -45,7 +45,7 @@ module.exports = {
             const [, , targetUserId] = interaction.customId.split(':');
             if (targetUserId && interaction.user.id !== targetUserId) {
                 const embed = new EmbedBuilder()
-                    .setColor('#e74c3c')
+                    .setColor(EMBED_COLOR)
                     .setTitle('❌ 權限不足')
                     .setDescription('只有指令使用者可以操作此按鈕。')
                     .setTimestamp();
@@ -79,7 +79,7 @@ module.exports = {
                 config = JSON.parse(jsonStr);
             } catch (e) {
                 const embed = new EmbedBuilder()
-                    .setColor('#e74c3c')
+                    .setColor(EMBED_COLOR)
                     .setTitle('❌ JSON 格式錯誤')
                     .setDescription('請確保您完整複製了腳本生成的內容。')
                     .setTimestamp();
@@ -103,7 +103,7 @@ module.exports = {
 
             if (!cred || !uid || !serverId) {
                 const embed = new EmbedBuilder()
-                    .setColor('#e74c3c')
+                    .setColor(EMBED_COLOR)
                     .setTitle('❌ 缺少必要欄位')
                     .setDescription('無法解析 JSON。請確認您使用了最新的腳本並複製了完整內容 (需包含 cred, uid, serverId)。')
                     .setTimestamp();
@@ -121,7 +121,7 @@ module.exports = {
                 });
 
                 const embed = new EmbedBuilder()
-                    .setColor('#2ecc71')
+                    .setColor(EMBED_COLOR)
                     .setTitle('✅ 綁定成功')
                     .setDescription(`UID: \`${uid}\`\nServer ID: \`${serverId}\`\n\n您可以繼續使用 \`/schedule\` 設定每日自動簽到時間。`)
                     .setTimestamp();
@@ -129,7 +129,7 @@ module.exports = {
             } catch (error) {
                 console.error(error);
                 const embed = new EmbedBuilder()
-                    .setColor('#e74c3c')
+                    .setColor(EMBED_COLOR)
                     .setTitle('❌ 綁定失敗')
                     .setDescription('資料庫發生錯誤，請稍後再試。')
                     .setTimestamp();

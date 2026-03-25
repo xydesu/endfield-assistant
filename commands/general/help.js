@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EMBED_COLOR } = require('../../utils/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -6,7 +7,7 @@ module.exports = {
         .setDescription('列出所有指令'),
     async execute(interaction) {
         const embed = new EmbedBuilder()
-            .setColor('#0099ff')
+            .setColor(EMBED_COLOR)
             .setTitle('📜 使用說明')
             .setDescription('以下是目前可用的指令列表：')
             .addFields(
