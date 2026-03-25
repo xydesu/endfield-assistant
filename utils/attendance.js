@@ -81,7 +81,7 @@ async function request(method, endpoint, user, data = null, signToken = '') {
         const bodyStr = (method === 'POST' && data) ? JSON.stringify(data) : '';
 
         const headers = {
-            'User-Agent': USER_AGENT,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
             'Accept': '*/*',
             'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
@@ -93,8 +93,7 @@ async function request(method, endpoint, user, data = null, signToken = '') {
             'platform': PLATFORM,
             'vName': VNAME,
             'timestamp': timestamp,
-            // SKPort API validates signature against the full path including query parameters
-            'sign': computeSign(url.pathname + url.search, bodyStr, timestamp, signToken),
+            'sign': computeSign(url.pathname, bodyStr, timestamp, signToken),
             'Origin': 'https://game.skport.com',
             'Connection': 'keep-alive',
             'Sec-Fetch-Dest': 'empty',
