@@ -11,8 +11,8 @@ module.exports = {
             const Server = require('../models/Server');
             const scheduler = require('../utils/scheduler');
 
-            await User.sync();
-            await Server.sync();
+            await User.sync({ alter: true });
+            await Server.sync({ alter: true });
             console.log('Database synced');
 
             await scheduler.initScheduler(client);
