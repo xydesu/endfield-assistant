@@ -90,9 +90,12 @@ async function request(method, endpoint, user, data = null, signToken = '') {
 
         const timestamp = Math.floor(Date.now() / 1000).toString();
         const bodyStr = (method === 'POST' && data) ? JSON.stringify(data) : '';
+        // For GET requests the sign uses the query string (without leading '?');
+        // for POST requests it uses the JSON body — matching the website's sign algorithm.
+        const signBody = (method === 'GET') ? (url.search ? url.search.slice(1) : '') : bodyStr;
 
         const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+            'User-Agent': USER_AGENT,
             'Accept': '*/*',
             'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
@@ -104,7 +107,7 @@ async function request(method, endpoint, user, data = null, signToken = '') {
             'platform': PLATFORM,
             'vName': VNAME,
             'timestamp': timestamp,
-            'sign': computeSign(url.pathname, bodyStr, timestamp, signToken),
+            'sign': computeSign(url.pathname, signBody, timestamp, signToken),
             'Origin': 'https://game.skport.com',
             'Connection': 'keep-alive',
             'Sec-Fetch-Dest': 'empty',
