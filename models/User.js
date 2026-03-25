@@ -35,6 +35,18 @@ const User = sequelize.define('users', {
         type: Sequelize.STRING,
         allowNull: true,
     },
+    staminaNotify: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
+    },
+    staminaThreshold: {
+        type: Sequelize.INTEGER, // Percentage (1–99) of maxStamina to trigger notification
+        defaultValue: 80,
+    },
+    staminaNotified: {
+        type: Sequelize.BOOLEAN, // True once notified; reset when stamina drops back below threshold
+        defaultValue: false,
+    },
 });
 
 module.exports = User;

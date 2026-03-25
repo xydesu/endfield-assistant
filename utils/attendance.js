@@ -236,4 +236,88 @@ function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordU
     return embed;
 }
 
-module.exports = { signIn, buildAttendanceEmbed };
+async function getCardDetail(user) {
+    try {
+        let token = '';
+        try {
+            token = await refreshSignToken(user);
+        } catch (e) {
+            console.error(`[${user.uid}] Token refresh failed for card detail: ${e.message}`);
+        }
+
+        const url = new URL('/api/v1/game/endfield/card/detail', 'https://zonai.skport.com');
+        url.searchParams.set('roleId', user.uid);
+        url.searchParams.set('serverId', user.serverId);
+        url.searchParams.set('userId', user.uid);
+
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const sign = computeSign(url.pathname, /* body= */ '', timestamp, token);
+
+        const result = await new Promise((resolve, reject) => {
+            const options = {
+                hostname: url.hostname,
+                path: url.pathname + url.search,
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+                    'Accept': '*/*',
+                    'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Referer': 'https://game.skport.com/',
+                    'Content-Type': 'application/json',
+                    'sk-language': 'zh_Hant',
+                    'cred': decrypt(user.cred),
+                    'platform': PLATFORM,
+                    'vName': VNAME,
+                    'timestamp': timestamp,
+                    'sign': sign,
+                    'Origin': 'https://game.skport.com',
+                    'Connection': 'keep-alive',
+                    'Sec-Fetch-Dest': 'empty',
+                    'Sec-Fetch-Mode': 'cors',
+                    'Sec-Fetch-Site': 'same-site',
+                },
+            };
+
+            const req = https.request(options, (res) => {
+                let body = '';
+                res.on('data', (chunk) => body += chunk);
+                res.on('end', () => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        try {
+                            resolve(JSON.parse(body));
+                        } catch (e) {
+                            reject(new Error(`Parse error: ${e.message}`));
+                        }
+                    } else {
+                        reject({ statusCode: res.statusCode, body: body.substring(0, 500) });
+                    }
+                });
+            });
+
+            const timer = setTimeout(() => {
+                req.destroy(new Error(`Card detail request timed out after ${REQUEST_TIMEOUT_MS}ms`));
+            }, REQUEST_TIMEOUT_MS);
+
+            req.on('error', (e) => { clearTimeout(timer); reject(e); });
+            req.on('close', () => clearTimeout(timer));
+            req.end();
+        });
+
+        if (result.code === 0 && result.data && result.data.detail) {
+            return { success: true, detail: result.data.detail };
+        } else {
+            return { success: false, message: `API 回傳錯誤: ${result.message ?? JSON.stringify(result).substring(0, 200)}` };
+        }
+    } catch (error) {
+        let errorMsg = error.message;
+        if (!errorMsg && error.body) {
+            errorMsg = `Status ${error.statusCode}: ${error.body}`;
+        } else if (!errorMsg) {
+            errorMsg = JSON.stringify(error);
+        }
+        return { success: false, message: `發生錯誤: ${errorMsg.substring(0, 500)}` };
+    }
+}
+
+module.exports = { signIn, buildAttendanceEmbed, getCardDetail };
