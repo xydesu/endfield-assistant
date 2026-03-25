@@ -50,7 +50,7 @@ async function runSignIn(userId, client) {
                         if (channel) {
                             const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, '📅 自動簽到報告', result, discordUser);
 
-                            const content = user.isTag ? `<@${userId}>` : '';
+                            const content = (!result.success || user.isTag) ? `<@${userId}>` : '';
                             await channel.send({ content: content, embeds: [embed] });
                         }
                     } catch (memberErr) {
