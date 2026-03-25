@@ -67,7 +67,7 @@ module.exports = {
                     { name: '📖 檔案', value: `${base.docNum}`, inline: true },
                     { name: '🔋 理智', value: staminaText, inline: false },
                     { name: '🏆 通行證', value: `Lv. ${bpSystem.curLevel} / ${bpSystem.maxLevel}`, inline: true },
-                    { name: '📋 活躍度', value: dailyMission ? `${dailyMission.score} / ${dailyMission.total}` : '—', inline: true },
+                    { name: '📋 活躍度', value: dailyMission ? `${dailyMission.dailyActivation} / ${dailyMission.maxDailyActivation}` : '—', inline: true },
                     { name: '📋 每周事務', value: `${weeklyMission.score} / ${weeklyMission.total}`, inline: true },
                     { name: '🏅 光榮之路', value: achieve ? `${achieve.count}` : '—', inline: true },
                 )
