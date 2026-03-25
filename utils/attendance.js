@@ -1,10 +1,18 @@
 const https = require('https');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const User = require('../models/User');
 const { decrypt } = require('./encryption');
-const { PLATFORM, VNAME } = require('./constants');
+const { PLATFORM, VNAME, USER_AGENT } = require('./constants');
 
 const REQUEST_TIMEOUT_MS = 15000;
+
+function sanitizeHeaders(headers) {
+    if (!headers || typeof headers !== 'object') return headers;
+    const out = { ...headers };
+    if ('cred' in out) out.cred = '[REDACTED]';
+    return out;
+}
 
 function computeSign(path, body, timestamp, token) {
     // headerObj key names must match the server's expected sign format exactly
@@ -23,7 +31,7 @@ async function refreshSignToken(user) {
             path: url.pathname,
             method: 'GET',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+                'User-Agent': USER_AGENT,
                 'Accept': 'application/json, text/plain, */*',
                 'cred': decrypt(user.cred),
                 'platform': PLATFORM,
@@ -34,19 +42,37 @@ async function refreshSignToken(user) {
         };
 
         const req = https.request(options, (res) => {
-            let body = '';
-            res.on('data', (chunk) => body += chunk);
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
             res.on('end', () => {
-                try {
-                    const json = JSON.parse(body);
-                    if (json.code === 0 && json.data && json.data.token) {
-                        resolve(json.data.token);
-                    } else {
-                        reject(new Error(`Refresh failed (Code: ${json.code}, Msg: ${json.message})`));
+                const rawBuffer = Buffer.concat(chunks);
+                const encoding = (res.headers['content-encoding'] || '').toLowerCase();
+                const decompress = encoding === 'br'
+                    ? (buf, cb) => zlib.brotliDecompress(buf, cb)
+                    : (encoding === 'gzip' || encoding === 'deflate')
+                        ? (buf, cb) => zlib.unzip(buf, cb)
+                        : (buf, cb) => cb(null, buf);
+                decompress(rawBuffer, (err, decompressed) => {
+                    if (err) {
+                        reject(new Error(`Refresh response decompression failed: ${err.message}`));
+                        return;
                     }
-                } catch (e) {
-                    reject(new Error(`Refresh response parse error: ${e.message}`));
-                }
+                    const body = decompressed.toString('utf8');
+                    try {
+                        const json = JSON.parse(body);
+                        if (json.code === 0 && json.data && json.data.token) {
+                            resolve(json.data.token);
+                        } else {
+                            console.error('[refreshSignToken] uid=%s reqHeaders=%j status=%d resHeaders=%j body=%s',
+                                user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
+                            reject(new Error(`Refresh failed (Code: ${json.code}, Msg: ${json.message})`));
+                        }
+                    } catch (e) {
+                        console.error('[refreshSignToken] uid=%s reqHeaders=%j status=%d resHeaders=%j body=%s',
+                            user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
+                        reject(new Error(`Refresh response parse error: ${e.message}`));
+                    }
+                });
             });
         });
 
@@ -79,9 +105,12 @@ async function request(method, endpoint, user, data = null, signToken = '') {
 
         const timestamp = Math.floor(Date.now() / 1000).toString();
         const bodyStr = (method === 'POST' && data) ? JSON.stringify(data) : '';
+        // For GET requests the sign uses the query string (without leading '?');
+        // for POST requests it uses the JSON body — matching the website's sign algorithm.
+        const signBody = (method === 'GET') ? (url.search ? url.search.slice(1) : '') : bodyStr;
 
         const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+            'User-Agent': USER_AGENT,
             'Accept': '*/*',
             'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
@@ -93,7 +122,7 @@ async function request(method, endpoint, user, data = null, signToken = '') {
             'platform': PLATFORM,
             'vName': VNAME,
             'timestamp': timestamp,
-            'sign': computeSign(url.pathname, bodyStr, timestamp, signToken),
+            'sign': computeSign(url.pathname, signBody, timestamp, signToken),
             'Origin': 'https://game.skport.com',
             'Connection': 'keep-alive',
             'Sec-Fetch-Dest': 'empty',
@@ -109,24 +138,42 @@ async function request(method, endpoint, user, data = null, signToken = '') {
         };
 
         const req = https.request(options, (res) => {
-            let body = '';
-            res.on('data', (chunk) => body += chunk);
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
             res.on('end', () => {
-                // The API returns HTTP 403 with a JSON body for "Already Signed In" (code 10001)
-                if ((res.statusCode >= 200 && res.statusCode < 300) || res.statusCode === 403) {
-                    try {
-                        resolve(JSON.parse(body));
-                    } catch (e) {
-                        if (body.trim().startsWith('<')) {
-                            reject({ statusCode: res.statusCode, body: body.substring(0, 500) });
-                        } else {
-                            if (res.statusCode === 403) reject({ statusCode: res.statusCode, body: body.substring(0, 500) });
-                            else resolve(body);
-                        }
+                const rawBuffer = Buffer.concat(chunks);
+                const encoding = (res.headers['content-encoding'] || '').toLowerCase();
+                const decompress = encoding === 'br'
+                    ? (buf, cb) => zlib.brotliDecompress(buf, cb)
+                    : (encoding === 'gzip' || encoding === 'deflate')
+                        ? (buf, cb) => zlib.unzip(buf, cb)
+                        : (buf, cb) => cb(null, buf);
+                decompress(rawBuffer, (err, decompressed) => {
+                    if (err) {
+                        console.error('[request] decompression error — encoding=%s err=%s', encoding, err.message);
+                        return reject(new Error(`Response decompression failed: ${err.message}`));
                     }
-                } else {
-                    reject({ statusCode: res.statusCode, body: body.substring(0, 500) });
-                }
+                    const body = decompressed.toString('utf8');
+                    // The API returns HTTP 403 with a JSON body for "Already Signed In" (code 10001)
+                    if ((res.statusCode >= 200 && res.statusCode < 300) || res.statusCode === 403) {
+                        try {
+                            resolve(JSON.parse(body));
+                        } catch (e) {
+                            console.error('[request] %s %s parse error — reqHeaders=%j status=%d resHeaders=%j body=%s',
+                                method, url.toString(), sanitizeHeaders(headers), res.statusCode, res.headers, body.substring(0, 1000));
+                            if (body.trim().startsWith('<')) {
+                                reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
+                            } else {
+                                if (res.statusCode === 403) reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
+                                else resolve(body);
+                            }
+                        }
+                    } else {
+                        console.error('[request] %s %s — reqHeaders=%j status=%d resHeaders=%j body=%s',
+                            method, url.toString(), sanitizeHeaders(headers), res.statusCode, res.headers, body.substring(0, 1000));
+                        reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
+                    }
+                });
             });
         });
 
@@ -208,6 +255,7 @@ async function signIn(user) {
         } else if (!errorMsg) {
             errorMsg = JSON.stringify(error);
         }
+        console.error(`[signIn] uid=${user.uid}`, error);
         return { success: false, message: `發生錯誤: ${errorMsg.substring(0, 1000)}` };
     }
 }
@@ -245,64 +293,8 @@ async function getCardDetail(user) {
             console.error(`[${user.uid}] Token refresh failed for card detail: ${e.message}`);
         }
 
-        const url = new URL('/api/v1/game/endfield/card/detail', 'https://zonai.skport.com');
-        url.searchParams.set('roleId', user.uid);
-        url.searchParams.set('serverId', user.serverId);
-        url.searchParams.set('userId', user.uid);
-
-        const timestamp = Math.floor(Date.now() / 1000).toString();
-        const sign = computeSign(url.pathname, /* body= */ '', timestamp, token);
-
-        const result = await new Promise((resolve, reject) => {
-            const options = {
-                hostname: url.hostname,
-                path: url.pathname + url.search,
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
-                    'Accept': '*/*',
-                    'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Referer': 'https://game.skport.com/',
-                    'Content-Type': 'application/json',
-                    'sk-language': 'zh_Hant',
-                    'cred': decrypt(user.cred),
-                    'platform': PLATFORM,
-                    'vName': VNAME,
-                    'timestamp': timestamp,
-                    'sign': sign,
-                    'Origin': 'https://game.skport.com',
-                    'Connection': 'keep-alive',
-                    'Sec-Fetch-Dest': 'empty',
-                    'Sec-Fetch-Mode': 'cors',
-                    'Sec-Fetch-Site': 'same-site',
-                },
-            };
-
-            const req = https.request(options, (res) => {
-                let body = '';
-                res.on('data', (chunk) => body += chunk);
-                res.on('end', () => {
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        try {
-                            resolve(JSON.parse(body));
-                        } catch (e) {
-                            reject(new Error(`Parse error: ${e.message}`));
-                        }
-                    } else {
-                        reject({ statusCode: res.statusCode, body: body.substring(0, 500) });
-                    }
-                });
-            });
-
-            const timer = setTimeout(() => {
-                req.destroy(new Error(`Card detail request timed out after ${REQUEST_TIMEOUT_MS}ms`));
-            }, REQUEST_TIMEOUT_MS);
-
-            req.on('error', (e) => { clearTimeout(timer); reject(e); });
-            req.on('close', () => clearTimeout(timer));
-            req.end();
-        });
+        const result = await request('GET', '/api/v1/game/endfield/card/detail', user,
+            { roleId: user.uid, serverId: user.serverId }, token);
 
         if (result.code === 0 && result.data && result.data.detail) {
             return { success: true, detail: result.data.detail };
@@ -316,6 +308,7 @@ async function getCardDetail(user) {
         } else if (!errorMsg) {
             errorMsg = JSON.stringify(error);
         }
+        console.error(`[getCardDetail] uid=${user.uid}`, error);
         return { success: false, message: `發生錯誤: ${errorMsg.substring(0, 500)}` };
     }
 }
