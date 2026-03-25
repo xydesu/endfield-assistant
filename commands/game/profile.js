@@ -33,7 +33,7 @@ module.exports = {
             return interaction.editReply({ embeds: [embed] });
         }
 
-        const { base, bpSystem, dungeon, weeklyMission } = result.detail;
+        const { base, bpSystem, dungeon, dailyMission, weeklyMission } = result.detail;
 
         // Stamina time-to-full calculation
         const curStamina = parseInt(dungeon.curStamina);
@@ -66,6 +66,7 @@ module.exports = {
                 { name: '📖 圖鑑', value: `${base.docNum}`, inline: true },
                 { name: '🔋 理智', value: staminaText, inline: false },
                 { name: '🏆 戰鬥通行證', value: `Lv. ${bpSystem.curLevel} / ${bpSystem.maxLevel}`, inline: true },
+                { name: '📋 每日任務', value: dailyMission ? `${dailyMission.score} / ${dailyMission.total}` : '—', inline: true },
                 { name: '📋 每週任務', value: `${weeklyMission.score} / ${weeklyMission.total}`, inline: true },
             )
             .setFooter({ text: `主線進度：${base.mainMission?.description ?? '—'}` })
