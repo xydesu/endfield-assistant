@@ -213,14 +213,11 @@ async function signIn(user) {
 }
 
 function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordUser = null) {
+    const fullTitle = discordUser ? `${title} | @${discordUser.username}` : title;
     const embed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle(title)
+        .setTitle(fullTitle)
         .setTimestamp();
-
-    if (discordUser) {
-        embed.setAuthor({ name: discordUser.username, iconURL: discordUser.displayAvatarURL() });
-    }
 
     if (result.awards && result.awards.length > 0) {
         const awardsText = result.awards.map(a => `• ${a.name} x${a.count}`).join('\n');
