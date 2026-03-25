@@ -2,7 +2,7 @@ const https = require('https');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { decrypt } = require('./encryption');
-const { PLATFORM, VNAME } = require('./constants');
+const { PLATFORM, VNAME, USER_AGENT } = require('./constants');
 
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -23,7 +23,7 @@ async function refreshSignToken(user) {
             path: url.pathname,
             method: 'GET',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+                'User-Agent': USER_AGENT,
                 'Accept': 'application/json, text/plain, */*',
                 'cred': decrypt(user.cred),
                 'platform': PLATFORM,
@@ -81,7 +81,7 @@ async function request(method, endpoint, user, data = null, signToken = '') {
         const bodyStr = (method === 'POST' && data) ? JSON.stringify(data) : '';
 
         const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+            'User-Agent': USER_AGENT,
             'Accept': '*/*',
             'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
@@ -93,7 +93,8 @@ async function request(method, endpoint, user, data = null, signToken = '') {
             'platform': PLATFORM,
             'vName': VNAME,
             'timestamp': timestamp,
-            'sign': computeSign(url.pathname, bodyStr, timestamp, signToken),
+            // SKPort API validates signature against the full path including query parameters
+            'sign': computeSign(url.pathname + url.search, bodyStr, timestamp, signToken),
             'Origin': 'https://game.skport.com',
             'Connection': 'keep-alive',
             'Sec-Fetch-Dest': 'empty',
@@ -248,10 +249,9 @@ async function getCardDetail(user) {
         const url = new URL('/api/v1/game/endfield/card/detail', 'https://zonai.skport.com');
         url.searchParams.set('roleId', user.uid);
         url.searchParams.set('serverId', user.serverId);
-        url.searchParams.set('userId', user.uid);
 
         const timestamp = Math.floor(Date.now() / 1000).toString();
-        const sign = computeSign(url.pathname, /* body= */ '', timestamp, token);
+        const sign = computeSign(url.pathname + url.search, /* body= */ '', timestamp, token);
 
         const result = await new Promise((resolve, reject) => {
             const options = {
@@ -259,10 +259,10 @@ async function getCardDetail(user) {
                 path: url.pathname + url.search,
                 method: 'GET',
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0',
+                    'User-Agent': USER_AGENT,
                     'Accept': '*/*',
                     'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Accept-Encoding': 'gzip, deflate, br, zstd',
                     'Referer': 'https://game.skport.com/',
                     'Content-Type': 'application/json',
                     'sk-language': 'zh_Hant',
