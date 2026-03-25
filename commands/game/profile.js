@@ -33,7 +33,7 @@ module.exports = {
             return interaction.editReply({ embeds: [embed] });
         }
 
-        const { base, bpSystem, dungeon, dailyMission, weeklyMission } = result.detail;
+        const { base, bpSystem, dungeon, dailyMission, weeklyMission, achieve } = result.detail;
 
         // Stamina time-to-full calculation
         const curStamina = parseInt(dungeon.curStamina);
@@ -61,13 +61,14 @@ module.exports = {
                 { name: '🌐 伺服器', value: base.serverName ?? '—', inline: true },
                 { name: '📊 等級', value: `Lv. ${base.level}`, inline: true },
                 { name: '🌍 世界等級', value: `${base.worldLevel}`, inline: true },
-                { name: '👥 幹員數量', value: `${base.charNum}`, inline: true },
-                { name: '⚔️ 武器數量', value: `${base.weaponNum}`, inline: true },
-                { name: '📖 圖鑑', value: `${base.docNum}`, inline: true },
+                { name: '👥 幹員', value: `${base.charNum}`, inline: true },
+                { name: '⚔️ 武器', value: `${base.weaponNum}`, inline: true },
+                { name: '📖 檔案', value: `${base.docNum}`, inline: true },
                 { name: '🔋 理智', value: staminaText, inline: false },
-                { name: '🏆 戰鬥通行證', value: `Lv. ${bpSystem.curLevel} / ${bpSystem.maxLevel}`, inline: true },
-                { name: '📋 每日任務', value: dailyMission ? `${dailyMission.score} / ${dailyMission.total}` : '—', inline: true },
-                { name: '📋 每週任務', value: `${weeklyMission.score} / ${weeklyMission.total}`, inline: true },
+                { name: '🏆 通行證', value: `Lv. ${bpSystem.curLevel} / ${bpSystem.maxLevel}`, inline: true },
+                { name: '📋 活躍度', value: dailyMission ? `${dailyMission.score} / ${dailyMission.total}` : '—', inline: true },
+                { name: '📋 每周事務', value: `${weeklyMission.score} / ${weeklyMission.total}`, inline: true },
+                { name: '🏅 光榮之路', value: achieve ? `${achieve.count}` : '—', inline: true },
             )
             .setFooter({ text: `主線進度：${base.mainMission?.description ?? '—'}` })
             .setTimestamp();
