@@ -261,67 +261,8 @@ async function getCardDetail(user) {
             console.error(`[${user.uid}] Token refresh failed for card detail: ${e.message}`);
         }
 
-        const url = new URL('/api/v1/game/endfield/card/detail', 'https://zonai.skport.com');
-        url.searchParams.set('roleId', user.uid);
-        url.searchParams.set('serverId', user.serverId);
-
-        const timestamp = Math.floor(Date.now() / 1000).toString();
-        const sign = computeSign(url.pathname + url.search, /* body= */ '', timestamp, token);
-
-        const result = await new Promise((resolve, reject) => {
-            const options = {
-                hostname: url.hostname,
-                path: url.pathname + url.search,
-                method: 'GET',
-                headers: {
-                    'User-Agent': USER_AGENT,
-                    'Accept': '*/*',
-                    'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-                    'Accept-Encoding': 'gzip, deflate, br, zstd',
-                    'Referer': 'https://game.skport.com/',
-                    'Content-Type': 'application/json',
-                    'sk-language': 'zh_Hant',
-                    'cred': decrypt(user.cred),
-                    'platform': PLATFORM,
-                    'vName': VNAME,
-                    'timestamp': timestamp,
-                    'sign': sign,
-                    'Origin': 'https://game.skport.com',
-                    'Connection': 'keep-alive',
-                    'Sec-Fetch-Dest': 'empty',
-                    'Sec-Fetch-Mode': 'cors',
-                    'Sec-Fetch-Site': 'same-site',
-                },
-            };
-
-            const req = https.request(options, (res) => {
-                let body = '';
-                res.on('data', (chunk) => body += chunk);
-                res.on('end', () => {
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        try {
-                            resolve(JSON.parse(body));
-                        } catch (e) {
-                            console.error('[getCardDetail] uid=%s parse error — reqHeaders=%j status=%d resHeaders=%j body=%s',
-                                user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
-                            reject(new Error(`Parse error: ${e.message}`));
-                        }
-                    } else {
-                        console.error('[getCardDetail] uid=%s — reqHeaders=%j status=%d resHeaders=%j body=%s',
-                            user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
-                        reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
-                    }
-                });
-            });
-
-            const timer = setTimeout(() => {
-                req.destroy(new Error(`Card detail request timed out after ${REQUEST_TIMEOUT_MS}ms`));
-            }, REQUEST_TIMEOUT_MS);
-
-            req.on('error', (e) => { clearTimeout(timer); reject(e); });
-            req.on('close', () => clearTimeout(timer));
-            req.end();
-        });
+        const result = await request('GET', '/api/v1/game/endfield/card/detail', user,
+            { roleId: user.uid, serverId: user.serverId }, token);
 
         if (result.code === 0 && result.data && result.data.detail) {
             return { success: true, detail: result.data.detail };
