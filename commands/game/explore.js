@@ -72,7 +72,7 @@ module.exports = {
             const moneyMgr = domain.moneyMgr;
             if (moneyMgr) {
                 embed.addFields({
-                    name: '💰 結算站資金',
+                    name: `💰 ${domain.name}調度卷`,
                     value: `${parseInt(moneyMgr.count).toLocaleString()} / ${parseInt(moneyMgr.total).toLocaleString()}`,
                     inline: false,
                 });
