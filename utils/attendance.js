@@ -315,6 +315,7 @@ async function getCardDetail(user) {
         } else if (!errorMsg) {
             errorMsg = JSON.stringify(error);
         }
+        console.error(`[getCardDetail] uid=${user.uid}`, error);
         return { success: false, message: `發生錯誤: ${errorMsg.substring(0, 500)}` };
     }
 }
