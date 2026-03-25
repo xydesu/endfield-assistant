@@ -6,6 +6,13 @@ const { PLATFORM, VNAME, USER_AGENT } = require('./constants');
 
 const REQUEST_TIMEOUT_MS = 15000;
 
+function sanitizeHeaders(headers) {
+    if (!headers || typeof headers !== 'object') return headers;
+    const out = { ...headers };
+    if ('cred' in out) out.cred = '[REDACTED]';
+    return out;
+}
+
 function computeSign(path, body, timestamp, token) {
     // headerObj key names must match the server's expected sign format exactly
     const headerObj = { platform: PLATFORM, timestamp: timestamp, dId: '', vName: VNAME };
@@ -42,13 +49,13 @@ async function refreshSignToken(user) {
                     if (json.code === 0 && json.data && json.data.token) {
                         resolve(json.data.token);
                     } else {
-                        console.error('[refreshSignToken] uid=%s status=%d headers=%j body=%s',
-                            user.uid, res.statusCode, res.headers, body.substring(0, 1000));
+                        console.error('[refreshSignToken] uid=%s reqHeaders=%j status=%d resHeaders=%j body=%s',
+                            user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
                         reject(new Error(`Refresh failed (Code: ${json.code}, Msg: ${json.message})`));
                     }
                 } catch (e) {
-                    console.error('[refreshSignToken] uid=%s status=%d headers=%j body=%s',
-                        user.uid, res.statusCode, res.headers, body.substring(0, 1000));
+                    console.error('[refreshSignToken] uid=%s reqHeaders=%j status=%d resHeaders=%j body=%s',
+                        user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
                     reject(new Error(`Refresh response parse error: ${e.message}`));
                 }
             });
@@ -121,8 +128,8 @@ async function request(method, endpoint, user, data = null, signToken = '') {
                     try {
                         resolve(JSON.parse(body));
                     } catch (e) {
-                        console.error('[request] %s %s parse error — status=%d headers=%j body=%s',
-                            method, url.toString(), res.statusCode, res.headers, body.substring(0, 1000));
+                        console.error('[request] %s %s parse error — reqHeaders=%j status=%d resHeaders=%j body=%s',
+                            method, url.toString(), sanitizeHeaders(headers), res.statusCode, res.headers, body.substring(0, 1000));
                         if (body.trim().startsWith('<')) {
                             reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
                         } else {
@@ -131,8 +138,8 @@ async function request(method, endpoint, user, data = null, signToken = '') {
                         }
                     }
                 } else {
-                    console.error('[request] %s %s — status=%d headers=%j body=%s',
-                        method, url.toString(), res.statusCode, res.headers, body.substring(0, 1000));
+                    console.error('[request] %s %s — reqHeaders=%j status=%d resHeaders=%j body=%s',
+                        method, url.toString(), sanitizeHeaders(headers), res.statusCode, res.headers, body.substring(0, 1000));
                     reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
                 }
             });
@@ -295,13 +302,13 @@ async function getCardDetail(user) {
                         try {
                             resolve(JSON.parse(body));
                         } catch (e) {
-                            console.error('[getCardDetail] uid=%s parse error — status=%d headers=%j body=%s',
-                                user.uid, res.statusCode, res.headers, body.substring(0, 1000));
+                            console.error('[getCardDetail] uid=%s parse error — reqHeaders=%j status=%d resHeaders=%j body=%s',
+                                user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
                             reject(new Error(`Parse error: ${e.message}`));
                         }
                     } else {
-                        console.error('[getCardDetail] uid=%s — status=%d headers=%j body=%s',
-                            user.uid, res.statusCode, res.headers, body.substring(0, 1000));
+                        console.error('[getCardDetail] uid=%s — reqHeaders=%j status=%d resHeaders=%j body=%s',
+                            user.uid, sanitizeHeaders(options.headers), res.statusCode, res.headers, body.substring(0, 1000));
                         reject({ statusCode: res.statusCode, headers: res.headers, body: body.substring(0, 500) });
                     }
                 });
