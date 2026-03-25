@@ -25,7 +25,7 @@ module.exports = {
         const result = await signIn(user);
 
         if (result.success) {
-            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, '✅ 簽到成功', result);
+            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, '✅ 簽到成功', result, interaction.user);
             await interaction.editReply({ embeds: [embed] });
         } else {
             const embed = new EmbedBuilder()

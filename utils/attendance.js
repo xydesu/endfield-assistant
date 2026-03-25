@@ -212,11 +212,15 @@ async function signIn(user) {
     }
 }
 
-function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result) {
+function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordUser = null) {
     const embed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
         .setTitle(title)
         .setTimestamp();
+
+    if (discordUser) {
+        embed.setAuthor({ name: discordUser.username, iconURL: discordUser.displayAvatarURL() });
+    }
 
     if (result.awards && result.awards.length > 0) {
         const awardsText = result.awards.map(a => `• ${a.name} x${a.count}`).join('\n');
@@ -224,7 +228,7 @@ function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result) {
         const firstIcon = result.awards.find(a => a.icon)?.icon;
         if (firstIcon) embed.setThumbnail(firstIcon);
     } else {
-        embed.setDescription(result.message);
+        embed.setDescription(result.message ?? '簽到成功！');
     }
 
     if (result.tomorrowAwards && result.tomorrowAwards.length > 0) {

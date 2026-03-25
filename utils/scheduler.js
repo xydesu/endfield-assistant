@@ -28,6 +28,13 @@ async function runSignIn(userId, client) {
         const Server = require('../models/Server');
         const guilds = client.guilds.cache;
 
+        let discordUser = null;
+        try {
+            discordUser = await client.users.fetch(userId);
+        } catch (e) {
+            // If fetch fails, author field will simply be omitted
+        }
+
         for (const [guildId, guild] of guilds) {
             try {
                 // Check if user scoped notifications to a specific guild
@@ -41,7 +48,7 @@ async function runSignIn(userId, client) {
                         await guild.members.fetch(userId);
                         const channel = guild.channels.cache.get(serverConfig.notifyChannelId);
                         if (channel) {
-                            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, '📅 自動簽到報告', result);
+                            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, '📅 自動簽到報告', result, discordUser);
 
                             const content = user.isTag ? `<@${userId}>` : '';
                             await channel.send({ content: content, embeds: [embed] });
