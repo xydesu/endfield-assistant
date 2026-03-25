@@ -6,9 +6,9 @@ const { EMBED_COLOR } = require('../../utils/constants');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('explore')
-        .setDescription('查詢各區域探索進度 (寶箱、謎題、暗箱等)'),
+        .setDescription('查詢各區域探索進度'),
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
 
         try {
             const discordId = interaction.user.id;

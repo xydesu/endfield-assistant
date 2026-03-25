@@ -8,7 +8,7 @@ module.exports = {
         .setName('profile')
         .setDescription('查詢玩家個人資料 (等級、理智、BP 等)'),
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
 
         try {
             const discordId = interaction.user.id;
