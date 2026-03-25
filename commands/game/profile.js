@@ -60,8 +60,8 @@ module.exports = {
                 .setThumbnail(base.avatarUrl ?? null)
                 .addFields(
                     { name: '🌐 伺服器', value: base.serverName ?? '—', inline: true },
-                    { name: '📊 等級', value: `Lv. ${base.level}`, inline: true },
-                    { name: '🌍 世界等級', value: `${base.worldLevel}`, inline: true },
+                    { name: '📊 權限等階', value: `Lv. ${base.level}`, inline: true },
+                    { name: '🌍 探索等級', value: `${base.worldLevel}`, inline: true },
                     { name: '👥 幹員', value: `${base.charNum}`, inline: true },
                     { name: '⚔️ 武器', value: `${base.weaponNum}`, inline: true },
                     { name: '📖 檔案', value: `${base.docNum}`, inline: true },
