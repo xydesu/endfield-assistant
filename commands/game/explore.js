@@ -54,11 +54,11 @@ module.exports = {
                 const piece = lv.pieceCount;
                 const equipChest = lv.equipTrchestCount;
                 const parts = [];
-                if (treasureChest.total > 0) parts.push(`箱:${treasureChest.count}/${treasureChest.total}`);
-                if (blackbox.total > 0) parts.push(`暗:${blackbox.count}/${blackbox.total}`);
-                if (puzzle.total > 0) parts.push(`謎:${puzzle.count}/${puzzle.total}`);
-                if (piece.total > 0) parts.push(`碎:${piece.count}/${piece.total}`);
-                if (equipChest.total > 0) parts.push(`裝:${equipChest.count}/${equipChest.total}`);
+                if (treasureChest.total > 0) parts.push(`儲藏箱:${treasureChest.count}/${treasureChest.total}`);
+                if (blackbox.total > 0) parts.push(`協議採錄樁:${blackbox.count}/${blackbox.total}`);
+                if (puzzle.total > 0) parts.push(`醚質:${puzzle.count}/${puzzle.total}`);
+                if (piece.total > 0) parts.push(`維修靈感點:${piece.count}/${piece.total}`);
+                if (equipChest.total > 0) parts.push(`裝備模板箱:${equipChest.count}/${equipChest.total}`);
                 const summary = parts.length > 0 ? parts.join(' ') : '—';
                 return `**${lv.name}**\n${summary}`;
             });
