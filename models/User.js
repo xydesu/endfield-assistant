@@ -31,6 +31,10 @@ const User = sequelize.define('users', {
         type: Sequelize.BOOLEAN,
         defaultValue: true,
     },
+    isStaminaTag: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: true,
+    },
     notifyGuildId: {
         type: Sequelize.STRING,
         allowNull: true,

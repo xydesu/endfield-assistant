@@ -134,7 +134,7 @@ async function sendStaminaNotification(user, curStamina, maxStamina, client) {
                                 .setTitle('🔋 體力快滿提醒')
                                 .setDescription(`您的體力已達 **${curStamina} / ${maxStamina}**，請記得消耗體力！`)
                                 .setTimestamp();
-                            const content = user.isTag ? `<@${user.discordId}>` : '';
+                            const content = user.isStaminaTag ? `<@${user.discordId}>` : '';
                             await channel.send({ content, embeds: [embed] });
                         }
                     } catch (memberErr) {
