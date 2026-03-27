@@ -131,8 +131,8 @@ async function sendStaminaNotification(user, curStamina, maxStamina, client) {
                         if (channel) {
                             const embed = new EmbedBuilder()
                                 .setColor(EMBED_COLOR)
-                                .setTitle('🔋 體力快滿提醒')
-                                .setDescription(`您的體力已達 **${curStamina} / ${maxStamina}**，請記得消耗體力！`)
+                                .setTitle('🔋 理智快滿提醒')
+                                .setDescription(`您的理智已達 **${curStamina} / ${maxStamina}**，請記得消耗理智！`)
                                 .setTimestamp();
                             const content = user.isStaminaTag ? `<@${user.discordId}>` : '';
                             await channel.send({ content, embeds: [embed] });
