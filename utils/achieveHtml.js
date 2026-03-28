@@ -3,14 +3,15 @@ const { URL } = require('url');
 
 const CSS_URL = 'https://gist.githubusercontent.com/xydesu/afe894a747f76f66eb4a1379ae711800/raw/3dc55df02c3ee9682c9c8b53a52ba8f510b83655/style.css';
 const CERTIFY_BADGE_URL = 'https://static.skport.com/skport-fe-static/skport-game-tools/images/certifyBg.135716.png';
+const CERTIFY_BADGE_CSS = `content: ""; position: absolute; width: 1.54028vw; height: 1.54028vw; background-image: url("${CERTIFY_BADGE_URL}"); background-size: contain; background-position: center center; background-repeat: no-repeat; top: 0.23696vw; left: 50%; transform: translateX(-50%);`;
 
-// Ordered slot class names matching the HTML template (top row then bottom row)
+// Ordered slot class names from the styled-components template (top row 1-5, bottom row 6-10)
 const SLOT_CLASSES = ['klgUbY', 'cwMmAm', 'fQkaca', 'llIOHZ', 'kktMxW', 'iXzQoF', 'iNfqxe', 'dLsQli', 'fvknSk', 'fuKGpv'];
 
-// Slots that already have ::after (certify badge) in the original CSS
+// Slots that already have ::after (certify badge) defined in the original CSS
 const ORIGINAL_CERTIFY_SLOTS = new Set(['fQkaca', 'llIOHZ', 'kktMxW']);
 
-let _cssCache = null;
+let cssCache = null;
 
 async function fetchText(url) {
     return new Promise((resolve, reject) => {
@@ -32,10 +33,15 @@ async function fetchText(url) {
 }
 
 async function getAchieveCSS() {
-    if (!_cssCache) {
-        _cssCache = await fetchText(CSS_URL);
+    if (!cssCache) {
+        cssCache = await fetchText(CSS_URL);
     }
-    return _cssCache;
+    return cssCache;
+}
+
+// Escape double quotes in a URL so it is safe to embed inside CSS url("…")
+function escapeCssUrl(url) {
+    return url.replace(/"/g, '%22');
 }
 
 function getMedalIconUrl(medal) {
@@ -78,7 +84,7 @@ async function generateAchieveHtml(achieve) {
         const iconUrl = getMedalIconUrl(medal);
 
         // Override ::before image
-        overrideCSS += `.${cls}::before { background-image: ${iconUrl ? `url("${iconUrl}")` : 'none'} !important; }\n`;
+        overrideCSS += `.${cls}::before { background-image: ${iconUrl ? `url("${escapeCssUrl(iconUrl)}")` : 'none'} !important; }\n`;
 
         // Handle ::after (certify badge)
         const hasCertify = medal?.achievementData?.canCertify === true;
@@ -87,7 +93,7 @@ async function generateAchieveHtml(achieve) {
                 overrideCSS += `.${cls}::after { content: none !important; }\n`;
             }
         } else if (hasCertify) {
-            overrideCSS += `.${cls}::after { content: ""; position: absolute; width: 1.54028vw; height: 1.54028vw; background-image: url("${CERTIFY_BADGE_URL}"); background-size: contain; background-position: center center; background-repeat: no-repeat; top: 0.23696vw; left: 50%; transform: translateX(-50%); }\n`;
+            overrideCSS += `.${cls}::after { ${CERTIFY_BADGE_CSS} }\n`;
         }
     });
 

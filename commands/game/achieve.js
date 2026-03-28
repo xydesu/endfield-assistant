@@ -66,7 +66,7 @@ module.exports = {
                 const attachment = new AttachmentBuilder(screenshot, { name: 'achieve.png' });
                 await interaction.editReply({ files: [attachment] });
             } finally {
-                if (browser) await browser.close().catch(() => {});
+                if (browser) await browser.close().catch((err) => console.error('[achieve] browser close error:', err));
             }
         } catch (error) {
             console.error('[achieve]', error);
