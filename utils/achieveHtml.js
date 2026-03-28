@@ -72,12 +72,19 @@ function getMedalIconUrl(medal) {
 function buildDisplayMedals(achieve) {
     const display = achieve.display || {};
     const medals = achieve.achieveMedals || [];
-    const result = [];
+    // result[slotIndex] where slotIndex 0-4 = top row (cols 0-4),
+    // slotIndex 5-9 = bottom row (cols 0-4)
+    const result = new Array(10).fill(null);
     for (let i = 1; i <= 10; i++) {
         const medalId = display[String(i)];
-        if (!medalId) { result.push(null); continue; }
+        if (!medalId) continue;
         const medal = medals.find((m) => m.achievementData.id === medalId);
-        result.push(medal || null);
+        // API slot numbers use column-major order (上下再來左右):
+        // slot 1 = (row 0, col 0), slot 2 = (row 1, col 0),
+        // slot 3 = (row 0, col 1), slot 4 = (row 1, col 1), …
+        const col = Math.floor((i - 1) / 2);
+        const row = (i - 1) % 2;
+        result[row * 5 + col] = medal || null;
     }
     return result;
 }
