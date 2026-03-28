@@ -1,6 +1,11 @@
 # Endfield Assistant
 
+[![Add to Discord](https://img.shields.io/badge/Add%20to%20Discord-Endfield%20Assistant-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1466362435782049817)
+[![Introduction Page](https://img.shields.io/badge/Introduction%20Page-繁中%20%2F%20EN-c8a85a?style=for-the-badge)](https://xydesu.github.io/endfield-assistant/)
+
 A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in portal](https://game.skport.com/endfield/sign-in).
+
+> 📖 **[View the introduction page (繁體中文 / English)](https://xydesu.github.io/endfield-assistant/)** for a full overview of features and usage.
 
 ---
 
@@ -28,7 +33,15 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 
 ---
 
-## Setup
+## Add the Bot
+
+To add the hosted bot to your server, use the invite link below — no self-hosting required:
+
+**👉 [Invite Endfield Assistant](https://discord.com/oauth2/authorize?client_id=1466362435782049817)**
+
+---
+
+## Self-Hosting Setup
 
 ### Prerequisites
 
