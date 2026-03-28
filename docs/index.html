@@ -3,22 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Endfield Assistant — A Discord bot for automating daily sign-ins on the Arknights: Endfield portal. | 自動化明日方舟：終熔紀元每日簽到的 Discord 機器人。" />
+  <meta name="description" content="Endfield Assistant — A Discord bot for automating daily sign-ins on the Arknights: Endfield portal. | 自動化明日方舟：終末地每日簽到的 Discord 機器人。" />
   <title>Endfield Assistant</title>
   <style>
     /* ── Base ─────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:          #0d0f14;
-      --bg-card:     #151820;
-      --bg-card2:    #1b1f2a;
-      --accent:      #c8a85a;
-      --accent2:     #4fc3f7;
-      --text:        #e2e5ef;
-      --text-muted:  #7a8299;
-      --border:      rgba(200,168,90,.25);
-      --radius:      10px;
+      /* 終末地核心色票 */
+      --bg:          #000000;      /* 純黑背景 */
+      --bg-card:     #0c0c0c;      /* 微亮的深灰區塊 */
+      --bg-card2:    #151515;
+      --accent:      #FFEA00;      /* 標誌性高對比黃色 */
+      --accent2:     #FFFFFF;      /* 副強調色改為純白 */
+      --text:        #e0e0e0;
+      --text-muted:  #7a7a7a;
+      --border:      #333333;      /* 硬線條 */
+      --border-light:#555555;
+      --radius:      0px;          /* 絕對不使用圓角 */
       --font:        'Segoe UI', 'Noto Sans TC', system-ui, sans-serif;
     }
 
@@ -28,232 +30,247 @@
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
-      line-height: 1.7;
+      line-height: 1.6;
       min-height: 100vh;
+      /* 加入極其隱微的網格背景增加科技感 */
+      background-image: linear-gradient(var(--bg-card) 1px, transparent 1px),
+                        linear-gradient(90deg, var(--bg-card) 1px, transparent 1px);
+      background-size: 40px 40px;
     }
 
-    a { color: var(--accent2); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    a { color: var(--accent); text-decoration: none; transition: .2s; }
+    a:hover { color: #fff; }
 
     /* ── Layout helpers ───────────────────────────────────── */
-    .container { max-width: 960px; margin: 0 auto; padding: 0 20px; }
-    section { padding: 72px 0; }
-    section + section { border-top: 1px solid var(--border); }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 80px 0; position: relative; }
+    section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 1px;
+      background: var(--border);
+    }
 
     /* ── Nav ──────────────────────────────────────────────── */
     nav {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(13,15,20,.92);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(5px);
+      border-bottom: 2px solid var(--accent); /* 底部加上粗黃線 */
     }
     .nav-inner {
       display: flex; align-items: center; justify-content: space-between;
-      height: 58px;
+      height: 64px;
     }
     .nav-logo {
-      font-size: 1.05rem; font-weight: 700;
-      color: var(--accent); letter-spacing: .04em;
+      font-size: 1.2rem; font-weight: 900;
+      color: var(--accent); letter-spacing: 0.1em;
+      text-transform: uppercase;
     }
-    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-logo::before { content: '■ '; color: #fff; }
+
+    .nav-links { display: flex; gap: 32px; align-items: center; }
     .nav-links a {
-      color: var(--text-muted); font-size: .88rem;
-      transition: color .2s;
+      color: var(--text); font-size: 0.85rem; font-weight: 700;
+      letter-spacing: 0.05em; text-transform: uppercase;
     }
-    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .nav-links a:hover { color: var(--accent); }
 
     /* Language switcher */
     .lang-switch {
-      display: flex; gap: 6px;
-      background: var(--bg-card2);
+      display: flex;
+      background: transparent;
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 3px;
     }
     .lang-btn {
       background: transparent; border: none; cursor: pointer;
-      color: var(--text-muted); font-size: .78rem; font-weight: 600;
-      padding: 3px 10px; border-radius: 14px;
-      transition: background .2s, color .2s;
+      color: var(--text-muted); font-size: .75rem; font-weight: 700;
+      padding: 6px 14px;
+      transition: all .2s;
+      text-transform: uppercase;
     }
-    .lang-btn.active {
-      background: var(--accent);
-      color: #0d0f14;
-    }
+    .lang-btn.active { background: var(--text); color: var(--bg); }
+    .lang-btn:not(.active):hover { color: var(--accent); }
 
     /* ── Hero ─────────────────────────────────────────────── */
     .hero {
-      text-align: center;
-      padding: 96px 0 80px;
-      background: radial-gradient(ellipse 80% 55% at 50% 0%, rgba(200,168,90,.10) 0%, transparent 70%);
+      text-align: left; /* 改為靠左對齊，更有排版張力 */
+      padding: 120px 0 100px;
+      position: relative;
+      background-color: white;
+      color: #000;
     }
+    /* 裝飾性大字 */
+    .hero::after {
+      content: 'ENDFIELD';
+      position: absolute;
+      top: 20%; right: 5%;
+      font-size: 12vw; font-weight: 900;
+      color: rgba(255,255,255,0.02);
+      z-index: -1; pointer-events: none;
+    }
+
     .hero-badge {
-      display: inline-flex; align-items: center; gap: 7px;
-      background: rgba(200,168,90,.12); border: 1px solid var(--border);
-      border-radius: 20px; padding: 5px 14px;
-      font-size: .75rem; color: var(--accent); letter-spacing: .06em;
-      text-transform: uppercase; font-weight: 700;
-      margin-bottom: 22px;
-    }
-    .hero-badge .dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--accent); animation: pulse 1.6s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: .3; }
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--accent); color: #000;
+      padding: 4px 12px;
+      font-size: .75rem; font-weight: 800; letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 30px;
     }
     .hero h1 {
-      font-size: clamp(2rem, 5vw, 3rem);
-      font-weight: 800; letter-spacing: -.01em;
-      background: linear-gradient(135deg, var(--accent) 0%, #e8d4a0 50%, var(--accent2) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 16px;
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 900; letter-spacing: 0.05em;
+      color: #000; text-transform: uppercase;
+      margin-bottom: 24px; line-height: 1.1;
     }
     .hero-sub {
-      font-size: 1.05rem; color: var(--text-muted);
-      max-width: 520px; margin: 0 auto 36px;
+      font-size: 1.1rem; color: var(--text-muted);
+      max-width: 600px; margin: 0 0 48px;
+      border-left: 4px solid var(--accent);
+      padding-left: 16px;
     }
-    .btn-group { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn-group { display: flex; gap: 20px; flex-wrap: wrap; }
+    
     .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 13px 28px; border-radius: var(--radius);
-      font-weight: 700; font-size: .95rem; cursor: pointer;
-      border: none; transition: transform .15s, box-shadow .15s;
-      text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px 32px; font-weight: 800; font-size: 0.9rem;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      cursor: pointer; border: none; transition: all .2s;
+      position: relative;
     }
-    .btn:hover { transform: translateY(-2px); text-decoration: none; }
+    /* 切角視覺效果 */
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent), #e8d4a0);
-      color: #0d0f14;
-      box-shadow: 0 4px 18px rgba(200,168,90,.30);
+      background: var(--accent); color: #000;
     }
-    .btn-primary:hover { box-shadow: 0 6px 24px rgba(200,168,90,.45); }
+    .btn-primary:hover { background: #000; }
+    
     .btn-secondary {
-      background: var(--bg-card2);
-      color: var(--text);
-      border: 1px solid var(--border);
+      background: transparent; color: #000;
+      border: 1px solid var(--border-light);
     }
     .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
 
-    /* Discord icon SVG inline */
-    .icon-discord { width: 20px; height: 20px; fill: currentColor; }
-    .icon-github  { width: 18px; height: 18px; fill: currentColor; }
+    .icon-discord, .icon-github { width: 18px; height: 18px; fill: currentColor; }
+
+    /* ── Sections Common ──────────────────────────────────── */
+    .section-label {
+      font-size: .85rem; font-weight: 800; letter-spacing: 0.2em;
+      color: var(--accent); margin-bottom: 16px;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+    /* 加入終界招牌的 // 符號 */
+    .section-label::before { content: '// '; color: #fff; }
+    
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 20px;
+    }
+    .section-desc { color: var(--text-muted); max-width: 600px; font-size: 1rem; }
 
     /* ── Features ─────────────────────────────────────────── */
-    .section-label {
-      font-size: .72rem; font-weight: 700; letter-spacing: .12em;
-      text-transform: uppercase; color: var(--accent);
-      margin-bottom: 10px;
-    }
-    .section-title {
-      font-size: clamp(1.45rem, 3.5vw, 2rem);
-      font-weight: 800; margin-bottom: 14px;
-    }
-    .section-desc { color: var(--text-muted); max-width: 560px; font-size: .95rem; }
-
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 18px;
-      margin-top: 48px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1px; /* 用 gap 做粗框線效果 */
+      background: var(--border); 
+      border: 1px solid var(--border);
+      margin-top: 60px;
     }
     .feature-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px 22px;
-      transition: border-color .2s, transform .2s;
+      background: var(--bg);
+      padding: 32px 24px;
+      position: relative;
+      transition: all .2s;
     }
-    .feature-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    /* 左上角科技感裝飾小方塊 */
+    .feature-card::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 12px; height: 12px; background: var(--border);
+      transition: all .2s;
+    }
+    .feature-card:hover { background: var(--bg-card); }
+    .feature-card:hover::before { background: var(--accent); }
+
     .feature-icon {
-      width: 42px; height: 42px; border-radius: 10px;
-      background: rgba(200,168,90,.12);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.3rem; margin-bottom: 14px;
+      font-size: 1.8rem; margin-bottom: 20px; color: var(--accent);
     }
-    .feature-card h3 { font-size: .95rem; font-weight: 700; margin-bottom: 7px; }
-    .feature-card p { font-size: .85rem; color: var(--text-muted); line-height: 1.6; }
+    .feature-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .feature-card p { font-size: 0.9rem; color: var(--text-muted); }
 
     /* ── Commands ─────────────────────────────────────────── */
-    .commands-wrap { margin-top: 40px; overflow-x: auto; }
-    table {
-      width: 100%; border-collapse: collapse;
-      font-size: .875rem;
-    }
+    .commands-wrap { margin-top: 50px; overflow-x: auto; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     thead th {
-      text-align: left; padding: 10px 16px;
-      border-bottom: 2px solid var(--border);
-      color: var(--accent); font-size: .75rem;
-      letter-spacing: .08em; text-transform: uppercase;
+      text-align: left; padding: 16px 20px;
+      background: var(--bg-card); border-bottom: 1px solid var(--border-light);
+      color: #fff; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
     }
     tbody td {
-      padding: 11px 16px; border-bottom: 1px solid rgba(200,168,90,.10);
-      vertical-align: top;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      background: var(--bg);
     }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: rgba(200,168,90,.04); }
-    .cmd { font-family: 'Consolas', monospace; color: var(--accent2); font-size: .83rem; }
+    tbody tr:hover td { background: #080808; }
+    .cmd { font-family: 'Consolas', monospace; color: var(--accent); font-weight: bold; }
     .badge {
-      display: inline-block; padding: 2px 8px;
-      border-radius: 12px; font-size: .7rem; font-weight: 700;
-      background: rgba(200,168,90,.15); color: var(--accent);
+      display: inline-block; padding: 4px 10px;
+      font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+      background: var(--border); color: var(--text-muted);
     }
-    .badge-admin {
-      background: rgba(79,195,247,.15); color: var(--accent2);
-    }
+    .badge-admin { background: var(--accent); color: #000; }
 
     /* ── How to use ───────────────────────────────────────── */
-    .steps { margin-top: 42px; display: flex; flex-direction: column; gap: 20px; }
+    .steps { margin-top: 50px; display: grid; gap: 24px; }
     .step {
-      display: flex; gap: 18px; align-items: flex-start;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 22px;
+      display: flex; gap: 24px; align-items: flex-start;
+      background: var(--bg-card); border-left: 4px solid var(--border-light);
+      padding: 32px; transition: border-color .2s;
     }
+    .step:hover { border-left-color: var(--accent); }
     .step-num {
       flex-shrink: 0;
-      width: 36px; height: 36px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), #e8d4a0);
-      color: #0d0f14; font-weight: 800; font-size: .9rem;
-      display: flex; align-items: center; justify-content: center;
+      font-family: 'Consolas', monospace;
+      font-size: 3rem; font-weight: 900; line-height: 1;
+      color: var(--border-light);
     }
-    .step-body h4 { font-size: .95rem; font-weight: 700; margin-bottom: 5px; }
-    .step-body p { font-size: .86rem; color: var(--text-muted); }
+    .step:hover .step-num { color: var(--accent); }
+    .step-body h4 { font-size: 1.1rem; font-weight: 800; margin-bottom: 10px; text-transform: uppercase; }
+    .step-body p { font-size: 0.95rem; color: var(--text-muted); }
     .step-body code {
-      display: inline-block;
-      background: rgba(79,195,247,.12); color: var(--accent2);
-      border-radius: 5px; padding: 1px 7px;
-      font-family: 'Consolas', monospace; font-size: .82rem;
+      background: #000; color: var(--accent);
+      padding: 2px 8px; border: 1px solid var(--border);
+      font-family: 'Consolas', monospace; font-size: 0.85rem;
     }
 
     /* ── CTA ──────────────────────────────────────────────── */
     .cta-section {
-      text-align: center;
-      background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(200,168,90,.08) 0%, transparent 70%);
+      text-align: center; padding: 100px 0;
+      background: var(--accent); color: #000;
     }
-    .cta-section h2 {
-      font-size: clamp(1.4rem, 3.5vw, 1.9rem);
-      font-weight: 800; margin-bottom: 12px;
-    }
-    .cta-section p { color: var(--text-muted); margin-bottom: 32px; font-size: .95rem; }
+    .cta-section::before { display: none; } /* 移除上方邊框 */
+    .cta-section h2 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 900; text-transform: uppercase; margin-bottom: 16px; }
+    .cta-section p { color: #333; margin-bottom: 40px; font-weight: 600; }
+    .cta-section .btn-primary { background: #000; color: var(--accent); }
+    .cta-section .btn-primary:hover { background: #fff; color: #000; }
 
     /* ── Footer ───────────────────────────────────────────── */
     footer {
-      border-top: 1px solid var(--border);
-      padding: 32px 0;
-      text-align: center;
-      color: var(--text-muted); font-size: .82rem;
+      background: var(--bg-card); border-top: 1px solid var(--border);
+      padding: 40px 0; text-align: center;
+      color: var(--text-muted); font-size: 0.85rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
     }
-    footer a { color: var(--text-muted); }
+    footer a { color: #fff; }
     footer a:hover { color: var(--accent); }
 
     /* ── Responsive ───────────────────────────────────────── */
-    @media (max-width: 600px) {
-      .nav-links > a { display: none; }
-      section { padding: 52px 0; }
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hero { padding: 80px 0 60px; text-align: center; }
+      .hero-sub { margin: 0 auto 40px; text-align: left; }
+      .step { flex-direction: column; gap: 16px; padding: 24px; }
     }
   </style>
 </head>
@@ -285,7 +302,7 @@
     <div class="hero-badge"><span class="dot"></span><span data-i18n="hero.badge">Discord 機器人</span></div>
     <h1 data-i18n="hero.title">Endfield Assistant</h1>
     <p class="hero-sub" data-i18n="hero.sub">
-      自動化明日方舟：終熔紀元每日簽到，支援排程、通知與成就展示。
+      自動化明日方舟：終末地每日簽到，支援排程、通知與成就展示。
     </p>
     <div class="btn-group">
       <a class="btn btn-primary"
@@ -310,7 +327,7 @@
 <section id="features">
   <div class="container">
     <p class="section-label" data-i18n="features.label">功能介紹</p>
-    <h2 class="section-title" data-i18n="features.title">為終熔紀元玩家打造</h2>
+    <h2 class="section-title" data-i18n="features.title">為終末地玩家打造</h2>
     <p class="section-desc" data-i18n="features.desc">
       自動完成每日任務，讓你專注在遊戲本身——不再錯過任何一天的簽到獎勵。
     </p>
@@ -325,10 +342,10 @@
       </div>
 
       <div class="feature-card">
-        <div class="feature-icon">✅</div>
-        <h3 data-i18n="feat.signin.title">手動簽到</h3>
-        <p data-i18n="feat.signin.desc">
-          使用 <code>/signin</code> 指令立即執行簽到，隨時掌握簽到狀態。
+        <div class="feature-icon">⚡</div>
+        <h3 data-i18n="feat.stamina.title">體力狀態監控</h3>
+        <p data-i18n="feat.stamina.desc">
+          即時追蹤遊戲內的體力與基建產能，在即將溢出前發送 Discord 提醒，最大化你的資源收益。
         </p>
       </div>
 
@@ -505,7 +522,7 @@
 <section class="cta-section">
   <div class="container">
     <h2 data-i18n="cta.title">立即開始使用</h2>
-    <p data-i18n="cta.desc">免費、開源，永久為終熔紀元社群提供服務。</p>
+    <p data-i18n="cta.desc">免費、開源，永久為終末地社群提供服務。</p>
     <a class="btn btn-primary"
        href="https://discord.com/oauth2/authorize?client_id=1466362435782049817"
        target="_blank" rel="noopener">
@@ -540,16 +557,16 @@
       'nav.howto':        '使用方式',
       'hero.badge':       'Discord 機器人',
       'hero.title':       'Endfield Assistant',
-      'hero.sub':         '自動化明日方舟：終熔紀元每日簽到，支援排程、通知與成就展示。',
+      'hero.sub':         '自動化明日方舟：終末地每日簽到，支援排程、通知與成就展示。',
       'hero.invite':      '加入機器人',
       'hero.github':      '查看原始碼',
       'features.label':   '功能介紹',
-      'features.title':   '為終熔紀元玩家打造',
+      'features.title':   '為終末地玩家打造',
       'features.desc':    '自動完成每日任務，讓你專注在遊戲本身——不再錯過任何一天的簽到獎勵。',
       'feat.bind.title':  '帳號綁定',
       'feat.bind.desc':   '透過互動式表單安全綁定你的 Endfield 帳號，憑證以 AES-256-CBC 加密後儲存。',
-      'feat.signin.title':'手動簽到',
-      'feat.signin.desc': '使用 <code>/signin</code> 指令立即執行簽到，隨時掌握簽到狀態。',
+      'feat.stamina.title': '體力狀態監控',
+      'feat.stamina.desc':  '即時追蹤遊戲內的體力與基建產能，在即將溢出前發送 Discord 提醒，最大化你的資源收益。',
       'feat.schedule.title':'排程自動簽到',
       'feat.schedule.desc':'設定每日自動簽到時間，讓機器人在指定時刻自動幫你完成簽到。',
       'feat.notify.title':'伺服器通知',
@@ -589,7 +606,7 @@
       'step4.title':      '設定排程（選用）',
       'step4.desc':       '使用 <code>/schedule HH:mm</code> 設定每日自動簽到時間。也可以隨時使用 <code>/signin</code> 手動觸發簽到。',
       'cta.title':        '立即開始使用',
-      'cta.desc':         '免費、開源，永久為終熔紀元社群提供服務。',
+      'cta.desc':         '免費、開源，永久為終末地社群提供服務。',
       'cta.btn':          '加入機器人',
       'footer.license':   'MIT / ISC 授權',
       'footer.disclaimer':'本專案與 Hypergryph / 明日方舟官方無任何關聯。',
@@ -608,8 +625,8 @@
       'features.desc':    'Take care of daily tasks automatically so you can focus on the game — never miss a sign-in reward again.',
       'feat.bind.title':  'Account Binding',
       'feat.bind.desc':   'Securely link your Endfield credentials via an interactive modal. Credentials are encrypted at rest using AES-256-CBC.',
-      'feat.signin.title':'Manual Sign-In',
-      'feat.signin.desc': 'Trigger an immediate sign-in any time with the <code>/signin</code> command.',
+      'feat.stamina.title': 'Stamina Monitoring',
+      'feat.stamina.desc':  'Track your in-game stamina and base production in real-time. Get a Discord DM before they cap out to maximize your efficiency.',
       'feat.schedule.title':'Scheduled Sign-In',
       'feat.schedule.desc':'Set a daily auto sign-in time and let the bot handle it automatically.',
       'feat.notify.title':'Guild Notifications',
