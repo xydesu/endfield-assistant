@@ -12,8 +12,9 @@ const SLOT_CLASSES = ['klgUbY', 'cwMmAm', 'fQkaca', 'llIOHZ', 'kktMxW', 'iXzQoF'
 const ORIGINAL_CERTIFY_SLOTS = new Set(['fQkaca', 'llIOHZ', 'kktMxW']);
 
 let cssCache = null;
+let certifyApngCache = null;
 
-async function fetchText(url) {
+function fetchBuffer(url) {
     return new Promise((resolve, reject) => {
         const u = new URL(url);
         const options = {
@@ -29,11 +30,22 @@ async function fetchText(url) {
             }
             const chunks = [];
             res.on('data', (c) => chunks.push(c));
-            res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
         });
         req.on('error', reject);
         req.end();
     });
+}
+
+async function fetchText(url) {
+    return (await fetchBuffer(url)).toString('utf8');
+}
+
+async function fetchCertifyApng() {
+    if (!certifyApngCache) {
+        certifyApngCache = await fetchBuffer(CERTIFY_BADGE_URL);
+    }
+    return certifyApngCache;
 }
 
 async function getAchieveCSS() {
@@ -70,7 +82,7 @@ function buildDisplayMedals(achieve) {
     return result;
 }
 
-async function generateAchieveHtml(achieve) {
+async function generateAchieveHtml(achieve, { hideCertify = false } = {}) {
     const css = await getAchieveCSS();
 
     const medals = achieve.achieveMedals || [];
@@ -91,13 +103,18 @@ async function generateAchieveHtml(achieve) {
         overrideCSS += `.${cls}::before { background-image: ${iconUrl ? `url("${escapeCssUrl(iconUrl)}")` : 'none'} !important; }\n`;
 
         // Handle ::after (certify badge)
-        const hasCertify = medal?.achievementData?.canCertify === true;
-        if (ORIGINAL_CERTIFY_SLOTS.has(cls)) {
-            if (!hasCertify) {
-                overrideCSS += `.${cls}::after { content: none !important; }\n`;
+        if (hideCertify) {
+            // Suppress all certify badges; they will be composited onto the GIF frames instead
+            overrideCSS += `.${cls}::after { content: none !important; }\n`;
+        } else {
+            const hasCertify = !!medal?.achievementData?.canCertify;
+            if (ORIGINAL_CERTIFY_SLOTS.has(cls)) {
+                if (!hasCertify) {
+                    overrideCSS += `.${cls}::after { content: none !important; }\n`;
+                }
+            } else if (hasCertify) {
+                overrideCSS += `.${cls}::after { ${CERTIFY_BADGE_CSS} }\n`;
             }
-        } else if (hasCertify) {
-            overrideCSS += `.${cls}::after { ${CERTIFY_BADGE_CSS} }\n`;
         }
     });
 
@@ -153,8 +170,15 @@ function hasDisplayedCertify(achieve) {
     const medals = achieve.achieveMedals || [];
     return Object.values(display).some((medalId) => {
         const medal = medals.find((m) => m.achievementData.id === medalId);
-        return medal?.achievementData?.canCertify === true;
+        return !!medal?.achievementData?.canCertify;
     });
 }
 
-module.exports = { generateAchieveHtml, hasDisplayedCertify };
+function getCertifySlotIndices(achieve) {
+    const displayMedals = buildDisplayMedals(achieve);
+    return displayMedals
+        .map((medal, idx) => (medal?.achievementData?.canCertify ? idx : null))
+        .filter((idx) => idx !== null);
+}
+
+module.exports = { generateAchieveHtml, hasDisplayedCertify, getCertifySlotIndices, fetchCertifyApng, SLOT_CLASSES };
