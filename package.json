@@ -17,7 +17,8 @@
         "node-schedule": "^2.1.1",
         "puppeteer": "^24.40.0",
         "sequelize": "^6.37.8",
-        "sqlite3": "^6.0.1"
+        "sqlite3": "^6.0.1",
+        "upng-js": "^2.1.0"
     },
     "overrides": {
         "undici": "^6.24.1"

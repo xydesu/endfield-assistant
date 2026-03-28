@@ -1,9 +1,36 @@
 const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const puppeteer = require('puppeteer');
+const UPNG = require('upng-js');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
-const { generateAchieveHtml } = require('../../utils/achieveHtml');
+const { generateAchieveHtml, hasDisplayedCertify } = require('../../utils/achieveHtml');
+
+const APNG_FRAME_INTERVAL_MS = 50; // ~20 fps
+const APNG_TOTAL_DURATION_MS = 2000; // 2 s covers most badge animation loops
+const APNG_FRAME_COUNT = Math.round(APNG_TOTAL_DURATION_MS / APNG_FRAME_INTERVAL_MS);
+const APNG_START_DELAY_MS = 100; // let the APNG begin its first cycle before capturing
+
+async function captureApng(cardElement) {
+    // Brief pause so the APNG has started its first cycle
+    await new Promise((r) => setTimeout(r, APNG_START_DELAY_MS));
+
+    const pngBuffers = [];
+    for (let i = 0; i < APNG_FRAME_COUNT; i++) {
+        pngBuffers.push(await cardElement.screenshot({ type: 'png' }));
+        if (i < APNG_FRAME_COUNT - 1) {
+            await new Promise((r) => setTimeout(r, APNG_FRAME_INTERVAL_MS));
+        }
+    }
+
+    const firstDecoded = UPNG.decode(pngBuffers[0]);
+    const { width, height } = firstDecoded;
+
+    const rgbaFrames = pngBuffers.map((buf) => UPNG.toRGBA8(UPNG.decode(buf))[0]);
+    const delays = new Array(APNG_FRAME_COUNT).fill(APNG_FRAME_INTERVAL_MS);
+
+    return Buffer.from(UPNG.encode(rgbaFrames, width, height, 0, delays));
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -62,8 +89,13 @@ module.exports = {
                 const cardElement = await page.$('.bESBDX');
                 if (!cardElement) throw new Error('Card element not found');
 
-                const screenshot = await cardElement.screenshot({ type: 'png' });
-                const attachment = new AttachmentBuilder(screenshot, { name: 'achieve.png' });
+                const useApng = hasDisplayedCertify(achieve);
+                const imageBuffer = useApng
+                    ? await captureApng(cardElement)
+                    : await cardElement.screenshot({ type: 'png' });
+
+                const fileName = 'achieve.png';
+                const attachment = new AttachmentBuilder(imageBuffer, { name: fileName });
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
                     .setTitle(`🏅 ${base?.name ?? interaction.user.username} 的光榮之路`)

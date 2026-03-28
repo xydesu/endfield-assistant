@@ -23,6 +23,10 @@ async function fetchText(url) {
             headers: { 'User-Agent': 'Mozilla/5.0' },
         };
         const req = https.request(options, (res) => {
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+                res.resume();
+                return reject(new Error(`HTTP ${res.statusCode} fetching ${url}`));
+            }
             const chunks = [];
             res.on('data', (c) => chunks.push(c));
             res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
@@ -144,4 +148,13 @@ ${overrideCSS}
 </html>`;
 }
 
-module.exports = { generateAchieveHtml };
+function hasDisplayedCertify(achieve) {
+    const display = achieve.display || {};
+    const medals = achieve.achieveMedals || [];
+    return Object.values(display).some((medalId) => {
+        const medal = medals.find((m) => m.achievementData.id === medalId);
+        return medal?.achievementData?.canCertify === true;
+    });
+}
+
+module.exports = { generateAchieveHtml, hasDisplayedCertify };
