@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const puppeteer = require('puppeteer');
 const UPNG = require('upng-js');
-const GIFEncoder = require('gif-encoder-2');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
@@ -14,6 +13,10 @@ const {
 } = require('../../utils/achieveHtml');
 
 const DEVICE_SCALE = 2; // must match page.setViewport({ deviceScaleFactor })
+
+// 0-based index of the certify badge APNG frame to use in the static composite.
+// Frame 110 (index 109) is a visually complete point in the badge animation.
+const CERTIFY_FRAME_INDEX = 109;
 
 // ─── Image utilities ──────────────────────────────────────────────────────────
 
@@ -107,56 +110,45 @@ async function getCertifyPositions(page, slotIndices) {
     }));
 }
 
-// ─── GIF builder ─────────────────────────────────────────────────────────────
+// ─── PNG builder ──────────────────────────────────────────────────────────────
 
 /**
- * Builds an animated GIF by compositing each frame of the certify APNG onto
- * the static card screenshot at the positions specified.
+ * Composites a single frame of the certify APNG onto the static card screenshot
+ * and returns a PNG buffer.  Uses frame CERTIFY_FRAME_INDEX (or the last
+ * available frame if the APNG has fewer frames).
  *
  * @param {Buffer} cardBuf        PNG screenshot of the card (badges hidden)
  * @param {Buffer} certifyApngBuf APNG binary of the certify badge
  * @param {{x,y,size}[]} positions Device-pixel badge positions on the card
- * @returns {Promise<Buffer>} GIF binary
+ * @returns {Buffer} PNG binary
  */
-async function buildCertifyGif(cardBuf, certifyApngBuf, positions) {
+function buildCertifyPng(cardBuf, certifyApngBuf, positions) {
     // Decode static card to RGBA
     const cardDecoded = UPNG.decode(cardBuf);
     const [cardRgba] = UPNG.toRGBA8(cardDecoded);
     const cardW = cardDecoded.width;
     const cardH = cardDecoded.height;
 
-    // Decode certify APNG: toRGBA8 returns one fully-composited ArrayBuffer per frame
+    // Decode certify APNG and pick the target frame
     const certifyDecoded = UPNG.decode(certifyApngBuf);
     const certifyFrames  = UPNG.toRGBA8(certifyDecoded);
+    if (certifyFrames.length === 0) {
+        // APNG has no decoded frames — return the card screenshot unchanged
+        return cardBuf;
+    }
     const certifyNativeW = certifyDecoded.width;
     const certifyNativeH = certifyDecoded.height;
-    const frameCount     = certifyFrames.length;
+    const frameIdx = Math.min(CERTIFY_FRAME_INDEX, certifyFrames.length - 1);
+    const badgeFrame = certifyFrames[frameIdx];
 
-    // Per-frame delays in ms (decoded.frames[i].delay is already in ms)
-    const delays = certifyDecoded.frames.length > 0
-        ? certifyDecoded.frames.map((f) => f.delay || 100)
-        : Array(frameCount).fill(100);
-
-    const encoder = new GIFEncoder(cardW, cardH);
-    encoder.setRepeat(0); // loop forever
-    encoder.start();
-
-    for (let i = 0; i < frameCount; i++) {
-        encoder.setDelay(delays[i] || 100);
-
-        // Fresh copy of card pixels for each frame
-        const frameRgba = new Uint8Array(cardRgba.slice(0));
-
-        for (const { x, y, size } of positions) {
-            const resized = nearestNeighborResize(certifyFrames[i], certifyNativeW, certifyNativeH, size, size);
-            alphaCompositeInPlace(frameRgba, cardW, cardH, resized, size, size, x, y);
-        }
-
-        encoder.addFrame(frameRgba);
+    // Composite badge frame onto a copy of the card
+    const composite = new Uint8Array(cardRgba.slice(0));
+    for (const { x, y, size } of positions) {
+        const resized = nearestNeighborResize(badgeFrame, certifyNativeW, certifyNativeH, size, size);
+        alphaCompositeInPlace(composite, cardW, cardH, resized, size, size, x, y);
     }
 
-    encoder.finish();
-    return Buffer.from(encoder.out.getData());
+    return Buffer.from(UPNG.encode([composite.buffer], cardW, cardH, 0));
 }
 
 // ─── Discord command ──────────────────────────────────────────────────────────
@@ -203,10 +195,10 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            const useGif = hasDisplayedCertify(achieve);
-            // When building a GIF we hide the static certify badges from the
-            // Chromium screenshot; they are composited frame-by-frame instead.
-            const html = await generateAchieveHtml(achieve, { hideCertify: useGif });
+            const hasCertifyBadge = hasDisplayedCertify(achieve);
+            // When compositing the certify badge we suppress the static ::after
+            // pseudo-element so we can place the exact APNG frame ourselves.
+            const html = await generateAchieveHtml(achieve, { hideCertify: hasCertifyBadge });
 
             let browser;
             try {
@@ -221,27 +213,25 @@ module.exports = {
                 const cardElement = await page.$('.bESBDX');
                 if (!cardElement) throw new Error('Card element not found');
 
-                let imageBuffer, fileName;
+                let imageBuffer;
 
-                if (useGif) {
+                if (hasCertifyBadge) {
                     const [cardBuf, certifyApngBuf] = await Promise.all([
                         cardElement.screenshot({ type: 'png' }),
                         fetchCertifyApng(),
                     ]);
                     const slotIndices = getCertifySlotIndices(achieve);
                     const positions   = await getCertifyPositions(page, slotIndices);
-                    imageBuffer = await buildCertifyGif(cardBuf, certifyApngBuf, positions);
-                    fileName = 'achieve.gif';
+                    imageBuffer = buildCertifyPng(cardBuf, certifyApngBuf, positions);
                 } else {
                     imageBuffer = await cardElement.screenshot({ type: 'png' });
-                    fileName = 'achieve.png';
                 }
 
-                const attachment = new AttachmentBuilder(imageBuffer, { name: fileName });
+                const attachment = new AttachmentBuilder(imageBuffer, { name: 'achieve.png' });
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
                     .setTitle(`🏅 ${base?.name ?? interaction.user.username} 的光榮之路`)
-                    .setImage(`attachment://${fileName}`)
+                    .setImage('attachment://achieve.png')
                     .setTimestamp();
                 await interaction.editReply({ embeds: [embed], files: [attachment] });
             } finally {
@@ -258,3 +248,4 @@ module.exports = {
         }
     },
 };
+

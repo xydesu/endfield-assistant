@@ -104,7 +104,7 @@ async function generateAchieveHtml(achieve, { hideCertify = false } = {}) {
 
         // Handle ::after (certify badge)
         if (hideCertify) {
-            // Suppress all certify badges; they will be composited onto the GIF frames instead
+            // Hide all certify badges in the HTML; they will be added via APNG compositing later
             overrideCSS += `.${cls}::after { content: none !important; }\n`;
         } else {
             const hasCertify = !!medal?.achievementData?.canCertify;
