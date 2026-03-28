@@ -60,12 +60,21 @@ function escapeCssUrl(url) {
     return url.replace(/"/g, '%22');
 }
 
+// Effective level = initLevel + (level - 1), where initLevel is the base tier
+// of the achievement (1/2/3) and level is the user's upgrade count (1 = base).
+// Tier mapping: 1 = dark, 2 = silver, 3 = gold.
+function getEffectiveLevel(medal) {
+    const initLevel = medal.achievementData.initLevel || 1;
+    return initLevel + (medal.level || 1) - 1;
+}
+
 function getMedalIconUrl(medal) {
     if (!medal) return null;
     const data = medal.achievementData;
     if (medal.isPlated && data.platedIcon) return data.platedIcon;
-    if (medal.level === 3 && data.reforge3Icon) return data.reforge3Icon;
-    if (medal.level === 2 && data.reforge2Icon) return data.reforge2Icon;
+    const effectiveLevel = getEffectiveLevel(medal);
+    if (effectiveLevel >= 3 && data.reforge3Icon) return data.reforge3Icon;
+    if (effectiveLevel >= 2 && data.reforge2Icon) return data.reforge2Icon;
     return data.initIcon || null;
 }
 
@@ -93,10 +102,10 @@ async function generateAchieveHtml(achieve, { hideCertify = false } = {}) {
     const css = await getAchieveCSS();
 
     const medals = achieve.achieveMedals || [];
-    const bronzeCount = medals.filter((m) => m.level === 1).length;
-    const silverCount = medals.filter((m) => m.level === 2).length;
-    const goldCount = medals.filter((m) => m.level === 3).length;
-    const totalCount = achieve.count ?? (bronzeCount + silverCount + goldCount);
+    const darkCount = medals.filter((m) => getEffectiveLevel(m) === 1).length;
+    const silverCount = medals.filter((m) => getEffectiveLevel(m) === 2).length;
+    const goldCount = medals.filter((m) => getEffectiveLevel(m) >= 3).length;
+    const totalCount = achieve.count ?? (darkCount + silverCount + goldCount);
 
     const displayMedals = buildDisplayMedals(achieve);
 
@@ -151,7 +160,7 @@ ${overrideCSS}
         <div class="sc-eYudRy iIFAFq">
             <div class="sc-kzOYSC jQKmyQ">
                 <div class="sc-dGlnUf jvwawu"></div>
-                <div class="sc-fOmPLA lcwdse">${bronzeCount}</div>
+                <div class="sc-fOmPLA lcwdse">${darkCount}</div>
             </div>
             <div class="sc-kzOYSC jQKmyQ">
                 <div class="sc-dGlnUf hLiFxM"></div>
