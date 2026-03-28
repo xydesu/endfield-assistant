@@ -36,7 +36,7 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            const achieve = result.detail.achieve;
+            const { base, achieve } = result.detail;
 
             if (!achieve) {
                 const embed = new EmbedBuilder()
@@ -64,7 +64,12 @@ module.exports = {
 
                 const screenshot = await cardElement.screenshot({ type: 'png' });
                 const attachment = new AttachmentBuilder(screenshot, { name: 'achieve.png' });
-                await interaction.editReply({ files: [attachment] });
+                const embed = new EmbedBuilder()
+                    .setColor(EMBED_COLOR)
+                    .setTitle(`🏅 ${base?.name ?? interaction.user.username} 的光榮之路`)
+                    .setImage('attachment://achieve.png')
+                    .setTimestamp();
+                await interaction.editReply({ embeds: [embed], files: [attachment] });
             } finally {
                 if (browser) await browser.close().catch((err) => console.error('[achieve] browser close error:', err));
             }
