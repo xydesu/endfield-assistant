@@ -75,7 +75,7 @@ module.exports = {
                 .setCustomId('credInput')
                 .setLabel('請輸入您的 Cred')
                 .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('貼上腳本輸出的完整 JSON，或只貼上 cred 值')
+                .setPlaceholder('貼上腳本輸出 cred 值')
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(credInput));
