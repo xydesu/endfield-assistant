@@ -23,9 +23,9 @@ module.exports = {
             return;
         }
 
-        // Handle Buttons & Modals
+        // Handle Buttons, Modals & Select Menus
         // CustomId convention: "commandName:action"
-        if (interaction.isButton() || interaction.isModalSubmit()) {
+        if (interaction.isButton() || interaction.isModalSubmit() || interaction.isStringSelectMenu()) {
             const [commandName, action] = interaction.customId.split(':');
             const command = interaction.client.commands.get(commandName);
 
@@ -39,6 +39,8 @@ module.exports = {
                     await command.handleButton(interaction, action);
                 } else if (interaction.isModalSubmit() && command.handleModal) {
                     await command.handleModal(interaction, action);
+                } else if (interaction.isStringSelectMenu() && command.handleSelectMenu) {
+                    await command.handleSelectMenu(interaction, action);
                 }
             } catch (error) {
                 console.error(error);
