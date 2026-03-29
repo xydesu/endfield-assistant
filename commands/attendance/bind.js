@@ -31,11 +31,11 @@ module.exports = {
             .setTitle('Endfield 自動簽到綁定教學')
             .setDescription('請依照以下步驟獲取您的憑證並進行綁定：')
             .addFields(
-                { name: '步驟 1', value: '使用電腦瀏覽器開啟 [每日簽到網站](https://game.skport.com/endfield/sign-in) 並登入帳號。' },
+                { name: '步驟 1', value: '使用電腦瀏覽器開啟任意 [鷹角網站](https://www.skport.com) 並登入帳號。' },
                 { name: '步驟 2', value: '按下 `F12` 開啟開發者工具，切換至 `Console` 分頁。' },
                 { name: '步驟 3', value: '複製下方指令並貼上到 Console 中執行：' },
-                { name: '指令', value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/588fd21394fb7fd62710fa1b88bb4777/raw/bab7ac35faf461b2ad17a71b6a9143f58a0eaf58/get_cred.js").then(r=>r.text()).then(t=>eval(t))\n```' },
-                { name: '步驟 4', value: '執行後 Console 將顯示 JSON 資訊，直接複製整段 JSON 輸出（或只複製 `cred` 欄位的值）。' },
+                { name: '指令', value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/e77a5769292b80801fa246a4e068af47/raw/c71f07b4710fd44644b365e91f1cc033303840de/cred.js").then(r=>r.text()).then(t=>eval(t))\n```' },
+                { name: '步驟 4', value: '執行後 Console 將顯示您的 `cred` 值，複製該值。' },
                 { name: '步驟 5', value: '點擊下方「輸入 Cred」按鈕貼上並送出，機器人會自動查詢可用角色供您選擇。' }
             )
             .setFooter({ text: '注意：請勿將憑證洩漏給他人' });
