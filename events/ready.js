@@ -1,10 +1,18 @@
-const { Events } = require('discord.js');
+const { Events, ActivityType } = require('discord.js');
 
 module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
         console.log(`Ready! Logged in as ${client.user.tag}`);
+
+        client.user.setPresence({
+            activities: [{
+                name: 'Arknights: Endfield',
+                type: ActivityType.Playing,
+            }],
+            status: 'online',
+        });
 
         try {
             const User = require('../models/User');
