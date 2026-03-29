@@ -313,4 +313,126 @@ async function getCardDetail(user) {
     }
 }
 
-module.exports = { signIn, buildAttendanceEmbed, getCardDetail };
+async function getBindingList(rawCred) {
+    // Step 1: Refresh token using raw (unencrypted) cred
+    const token = await new Promise((resolve, reject) => {
+        const url = new URL('/web/v1/auth/refresh', 'https://zonai.skport.com');
+        const options = {
+            hostname: url.hostname,
+            path: url.pathname,
+            method: 'GET',
+            headers: {
+                'User-Agent': USER_AGENT,
+                'Accept': 'application/json, text/plain, */*',
+                'cred': rawCred,
+                'platform': PLATFORM,
+                'vName': VNAME,
+                'Origin': 'https://game.skport.com',
+                'Referer': 'https://game.skport.com/'
+            }
+        };
+        const req = https.request(options, (res) => {
+            const chunks = [];
+            res.on('data', c => chunks.push(c));
+            res.on('end', () => {
+                const rawBuffer = Buffer.concat(chunks);
+                const encoding = (res.headers['content-encoding'] || '').toLowerCase();
+                const decompress = encoding === 'br'
+                    ? (buf, cb) => zlib.brotliDecompress(buf, cb)
+                    : (encoding === 'gzip' || encoding === 'deflate')
+                        ? (buf, cb) => zlib.unzip(buf, cb)
+                        : (buf, cb) => cb(null, buf);
+                decompress(rawBuffer, (err, buf) => {
+                    if (err) return reject(new Error(`Decompression failed: ${err.message}`));
+                    try {
+                        const json = JSON.parse(buf.toString('utf8'));
+                        if (json.code === 0 && json.data && json.data.token) {
+                            resolve(json.data.token);
+                        } else {
+                            reject(new Error(`Token refresh failed (Code: ${json.code}, Msg: ${json.message})`));
+                        }
+                    } catch (e) {
+                        reject(new Error(`Parse error: ${e.message}`));
+                    }
+                });
+            });
+        });
+        const timer = setTimeout(() => req.destroy(new Error('Request timed out')), REQUEST_TIMEOUT_MS);
+        req.on('error', e => { clearTimeout(timer); reject(e); });
+        req.on('close', () => clearTimeout(timer));
+        req.end();
+    });
+
+    // Step 2: Call binding endpoint
+    const path = '/api/v1/game/player/binding';
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const sign = computeSign(path, '', timestamp, token);
+
+    return new Promise((resolve, reject) => {
+        const url = new URL(path, 'https://zonai.skport.com');
+        const options = {
+            hostname: url.hostname,
+            path: url.pathname,
+            method: 'GET',
+            headers: {
+                'User-Agent': USER_AGENT,
+                'Accept': '*/*',
+                'Content-Type': 'application/json',
+                'sk-language': 'zh_Hant',
+                'cred': rawCred,
+                'platform': PLATFORM,
+                'vName': VNAME,
+                'timestamp': timestamp,
+                'sign': sign,
+                'Origin': 'https://game.skport.com',
+                'Referer': 'https://game.skport.com/'
+            }
+        };
+        const req = https.request(options, (res) => {
+            const chunks = [];
+            res.on('data', c => chunks.push(c));
+            res.on('end', () => {
+                const rawBuffer = Buffer.concat(chunks);
+                const encoding = (res.headers['content-encoding'] || '').toLowerCase();
+                const decompress = encoding === 'br'
+                    ? (buf, cb) => zlib.brotliDecompress(buf, cb)
+                    : (encoding === 'gzip' || encoding === 'deflate')
+                        ? (buf, cb) => zlib.unzip(buf, cb)
+                        : (buf, cb) => cb(null, buf);
+                decompress(rawBuffer, (err, buf) => {
+                    if (err) return reject(new Error(`Decompression failed: ${err.message}`));
+                    try {
+                        const json = JSON.parse(buf.toString('utf8'));
+                        if (json.code === 0 && json.data && json.data.list) {
+                            const roles = [];
+                            json.data.list.forEach(game => {
+                                game.bindingList.forEach(binding => {
+                                    (binding.roles || []).forEach(role => {
+                                        roles.push({
+                                            serverName: role.serverName,
+                                            nickname: role.nickname,
+                                            level: role.level,
+                                            roleId: String(role.roleId),
+                                            serverId: role.serverId != null ? String(role.serverId) : null,
+                                        });
+                                    });
+                                });
+                            });
+                            resolve(roles);
+                        } else {
+                            reject(new Error(`Binding API failed (Code: ${json.code}, Msg: ${json.message})`));
+                        }
+                    } catch (e) {
+                        reject(new Error(`Parse error: ${e.message}`));
+                    }
+                });
+            });
+        });
+        const timer = setTimeout(() => req.destroy(new Error('Request timed out')), REQUEST_TIMEOUT_MS);
+        req.on('error', e => { clearTimeout(timer); reject(e); });
+        req.on('close', () => clearTimeout(timer));
+        req.end();
+    });
+}
+
+module.exports = { signIn, buildAttendanceEmbed, getCardDetail, getBindingList };
