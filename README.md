@@ -1,6 +1,11 @@
 # Endfield Assistant
 
+[![Add to Discord](https://img.shields.io/badge/Add%20to%20Discord-Endfield%20Assistant-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1466362435782049817)
+[![Introduction Page](https://img.shields.io/badge/Introduction%20Page-繁中%20%2F%20EN-c8a85a?style=for-the-badge)](https://xydesu.github.io/endfield-assistant/)
+
 A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in portal](https://game.skport.com/endfield/sign-in).
+
+> 📖 **[View the introduction page (繁體中文 / English)](https://xydesu.github.io/endfield-assistant/)** for a full overview of features and usage.
 
 ---
 
@@ -11,6 +16,10 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 - **Scheduled sign-in** – configure a daily auto sign-in time with `/schedule`
 - **Guild notifications** – post sign-in results to a designated server channel
 - **Account unbinding** – remove all stored data with `/unbind`
+- **Player profile** – view your in-game level, stamina, battle pass progress, and more with `/profile`
+- **Exploration progress** – check per-region exploration status with `/explore`
+- **Achievement showcase** – display your 光榮之路 achievement card with `/achieve`
+- **Stamina notifications** – receive an alert in the notify channel when stamina reaches a set threshold with `/stamina-notify`
 
 ---
 
@@ -24,11 +33,23 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 | `/unbind` | Remove your binding and all stored data | Everyone |
 | `/signin` | Perform an immediate sign-in | Everyone |
 | `/schedule [time] [tag]` | Set a daily auto sign-in time (HH:mm) | Everyone |
+| `/profile` | View player profile (level, stamina, BP, etc.) | Everyone |
+| `/explore` | View per-area exploration progress | Everyone |
+| `/achieve` | View achievement showcase (光榮之路) | Everyone |
+| `/stamina-notify <enable> [threshold] [tag]` | Configure stamina-full notification | Everyone |
 | `/set-notify-channel [channel]` | Set the guild notification channel | Administrator |
 
 ---
 
-## Setup
+## Add the Bot
+
+To add the hosted bot to your server, use the invite link below — no self-hosting required:
+
+**👉 [Invite Endfield Assistant](https://discord.com/oauth2/authorize?client_id=1466362435782049817)**
+
+---
+
+## Self-Hosting Setup
 
 ### Prerequisites
 
@@ -101,6 +122,7 @@ The bot will sync the SQLite database on first run and restore all scheduled sig
 endfield-assistant/
 ├── commands/
 │   ├── attendance/        # bind, unbind, signin, schedule
+│   ├── game/              # profile, explore, achieve, stamina-notify
 │   ├── general/           # help
 │   └── utility/           # ping, set-notify-channel
 ├── database/

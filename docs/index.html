@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Endfield Assistant — A Discord bot for automating daily sign-ins on the Arknights: Endfield portal. | 自動化明日方舟：終末地每日簽到的 Discord 機器人。" />
+  <title>Endfield Assistant</title>
+  <style>
+    /* ── Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* 終末地核心色票 */
+      --bg:          #000000;      /* 純黑背景 */
+      --bg-card:     #0c0c0c;      /* 微亮的深灰區塊 */
+      --bg-card2:    #151515;
+      --accent:      #FFEA00;      /* 標誌性高對比黃色 */
+      --accent2:     #FFFFFF;      /* 副強調色改為純白 */
+      --text:        #e0e0e0;
+      --text-muted:  #7a7a7a;
+      --border:      #333333;      /* 硬線條 */
+      --border-light:#555555;
+      --radius:      0px;          /* 絕對不使用圓角 */
+      --font:        'Segoe UI', 'Noto Sans TC', system-ui, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      min-height: 100vh;
+      /* 加入極其隱微的網格背景增加科技感 */
+      background-image: linear-gradient(var(--bg-card) 1px, transparent 1px),
+                        linear-gradient(90deg, var(--bg-card) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    a { color: var(--accent); text-decoration: none; transition: .2s; }
+    a:hover { color: #fff; }
+
+    /* ── Layout helpers ───────────────────────────────────── */
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 80px 0; position: relative; }
+    section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Nav ──────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(5px);
+      border-bottom: 2px solid var(--accent); /* 底部加上粗黃線 */
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .nav-logo {
+      font-size: 1.2rem; font-weight: 900;
+      color: var(--accent); letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .nav-logo::before { content: '■ '; color: #fff; }
+
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a {
+      color: var(--text); font-size: 0.85rem; font-weight: 700;
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .nav-links a:hover { color: var(--accent); }
+
+    /* Language switcher */
+    .lang-switch {
+      display: flex;
+      background: transparent;
+      border: 1px solid var(--border);
+    }
+    .lang-btn {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: .75rem; font-weight: 700;
+      padding: 6px 14px;
+      transition: all .2s;
+      text-transform: uppercase;
+    }
+    .lang-btn.active { background: var(--text); color: var(--bg); }
+    .lang-btn:not(.active):hover { color: var(--accent); }
+
+    /* ── Hero ─────────────────────────────────────────────── */
+    .hero {
+      text-align: left; /* 改為靠左對齊，更有排版張力 */
+      padding: 120px 0 100px;
+      position: relative;
+      background-color: white;
+      color: #000;
+    }
+    /* 裝飾性大字 */
+    .hero::after {
+      content: 'ENDFIELD';
+      position: absolute;
+      top: 20%; right: 5%;
+      font-size: 12vw; font-weight: 900;
+      color: rgba(255,255,255,0.02);
+      z-index: -1; pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--accent); color: #000;
+      padding: 4px 12px;
+      font-size: .75rem; font-weight: 800; letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 30px;
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 900; letter-spacing: 0.05em;
+      color: #000; text-transform: uppercase;
+      margin-bottom: 24px; line-height: 1.1;
+    }
+    .hero-sub {
+      font-size: 1.1rem; color: var(--text-muted);
+      max-width: 600px; margin: 0 0 48px;
+      border-left: 4px solid var(--accent);
+      padding-left: 16px;
+    }
+    .btn-group { display: flex; gap: 20px; flex-wrap: wrap; }
+    
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px 32px; font-weight: 800; font-size: 0.9rem;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      cursor: pointer; border: none; transition: all .2s;
+      position: relative;
+    }
+    /* 切角視覺效果 */
+    .btn-primary {
+      background: var(--accent); color: #000;
+    }
+    .btn-primary:hover { background: #000; }
+    
+    .btn-secondary {
+      background: transparent; color: #000;
+      border: 1px solid var(--border-light);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .icon-discord, .icon-github { width: 18px; height: 18px; fill: currentColor; }
+
+    /* ── Sections Common ──────────────────────────────────── */
+    .section-label {
+      font-size: .85rem; font-weight: 800; letter-spacing: 0.2em;
+      color: var(--accent); margin-bottom: 16px;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+    /* 加入終界招牌的 // 符號 */
+    .section-label::before { content: '// '; color: #fff; }
+    
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 20px;
+    }
+    .section-desc { color: var(--text-muted); max-width: 600px; font-size: 1rem; }
+
+    /* ── Features ─────────────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1px; /* 用 gap 做粗框線效果 */
+      background: var(--border); 
+      border: 1px solid var(--border);
+      margin-top: 60px;
+    }
+    .feature-card {
+      background: var(--bg);
+      padding: 32px 24px;
+      position: relative;
+      transition: all .2s;
+    }
+    /* 左上角科技感裝飾小方塊 */
+    .feature-card::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 12px; height: 12px; background: var(--border);
+      transition: all .2s;
+    }
+    .feature-card:hover { background: var(--bg-card); }
+    .feature-card:hover::before { background: var(--accent); }
+
+    .feature-icon {
+      font-size: 1.8rem; margin-bottom: 20px; color: var(--accent);
+    }
+    .feature-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .feature-card p { font-size: 0.9rem; color: var(--text-muted); }
+
+    /* ── Commands ─────────────────────────────────────────── */
+    .commands-wrap { margin-top: 50px; overflow-x: auto; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    thead th {
+      text-align: left; padding: 16px 20px;
+      background: var(--bg-card); border-bottom: 1px solid var(--border-light);
+      color: #fff; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    tbody td {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    tbody tr:hover td { background: #080808; }
+    .cmd { font-family: 'Consolas', monospace; color: var(--accent); font-weight: bold; }
+    .badge {
+      display: inline-block; padding: 4px 10px;
+      font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+      background: var(--border); color: var(--text-muted);
+    }
+    .badge-admin { background: var(--accent); color: #000; }
+
+    /* ── How to use ───────────────────────────────────────── */
+    .steps { margin-top: 50px; display: grid; gap: 24px; }
+    .step {
+      display: flex; gap: 24px; align-items: flex-start;
+      background: var(--bg-card); border-left: 4px solid var(--border-light);
+      padding: 32px; transition: border-color .2s;
+    }
+    .step:hover { border-left-color: var(--accent); }
+    .step-num {
+      flex-shrink: 0;
+      font-family: 'Consolas', monospace;
+      font-size: 3rem; font-weight: 900; line-height: 1;
+      color: var(--border-light);
+    }
+    .step:hover .step-num { color: var(--accent); }
+    .step-body h4 { font-size: 1.1rem; font-weight: 800; margin-bottom: 10px; text-transform: uppercase; }
+    .step-body p { font-size: 0.95rem; color: var(--text-muted); }
+    .step-body code {
+      background: #000; color: var(--accent);
+      padding: 2px 8px; border: 1px solid var(--border);
+      font-family: 'Consolas', monospace; font-size: 0.85rem;
+    }
+
+    /* ── CTA ──────────────────────────────────────────────── */
+    .cta-section {
+      text-align: center; padding: 100px 0;
+      background: var(--accent); color: #000;
+    }
+    .cta-section::before { display: none; } /* 移除上方邊框 */
+    .cta-section h2 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 900; text-transform: uppercase; margin-bottom: 16px; }
+    .cta-section p { color: #333; margin-bottom: 40px; font-weight: 600; }
+    .cta-section .btn-primary { background: #000; color: var(--accent); }
+    .cta-section .btn-primary:hover { background: #fff; color: #000; }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    footer {
+      background: var(--bg-card); border-top: 1px solid var(--border);
+      padding: 40px 0; text-align: center;
+      color: var(--text-muted); font-size: 0.85rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    footer a { color: #fff; }
+    footer a:hover { color: var(--accent); }
+
+    /* ── Responsive ───────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hero { padding: 80px 0 60px; text-align: center; }
+      .hero-sub { margin: 0 auto 40px; text-align: left; }
+      .step { flex-direction: column; gap: 16px; padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ──────────────────────────────────────────── -->
+<nav>
+  <div class="container nav-inner">
+    <span class="nav-logo">⚙ Endfield Assistant</span>
+    <div class="nav-links">
+      <a href="#features"  data-i18n="nav.features">功能</a>
+      <a href="#commands"  data-i18n="nav.commands">指令</a>
+      <a href="#howto"     data-i18n="nav.howto">使用方式</a>
+      <a href="https://github.com/xydesu/endfield-assistant" target="_blank" rel="noopener">
+        <svg class="icon-github" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.61-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1.01.07 1.54 1.04 1.54 1.04.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.10-.25-.45-1.27.10-2.65 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0112 6.8c.85.004 1.71.115 2.51.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.20 2.40.10 2.65.64.70 1.03 1.60 1.03 2.69 0 3.85-2.34 4.70-4.57 4.95.36.31.68.92.68 1.85 0 1.33-.01 2.41-.01 2.74 0 .27.18.58.69.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>
+        GitHub
+      </a>
+      <div class="lang-switch">
+        <button class="lang-btn active" data-lang="zh">繁中</button>
+        <button class="lang-btn"        data-lang="en">EN</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────────── -->
+<section class="hero" id="home">
+  <div class="container">
+    <div class="hero-badge"><span class="dot"></span><span data-i18n="hero.badge">Discord 機器人</span></div>
+    <h1 data-i18n="hero.title">Endfield Assistant</h1>
+    <p class="hero-sub" data-i18n="hero.sub">
+      自動化明日方舟：終末地每日簽到，支援排程、通知與成就展示。
+    </p>
+    <div class="btn-group">
+      <a class="btn btn-primary"
+         href="https://discord.com/oauth2/authorize?client_id=1466362435782049817"
+         target="_blank" rel="noopener">
+        <svg class="icon-discord" viewBox="0 0 127.14 96.36">
+          <path d="M107.7 8.07A105.15 105.15 0 0081.47 0a72.06 72.06 0 00-3.36 6.83 97.68 97.68 0 00-29.17 0A72.37 72.37 0 0045.58 0a105.89 105.89 0 00-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0032.17 16.15 77.7 77.7 0 006.89-11.11 68.42 68.42 0 01-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0064.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 01-10.87 5.19 77 77 0 006.89 11.1 105.25 105.25 0 0032.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15zM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69z"/>
+        </svg>
+        <span data-i18n="hero.invite">加入機器人</span>
+      </a>
+      <a class="btn btn-secondary"
+         href="https://github.com/xydesu/endfield-assistant"
+         target="_blank" rel="noopener">
+        <svg class="icon-github" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.61-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1.01.07 1.54 1.04 1.54 1.04.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.10-.25-.45-1.27.10-2.65 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0112 6.8c.85.004 1.71.115 2.51.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.20 2.40.10 2.65.64.70 1.03 1.60 1.03 2.69 0 3.85-2.34 4.70-4.57 4.95.36.31.68.92.68 1.85 0 1.33-.01 2.41-.01 2.74 0 .27.18.58.69.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>
+        <span data-i18n="hero.github">查看原始碼</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ─────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <p class="section-label" data-i18n="features.label">功能介紹</p>
+    <h2 class="section-title" data-i18n="features.title">為終末地玩家打造</h2>
+    <p class="section-desc" data-i18n="features.desc">
+      自動完成每日任務，讓你專注在遊戲本身——不再錯過任何一天的簽到獎勵。
+    </p>
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <div class="feature-icon">🔗</div>
+        <h3 data-i18n="feat.bind.title">帳號綁定</h3>
+        <p data-i18n="feat.bind.desc">
+          透過互動式表單安全綁定你的 Endfield 帳號，憑證以 AES-256-CBC 加密後儲存。
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3 data-i18n="feat.stamina.title">體力狀態監控</h3>
+        <p data-i18n="feat.stamina.desc">
+          即時追蹤遊戲內的體力與基建產能，在即將溢出前發送 Discord 提醒，最大化你的資源收益。
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">⏰</div>
+        <h3 data-i18n="feat.schedule.title">排程自動簽到</h3>
+        <p data-i18n="feat.schedule.desc">
+          設定每日自動簽到時間，讓機器人在指定時刻自動幫你完成簽到。
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🔔</div>
+        <h3 data-i18n="feat.notify.title">伺服器通知</h3>
+        <p data-i18n="feat.notify.desc">
+          指定伺服器頻道接收簽到結果通知，讓整個公會都能即時掌握資訊。
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🏅</div>
+        <h3 data-i18n="feat.achieve.title">成就展示</h3>
+        <p data-i18n="feat.achieve.desc">
+          以精美圖卡形式展示你的遊戲成就獎章，直接在 Discord 頻道中分享。
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3 data-i18n="feat.security.title">安全加密</h3>
+        <p data-i18n="feat.security.desc">
+          所有帳號憑證在本地以 AES-256 加密儲存，無法從外部存取你的個人資料。
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Commands ─────────────────────────────────────────────── -->
+<section id="commands">
+  <div class="container">
+    <p class="section-label" data-i18n="commands.label">可用指令</p>
+    <h2 class="section-title" data-i18n="commands.title">指令列表</h2>
+    <p class="section-desc" data-i18n="commands.desc">
+      所有指令皆以斜線指令形式運作，直接在 Discord 輸入即可使用。
+    </p>
+    <div class="commands-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="cmd.col.cmd">指令</th>
+            <th data-i18n="cmd.col.desc">說明</th>
+            <th data-i18n="cmd.col.perm">權限</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="cmd">/help</span></td>
+            <td data-i18n="cmd.help">列出所有可用指令</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/ping</span></td>
+            <td data-i18n="cmd.ping">檢查機器人延遲</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/bind</span></td>
+            <td data-i18n="cmd.bind">綁定你的 Endfield 帳號</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/unbind</span></td>
+            <td data-i18n="cmd.unbind">解除綁定並刪除所有已儲存資料</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/signin</span></td>
+            <td data-i18n="cmd.signin">立即執行簽到</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/schedule [time] [tag]</span></td>
+            <td data-i18n="cmd.schedule">設定每日自動簽到時間（HH:mm 格式）</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/profile</span></td>
+            <td data-i18n="cmd.profile">查看玩家個人資料</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/achieve</span></td>
+            <td data-i18n="cmd.achieve">查看成就獎章展示</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/explore</span></td>
+            <td data-i18n="cmd.explore">查看探索資料</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/stamina-notify [enable] [threshold] [tag]</span></td>
+            <td data-i18n="cmd.stamina">設定體力通知</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/set-notify-channel [channel]</span></td>
+            <td data-i18n="cmd.setnc">設定伺服器通知頻道</td>
+            <td><span class="badge badge-admin" data-i18n="perm.admin">管理員</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── How to use ────────────────────────────────────────────── -->
+<section id="howto">
+  <div class="container">
+    <p class="section-label" data-i18n="howto.label">快速開始</p>
+    <h2 class="section-title" data-i18n="howto.title">如何使用</h2>
+    <p class="section-desc" data-i18n="howto.desc">
+      只需幾個步驟，即可讓機器人每天自動幫你完成簽到。
+    </p>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4 data-i18n="step1.title">邀請機器人加入你的伺服器</h4>
+          <p data-i18n="step1.desc">
+            點擊上方「加入機器人」按鈕，將 Endfield Assistant 授權加入你的 Discord 伺服器。
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4 data-i18n="step2.title">執行 <code>/bind</code> 綁定帳號</h4>
+          <p data-i18n="step2.desc">
+            在任何機器人可見的頻道輸入 <code>/bind</code>，按照互動式嵌入訊息的步驟操作。前往簽到網站，在瀏覽器開發者主控台（<code>F12 → Console</code>）執行提供的腳本，取得你的 Session 憑證。
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4 data-i18n="step3.title">貼上憑證完成綁定</h4>
+          <p data-i18n="step3.desc">
+            將腳本輸出的 JSON 貼入點擊「輸入 Config」後彈出的表單。你的憑證將以 AES-256-CBC 加密儲存。
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4 data-i18n="step4.title">設定排程（選用）</h4>
+          <p data-i18n="step4.desc">
+            使用 <code>/schedule HH:mm</code> 設定每日自動簽到時間。也可以隨時使用 <code>/signin</code> 手動觸發簽到。
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ───────────────────────────────────────────────────── -->
+<section class="cta-section">
+  <div class="container">
+    <h2 data-i18n="cta.title">立即開始使用</h2>
+    <p data-i18n="cta.desc">免費、開源，永久為終末地社群提供服務。</p>
+    <a class="btn btn-primary"
+       href="https://discord.com/oauth2/authorize?client_id=1466362435782049817"
+       target="_blank" rel="noopener">
+      <svg class="icon-discord" viewBox="0 0 127.14 96.36">
+        <path d="M107.7 8.07A105.15 105.15 0 0081.47 0a72.06 72.06 0 00-3.36 6.83 97.68 97.68 0 00-29.17 0A72.37 72.37 0 0045.58 0a105.89 105.89 0 00-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0032.17 16.15 77.7 77.7 0 006.89-11.11 68.42 68.42 0 01-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0064.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 01-10.87 5.19 77 77 0 006.89 11.1 105.25 105.25 0 0032.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15zM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69z"/>
+      </svg>
+      <span data-i18n="cta.btn">加入機器人</span>
+    </a>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <p>
+      Endfield Assistant &nbsp;·&nbsp;
+      <a href="https://github.com/xydesu/endfield-assistant" target="_blank" rel="noopener">GitHub</a>
+      &nbsp;·&nbsp;
+      <span data-i18n="footer.license">MIT / ISC 授權</span>
+      &nbsp;·&nbsp;
+      <span data-i18n="footer.disclaimer">本專案與 Hypergryph / 明日方舟官方無任何關聯。</span>
+    </p>
+  </div>
+</footer>
+
+<!-- ── i18n ──────────────────────────────────────────────────── -->
+<script>
+  const TRANSLATIONS = {
+    zh: {
+      'nav.features':     '功能',
+      'nav.commands':     '指令',
+      'nav.howto':        '使用方式',
+      'hero.badge':       'Discord 機器人',
+      'hero.title':       'Endfield Assistant',
+      'hero.sub':         '自動化明日方舟：終末地每日簽到，支援排程、通知與成就展示。',
+      'hero.invite':      '加入機器人',
+      'hero.github':      '查看原始碼',
+      'features.label':   '功能介紹',
+      'features.title':   '為終末地玩家打造',
+      'features.desc':    '自動完成每日任務，讓你專注在遊戲本身——不再錯過任何一天的簽到獎勵。',
+      'feat.bind.title':  '帳號綁定',
+      'feat.bind.desc':   '透過互動式表單安全綁定你的 Endfield 帳號，憑證以 AES-256-CBC 加密後儲存。',
+      'feat.stamina.title': '體力狀態監控',
+      'feat.stamina.desc':  '即時追蹤遊戲內的體力與基建產能，在即將溢出前發送 Discord 提醒，最大化你的資源收益。',
+      'feat.schedule.title':'排程自動簽到',
+      'feat.schedule.desc':'設定每日自動簽到時間，讓機器人在指定時刻自動幫你完成簽到。',
+      'feat.notify.title':'伺服器通知',
+      'feat.notify.desc': '指定伺服器頻道接收簽到結果通知，讓整個公會都能即時掌握資訊。',
+      'feat.achieve.title':'成就展示',
+      'feat.achieve.desc':'以精美圖卡形式展示你的遊戲成就獎章，直接在 Discord 頻道中分享。',
+      'feat.security.title':'安全加密',
+      'feat.security.desc':'所有帳號憑證在本地以 AES-256 加密儲存，無法從外部存取你的個人資料。',
+      'commands.label':   '可用指令',
+      'commands.title':   '指令列表',
+      'commands.desc':    '所有指令皆以斜線指令形式運作，直接在 Discord 輸入即可使用。',
+      'cmd.col.cmd':      '指令',
+      'cmd.col.desc':     '說明',
+      'cmd.col.perm':     '權限',
+      'cmd.help':         '列出所有可用指令',
+      'cmd.ping':         '檢查機器人延遲',
+      'cmd.bind':         '綁定你的 Endfield 帳號',
+      'cmd.unbind':       '解除綁定並刪除所有已儲存資料',
+      'cmd.signin':       '立即執行簽到',
+      'cmd.schedule':     '設定每日自動簽到時間（HH:mm 格式）',
+      'cmd.profile':      '查看玩家個人資料',
+      'cmd.achieve':      '查看成就獎章展示',
+      'cmd.explore':      '查看探索資料',
+      'cmd.stamina':      '設定體力通知',
+      'cmd.setnc':        '設定伺服器通知頻道',
+      'perm.everyone':    '所有人',
+      'perm.admin':       '管理員',
+      'howto.label':      '快速開始',
+      'howto.title':      '如何使用',
+      'howto.desc':       '只需幾個步驟，即可讓機器人每天自動幫你完成簽到。',
+      'step1.title':      '邀請機器人加入你的伺服器',
+      'step1.desc':       '點擊上方「加入機器人」按鈕，將 Endfield Assistant 授權加入你的 Discord 伺服器。',
+      'step2.title':      '執行 <code>/bind</code> 綁定帳號',
+      'step2.desc':       '在任何機器人可見的頻道輸入 <code>/bind</code>，按照互動式嵌入訊息的步驟操作。前往簽到網站，在瀏覽器開發者主控台（<code>F12 → Console</code>）執行提供的腳本，取得你的 Session 憑證。',
+      'step3.title':      '貼上憑證完成綁定',
+      'step3.desc':       '將腳本輸出的 JSON 貼入點擊「輸入 Config」後彈出的表單。你的憑證將以 AES-256-CBC 加密儲存。',
+      'step4.title':      '設定排程（選用）',
+      'step4.desc':       '使用 <code>/schedule HH:mm</code> 設定每日自動簽到時間。也可以隨時使用 <code>/signin</code> 手動觸發簽到。',
+      'cta.title':        '立即開始使用',
+      'cta.desc':         '免費、開源，永久為終末地社群提供服務。',
+      'cta.btn':          '加入機器人',
+      'footer.license':   'MIT / ISC 授權',
+      'footer.disclaimer':'本專案與 Hypergryph / 明日方舟官方無任何關聯。',
+    },
+    en: {
+      'nav.features':     'Features',
+      'nav.commands':     'Commands',
+      'nav.howto':        'How to Use',
+      'hero.badge':       'Discord Bot',
+      'hero.title':       'Endfield Assistant',
+      'hero.sub':         'Automate your daily sign-ins on the Arknights: Endfield portal — with scheduling, notifications, and achievement display.',
+      'hero.invite':      'Add to Discord',
+      'hero.github':      'View Source',
+      'features.label':   'Features',
+      'features.title':   'Built for Endfield Players',
+      'features.desc':    'Take care of daily tasks automatically so you can focus on the game — never miss a sign-in reward again.',
+      'feat.bind.title':  'Account Binding',
+      'feat.bind.desc':   'Securely link your Endfield credentials via an interactive modal. Credentials are encrypted at rest using AES-256-CBC.',
+      'feat.stamina.title': 'Stamina Monitoring',
+      'feat.stamina.desc':  'Track your in-game stamina and base production in real-time. Get a Discord DM before they cap out to maximize your efficiency.',
+      'feat.schedule.title':'Scheduled Sign-In',
+      'feat.schedule.desc':'Set a daily auto sign-in time and let the bot handle it automatically.',
+      'feat.notify.title':'Guild Notifications',
+      'feat.notify.desc': 'Designate a server channel to receive sign-in result notifications for your whole guild.',
+      'feat.achieve.title':'Achievement Display',
+      'feat.achieve.desc':'Show off your in-game achievement medals as beautiful image cards right inside Discord.',
+      'feat.security.title':'Secure Encryption',
+      'feat.security.desc':'All credentials are stored locally with AES-256 encryption — your data is never accessible from the outside.',
+      'commands.label':   'Commands',
+      'commands.title':   'Command Reference',
+      'commands.desc':    'All commands are slash commands — just type them directly in Discord.',
+      'cmd.col.cmd':      'Command',
+      'cmd.col.desc':     'Description',
+      'cmd.col.perm':     'Permission',
+      'cmd.help':         'List all available commands',
+      'cmd.ping':         'Check bot latency',
+      'cmd.bind':         'Bind your Endfield account',
+      'cmd.unbind':       'Remove your binding and all stored data',
+      'cmd.signin':       'Perform an immediate sign-in',
+      'cmd.schedule':     'Set a daily auto sign-in time (HH:mm format)',
+      'cmd.profile':      'View your player profile',
+      'cmd.achieve':      'View your achievement medal display',
+      'cmd.explore':      'View your exploration data',
+      'cmd.stamina':      'Configure stamina notifications',
+      'cmd.setnc':        'Set the guild notification channel',
+      'perm.everyone':    'Everyone',
+      'perm.admin':       'Administrator',
+      'howto.label':      'Getting Started',
+      'howto.title':      'How to Use',
+      'howto.desc':       'Just a few steps to have the bot sign in for you every day.',
+      'step1.title':      'Invite the bot to your server',
+      'step1.desc':       'Click the "Add to Discord" button above to authorize Endfield Assistant to join your Discord server.',
+      'step2.title':      'Run <code>/bind</code> to link your account',
+      'step2.desc':       'Type <code>/bind</code> in any channel the bot can see and follow the interactive embed. Visit the sign-in website and run the provided script in the browser developer console (<code>F12 → Console</code>) to extract your session credentials.',
+      'step3.title':      'Paste credentials to finish binding',
+      'step3.desc':       'Paste the JSON output from the script into the modal that appears when you click "Enter Config". Your credentials will be encrypted with AES-256-CBC before being stored.',
+      'step4.title':      'Set a schedule (optional)',
+      'step4.desc':       'Use <code>/schedule HH:mm</code> to enable a daily automatic sign-in. You can also trigger a sign-in at any time with <code>/signin</code>.',
+      'cta.title':        'Get Started Today',
+      'cta.desc':         'Free, open-source, and available to the Endfield community forever.',
+      'cta.btn':          'Add to Discord',
+      'footer.license':   'MIT / ISC License',
+      'footer.disclaimer':'This project is not affiliated with Hypergryph or Arknights official.',
+    }
+  };
+
+  let currentLang = 'zh';
+
+  function applyLang(lang) {
+    currentLang = lang;
+    const map = TRANSLATIONS[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (map[key] !== undefined) el.innerHTML = map[key];
+    });
+    document.documentElement.lang = lang === 'zh' ? 'zh-TW' : 'en';
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+  }
+
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyLang(btn.dataset.lang));
+  });
+</script>
+</body>
+</html>
