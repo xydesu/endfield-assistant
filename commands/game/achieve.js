@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
 const puppeteer = require('puppeteer');
 const UPNG = require('upng-js');
 const User = require('../../models/User');
@@ -156,7 +156,9 @@ function buildCertifyPng(cardBuf, certifyApngBuf, positions) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('achieve')
-        .setDescription('查詢光榮之路成就展示'),
+        .setDescription('查詢光榮之路成就展示')
+        .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+        .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: false });
 

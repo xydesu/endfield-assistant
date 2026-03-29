@@ -1,10 +1,12 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
 const { EMBED_COLOR } = require('../../utils/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('ping')
-        .setDescription('回覆 Pong! (延遲測試)'),
+        .setDescription('回覆 Pong! (延遲測試)')
+        .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+        .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
         const embed = new EmbedBuilder()
             .setColor(EMBED_COLOR)

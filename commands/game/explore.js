@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
@@ -6,7 +6,9 @@ const { EMBED_COLOR } = require('../../utils/constants');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('explore')
-        .setDescription('查詢各區域探索進度'),
+        .setDescription('查詢各區域探索進度')
+        .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+        .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: false });
 
