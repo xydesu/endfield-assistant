@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
@@ -6,7 +6,9 @@ const { EMBED_COLOR } = require('../../utils/constants');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('profile')
-        .setDescription('查詢玩家個人資料 (等級、理智、BP 等)'),
+        .setDescription('查詢玩家個人資料 (等級、理智、BP 等)')
+        .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
+        .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: false });
 
