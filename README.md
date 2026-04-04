@@ -2,6 +2,7 @@
 
 [![Add to Discord](https://img.shields.io/badge/Add%20to%20Discord-Endfield%20Assistant-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1466362435782049817)
 [![Introduction Page](https://img.shields.io/badge/Introduction%20Page-繁中%20%2F%20EN-c8a85a?style=for-the-badge)](https://xydesu.github.io/endfield-assistant/)
+[![繁體中文 README](https://img.shields.io/badge/README-繁體中文-red?style=for-the-badge)](./README.zh-TW.md)
 
 A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in portal](https://game.skport.com/endfield/sign-in).
 
@@ -28,7 +29,7 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 | Command | Description | Permission |
 |---|---|---|
 | `/help` | List all available commands | Everyone |
-| `/ping` | Check bot latency | Everyone |
+| `/invite` | Get the bot invite link | Everyone |
 | `/bind` | Bind your Endfield account | Everyone |
 | `/unbind` | Remove your binding and all stored data | Everyone |
 | `/signin` | Perform an immediate sign-in | Everyone |
@@ -124,7 +125,7 @@ endfield-assistant/
 │   ├── attendance/        # bind, unbind, signin, schedule
 │   ├── game/              # profile, explore, achieve, stamina-notify
 │   ├── general/           # help
-│   └── utility/           # ping, set-notify-channel
+│   └── utility/           # invite, set-notify-channel
 ├── database/
 │   └── db.js              # Sequelize / SQLite connection
 ├── events/
@@ -161,4 +162,4 @@ endfield-assistant/
 
 ## License
 
-ISC
+MIT
