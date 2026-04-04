@@ -28,7 +28,7 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 | Command | Description | Permission |
 |---|---|---|
 | `/help` | List all available commands | Everyone |
-| `/ping` | Check bot latency | Everyone |
+| `/invite` | Get the bot invite link | Everyone |
 | `/bind` | Bind your Endfield account | Everyone |
 | `/unbind` | Remove your binding and all stored data | Everyone |
 | `/signin` | Perform an immediate sign-in | Everyone |
@@ -124,7 +124,7 @@ endfield-assistant/
 │   ├── attendance/        # bind, unbind, signin, schedule
 │   ├── game/              # profile, explore, achieve, stamina-notify
 │   ├── general/           # help
-│   └── utility/           # ping, set-notify-channel
+│   └── utility/           # invite, set-notify-channel
 ├── database/
 │   └── db.js              # Sequelize / SQLite connection
 ├── events/
