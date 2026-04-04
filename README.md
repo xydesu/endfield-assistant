@@ -2,6 +2,7 @@
 
 [![Add to Discord](https://img.shields.io/badge/Add%20to%20Discord-Endfield%20Assistant-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1466362435782049817)
 [![Introduction Page](https://img.shields.io/badge/Introduction%20Page-繁中%20%2F%20EN-c8a85a?style=for-the-badge)](https://xydesu.github.io/endfield-assistant/)
+[![繁體中文 README](https://img.shields.io/badge/README-繁體中文-red?style=for-the-badge)](./README.zh-TW.md)
 
 A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in portal](https://game.skport.com/endfield/sign-in).
 
