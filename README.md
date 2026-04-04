@@ -162,4 +162,4 @@ endfield-assistant/
 
 ## License
 
-ISC
+MIT

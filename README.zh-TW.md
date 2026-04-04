@@ -162,4 +162,4 @@ endfield-assistant/
 
 ## 授權條款
 
-ISC
+MIT
