@@ -7,6 +7,9 @@ const { EMBED_COLOR } = require('./constants');
 const jobs = new Map();
 const dailyJobs = new Map();
 
+const ASIA_SERVER_ID = '2';
+const AMERICAS_EUROPE_SERVER_ID = '3';
+
 async function runSignIn(userId, client) {
     const user = await User.findByPk(userId);
     if (!user) return;
@@ -104,7 +107,7 @@ async function checkAndSendDailyNotification(userId, client) {
         const { dailyMission } = result.detail;
         if (!dailyMission) return;
 
-        const isComplete = parseInt(dailyMission.dailyActivation) >= parseInt(dailyMission.maxDailyActivation);
+        const isComplete = parseInt(dailyMission.dailyActivation, 10) >= parseInt(dailyMission.maxDailyActivation, 10);
         if (isComplete) return;
 
         await sendDailyNotification(user, dailyMission.dailyActivation, dailyMission.maxDailyActivation, client);
@@ -222,14 +225,14 @@ async function initScheduler(client) {
     asiaResetRule.hour = 20;
     asiaResetRule.minute = 0;
     asiaResetRule.tz = 'UTC';
-    schedule.scheduleJob(asiaResetRule, () => resetDailyNotified('2'));
+    schedule.scheduleJob(asiaResetRule, () => resetDailyNotified(ASIA_SERVER_ID));
     console.log('[DailyNotify] Asia daily reset job scheduled at 20:00 UTC.');
 
     const ameResetRule = new schedule.RecurrenceRule();
     ameResetRule.hour = 9;
     ameResetRule.minute = 0;
     ameResetRule.tz = 'UTC';
-    schedule.scheduleJob(ameResetRule, () => resetDailyNotified('3'));
+    schedule.scheduleJob(ameResetRule, () => resetDailyNotified(AMERICAS_EUROPE_SERVER_ID));
     console.log('[DailyNotify] Americas/Europe daily reset job scheduled at 09:00 UTC.');
 }
 
