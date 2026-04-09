@@ -5,6 +5,7 @@ const { signIn, buildAttendanceEmbed, getCardDetail } = require('./attendance');
 const { EMBED_COLOR } = require('./constants');
 
 const jobs = new Map();
+const dailyJobs = new Map();
 
 async function runSignIn(userId, client) {
     const user = await User.findByPk(userId);
@@ -91,20 +92,145 @@ function cancelUser(userId) {
     }
 }
 
+async function checkAndSendDailyNotification(userId, client) {
+    const user = await User.findByPk(userId);
+    if (!user || !user.dailyNotify) return;
+    if (user.dailyNotified) return;
+
+    try {
+        const result = await getCardDetail(user);
+        if (!result.success) return;
+
+        const { dailyMission } = result.detail;
+        if (!dailyMission) return;
+
+        const isComplete = parseInt(dailyMission.dailyActivation) >= parseInt(dailyMission.maxDailyActivation);
+        if (isComplete) return;
+
+        await sendDailyNotification(user, dailyMission.dailyActivation, dailyMission.maxDailyActivation, client);
+        await user.update({ dailyNotified: true });
+        console.log(`[DailyNotify] Notified ${userId} (${dailyMission.dailyActivation}/${dailyMission.maxDailyActivation})`);
+    } catch (e) {
+        console.error(`[DailyNotify] Error checking daily mission for ${userId}:`, e);
+    }
+}
+
+async function sendDailyNotification(user, curActivation, maxActivation, client) {
+    try {
+        const Server = require('../models/Server');
+        const guilds = client.guilds.cache;
+
+        let discordUser = null;
+        try {
+            discordUser = await client.users.fetch(user.discordId);
+        } catch (e) {
+            // If fetch fails, author field will simply be omitted
+        }
+
+        for (const [guildId, guild] of guilds) {
+            try {
+                if (user.notifyGuildId && user.notifyGuildId !== guildId) continue;
+
+                const serverConfig = await Server.findByPk(guildId);
+                if (serverConfig && serverConfig.notifyChannelId) {
+                    try {
+                        await guild.members.fetch(user.discordId);
+                        const channel = guild.channels.cache.get(serverConfig.notifyChannelId);
+                        if (channel) {
+                            const embed = new EmbedBuilder()
+                                .setColor(EMBED_COLOR)
+                                .setTitle('📋 每日任務未完成提醒')
+                                .setDescription(`您今日的活躍度僅完成 **${curActivation} / ${maxActivation}**，請記得完成每日任務！`)
+                                .setTimestamp();
+                            const content = user.isDailyTag ? `<@${user.discordId}>` : '';
+                            await channel.send({ content, embeds: [embed] });
+                        }
+                    } catch (memberErr) {
+                        // User not in guild, ignore
+                    }
+                }
+            } catch (err) {
+                console.error(`[DailyNotify] Error notifying guild ${guildId} for ${user.discordId}:`, err);
+            }
+        }
+    } catch (e) {
+        console.error(`[DailyNotify] Failed to send notification for ${user.discordId}:`, e);
+    }
+}
+
+function scheduleDailyNotifyUser(user, client) {
+    if (dailyJobs.has(user.discordId)) {
+        dailyJobs.get(user.discordId).cancel();
+    }
+
+    if (!user.dailyNotify || !user.dailyNotifyTime) return;
+
+    const [hour, minute] = user.dailyNotifyTime.split(':');
+    const rule = new schedule.RecurrenceRule();
+    rule.hour = parseInt(hour, 10);
+    rule.minute = parseInt(minute, 10);
+    rule.tz = 'UTC';
+
+    const job = schedule.scheduleJob(rule, () => checkAndSendDailyNotification(user.discordId, client));
+    dailyJobs.set(user.discordId, job);
+    console.log(`[DailyNotify] Scheduled notify job for ${user.discordId} at ${user.dailyNotifyTime} UTC`);
+}
+
+function cancelDailyNotifyUser(userId) {
+    if (dailyJobs.has(userId)) {
+        dailyJobs.get(userId).cancel();
+        dailyJobs.delete(userId);
+        console.log(`[DailyNotify] Cancelled notify job for ${userId}`);
+    }
+}
+
+async function resetDailyNotified(serverId) {
+    try {
+        const { Op } = require('sequelize');
+        await User.update(
+            { dailyNotified: false },
+            { where: { dailyNotify: true, serverId, dailyNotified: true } }
+        );
+        console.log(`[DailyNotify] Reset dailyNotified for server ${serverId}`);
+    } catch (e) {
+        console.error(`[DailyNotify] Error resetting dailyNotified for server ${serverId}:`, e);
+    }
+}
+
 async function initScheduler(client) {
     const users = await User.findAll();
     for (const user of users) {
         if (user.autoSignTime) {
             scheduleUser(user, client);
         }
+        if (user.dailyNotify && user.dailyNotifyTime) {
+            scheduleDailyNotifyUser(user, client);
+        }
     }
-    console.log(`[Scheduler] Initialized ${jobs.size} jobs.`);
+    console.log(`[Scheduler] Initialized ${jobs.size} sign-in jobs and ${dailyJobs.size} daily notify jobs.`);
 
     // Check stamina every 30 minutes (at :00 and :30 of each hour)
     const staminaRule = new schedule.RecurrenceRule();
     staminaRule.minute = [0, 30];
     schedule.scheduleJob(staminaRule, () => checkStamina(client));
     console.log('[Scheduler] Stamina check scheduled every 30 minutes.');
+
+    // Reset dailyNotified at each server's daily reset time (04:00 server time):
+    // Asia (UTC+8): 04:00 UTC+8 = 20:00 UTC
+    // Americas/Europe (UTC-5): 04:00 UTC-5 = 09:00 UTC
+    const asiaResetRule = new schedule.RecurrenceRule();
+    asiaResetRule.hour = 20;
+    asiaResetRule.minute = 0;
+    asiaResetRule.tz = 'UTC';
+    schedule.scheduleJob(asiaResetRule, () => resetDailyNotified('2'));
+    console.log('[DailyNotify] Asia daily reset job scheduled at 20:00 UTC.');
+
+    const ameResetRule = new schedule.RecurrenceRule();
+    ameResetRule.hour = 9;
+    ameResetRule.minute = 0;
+    ameResetRule.tz = 'UTC';
+    schedule.scheduleJob(ameResetRule, () => resetDailyNotified('3'));
+    console.log('[DailyNotify] Americas/Europe daily reset job scheduled at 09:00 UTC.');
 }
 
 async function sendStaminaNotification(user, curStamina, maxStamina, client) {
@@ -177,4 +303,4 @@ async function checkStamina(client) {
     }
 }
 
-module.exports = { initScheduler, scheduleUser, cancelUser };
+module.exports = { initScheduler, scheduleUser, cancelUser, scheduleDailyNotifyUser, cancelDailyNotifyUser };
