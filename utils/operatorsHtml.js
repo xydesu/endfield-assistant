@@ -44,7 +44,7 @@ async function generateOperatorsHtml(chars) {
         const avatarUrl = escapeHtml(char.charData?.avatarRtUrl || '');
         const rarityColor = RARITY_COLORS[rarity] || RARITY_COLORS['3'];
         const professionIconUrl = escapeHtml(professionIcons[char.charData?.profession?.key] || '');
-        const elementKey = char.charData?.skills?.[0]?.property?.key || '';
+        const elementKey = char.charData?.property?.key || char.charData?.skills?.[0]?.property?.key || '';
         const elementIconUrl = escapeHtml(ELEMENT_ICONS[elementKey] || '');
         const elementBgColor = ELEMENT_COLORS[elementKey] || '#888888';
         const evolvePhase = char.evolvePhase || 0;
@@ -80,7 +80,7 @@ async function generateOperatorsHtml(chars) {
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-    background: #1a1a1a;
+    background: #fff;
     font-family: Arial, 'Noto Sans TC', sans-serif;
 }
 #wrapper {
@@ -137,6 +137,7 @@ body {
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
+    filter: brightness(0) invert(1);
 }
 .avatar-bottom {
     position: absolute;
