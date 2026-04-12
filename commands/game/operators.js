@@ -3,7 +3,7 @@ const puppeteer = require('puppeteer');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
-const { generateOperatorsHtml, COLS, CARD_W, IMAGE_H, NAME_H, GAP, PADDING } = require('../../utils/operatorsHtml');
+const { generateOperatorsHtml, COLS, CARD_W, IMAGE_H, NAME_H, WEAPON_H, GAP, PADDING } = require('../../utils/operatorsHtml');
 
 const DEVICE_SCALE = 2;
 
@@ -58,7 +58,7 @@ module.exports = {
 
             const viewportW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
             const rows = Math.ceil(chars.length / COLS);
-            const viewportH = rows * (IMAGE_H + NAME_H) + (rows - 1) * GAP + PADDING * 2 + VIEWPORT_HEIGHT_BUFFER;
+            const viewportH = rows * (IMAGE_H + NAME_H + WEAPON_H) + (rows - 1) * GAP + PADDING * 2 + VIEWPORT_HEIGHT_BUFFER;
 
             let browser;
             try {

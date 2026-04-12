@@ -4,6 +4,7 @@ const COLS = 6;
 const CARD_W = 84;
 const IMAGE_H = 120;
 const NAME_H = 26;
+const WEAPON_H = 36;
 const GAP = 8;
 const PADDING = 16;
 
@@ -37,6 +38,9 @@ async function generateOperatorsHtml(chars) {
         const elementBgColor = ELEMENT_COLORS[elementKey] || '#888888';
         const evolvePhase = char.evolvePhase || 0;
         const potentialLevel = char.potentialLevel || 0;
+        const weaponName = escapeHtml(char.weapon?.name || '');
+        const weaponLevel = char.weapon?.level || 0;
+        const weaponIconUrl = escapeHtml(char.weapon?.Url || '');
 
         return `<div class="card">
   <div class="avatar" style="background-image:url('${avatarUrl}');">
@@ -55,12 +59,19 @@ async function generateOperatorsHtml(chars) {
     <span class="name-text">${name}</span>
     ${evolvePhase > 0 ? `<div class="evolve-tag">菁英化${evolvePhase}</div>` : ''}
   </div>
+  ${weaponName ? `<div class="weapon" style="border:1px solid ${rarityColor};">
+    <div class="weapon-info">
+      <div class="weapon-name">${weaponName}</div>
+      <div class="weapon-level">Lv.${weaponLevel}</div>
+    </div>
+    ${weaponIconUrl ? `<div class="weapon-icon" style="background-image:url('${weaponIconUrl}');"></div>` : ''}
+  </div>` : ''}
 </div>`;
     }).join('\n');
 
     const rows = Math.ceil(sorted.length / COLS);
     const containerW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
-    const containerH = rows * (IMAGE_H + NAME_H) + (rows - 1) * GAP + PADDING * 2;
+    const containerH = rows * (IMAGE_H + NAME_H + WEAPON_H) + (rows - 1) * GAP + PADDING * 2;
 
     return `<!DOCTYPE html>
 <html>
@@ -199,6 +210,46 @@ body {
     text-overflow: ellipsis;
     min-width: 0;
 }
+.weapon {
+    height: ${WEAPON_H}px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 4px;
+    gap: 3px;
+    overflow: hidden;
+}
+.weapon-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+.weapon-name {
+    font-size: 8px;
+    font-weight: 700;
+    color: #292929;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+.weapon-level {
+    font-size: 7px;
+    color: #666;
+    line-height: 1;
+}
+.weapon-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
 </style>
 </head>
 <body>
@@ -211,4 +262,4 @@ ${cardsHtml}
 </html>`;
 }
 
-module.exports = { generateOperatorsHtml, COLS, CARD_W, IMAGE_H, NAME_H, GAP, PADDING };
+module.exports = { generateOperatorsHtml, COLS, CARD_W, IMAGE_H, NAME_H, WEAPON_H, GAP, PADDING };
