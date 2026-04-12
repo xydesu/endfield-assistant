@@ -47,11 +47,21 @@ async function generateOperatorsHtml(chars) {
 
         return `<div class="card">
   <div class="avatar" style="background-image:url('${avatarUrl}');">
+    <div class="badge-col">
+      ${professionIconUrl ? `<div class="badge profession-badge"><div class="badge-icon" style="background-image:url('${professionIconUrl}');"></div></div>` : ''}
+      ${elementIconUrl ? `<div class="badge element-badge" style="background:${elementBgColor};"><div class="badge-icon" style="background-image:url('${elementIconUrl}');"></div></div>` : ''}
     </div>
-  
+    <div class="avatar-bottom">
+      ${potentialLevel > 0 ? `<div class="info-tag potential-tag">潛${potentialLevel}</div>` : '<span></span>'}
+      <div class="level-section">
+        <div class="level-text">Lv.<span class="level-num">${level}</span></div>
+      </div>
+    </div>
+  </div>
+
   <div class="name">
     <span class="name-text">${name}</span>
-    ${evolvePhase > 0 ? `<div class="evolve-tag">菁英化${evolvePhase}</div>` : ''}
+    ${evolvePhase > 0 ? `<div class="evolve-tag">P${evolvePhase}</div>` : ''}
   </div>
 
   ${weaponName ? `
@@ -62,7 +72,7 @@ async function generateOperatorsHtml(chars) {
     </div>
     ${weaponIconUrl ? `<div class="weapon-icon" style="background-image:url('${weaponIconUrl}');"></div>` : ''}
   </div>` : ''}
-  
+
   <div class="rarity-line" style="background-color: ${rarityColor};"></div>
 </div>`;
     }).join('\n');
