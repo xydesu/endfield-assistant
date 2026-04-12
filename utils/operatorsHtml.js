@@ -1,7 +1,7 @@
 const https = require('https');
 const { URL } = require('url');
 
-const CSS_URL = 'https://gist.githubusercontent.com/xydesu/2b5a43548db736c72b161c65b6ccbdc1/raw/267d9e899aad9f9f5b0895579bacd90e0266c271/style.css';
+const CSS_URL = 'https://gist.githubusercontent.com/xydesu/9debe8afd826539f268b24f4842b6b4d/raw/e86f7fbd7b18e253319f829eb7f78dafdd3924ec/style.css';
 const ASSETS_BASE = 'https://assets.skport.com/ui-component/endfield/assets';
 
 // Maps char property key → { element filename suffix, background-color }
@@ -67,8 +67,11 @@ function escapeCssUrl(url) {
 /**
  * Generates the HTML page for the operator showcase grid.
  *
- * Each card at index N uses scraped-style numbers from (2 + N*20) to (21 + N*20),
- * matching the structure of the full scraped HTML.
+ * Uses the new deduplicated css-N class structure: structural layout classes
+ * (css-0 through ~css-21) come from the fetched CSS, while per-unique-value
+ * classes for avatars, profession icons, element containers/icons, and evolve
+ * phase icons are generated dynamically starting at css-100, sharing a class
+ * whenever two cards have the same value.
  *
  * @param {Array<{id: string, charData: object, level: number, evolvePhase: number, potentialLevel: number}>} chars
  * @returns {Promise<string>} HTML string
@@ -79,53 +82,75 @@ async function generateOperatorsHtml(chars) {
     const numCols = Math.min(chars.length, 4);
     const numRows = Math.ceil(chars.length / 4);
 
-    let overrideCSS = '\n/* Dynamic operator overrides */\n';
+    // Deduplication registry: semantic key → generated css class number (≥100)
+    let nextNum = 100;
+    const registry = new Map();
+    function clsNum(key) {
+        if (!registry.has(key)) registry.set(key, nextNum++);
+        return registry.get(key);
+    }
 
-    // Allow the grid to grow to the correct number of rows
-    overrideCSS += `.scraped-style-0 { height: auto !important; overflow: visible !important; }\n`;
-    overrideCSS += `.scraped-style-1 { height: auto !important; grid-template-rows: repeat(${numRows}, 140.65px) !important; grid-template-columns: repeat(${numCols}, 84.8px) !important; }\n`;
-
-    chars.forEach((char, idx) => {
-        const { charData, evolvePhase } = char;
+    // Pre-populate registry by iterating all chars so CSS is emitted before HTML
+    chars.forEach(({ charData, evolvePhase }) => {
         if (!charData) return;
-
-        // Each card block starts at scraped-style-(2 + idx*20)
-        const s = 2 + idx * 20;
-
-        // Avatar  →  scraped-style-{s+4}
-        if (charData.avatarSqUrl) {
-            overrideCSS += `.scraped-style-${s + 4} { background-image: url("${escapeCssUrl(charData.avatarSqUrl)}") !important; }\n`;
-        }
-
-        // Profession icon  →  scraped-style-{s+7}
+        if (charData.avatarSqUrl)           clsNum(`avatar:${charData.avatarSqUrl}`);
         const profKey = PROFESSION_MAP[charData.profession?.key];
-        if (profKey) {
-            const profIconUrl = `${ASSETS_BASE}/professions/${profKey}.png`;
-            overrideCSS += `.scraped-style-${s + 7} { background-image: url("${escapeCssUrl(profIconUrl)}") !important; }\n`;
-        }
-
-        // Element container bg  →  scraped-style-{s+8}
-        // Element icon          →  scraped-style-{s+9}
+        if (profKey)                         clsNum(`prof:${profKey}`);
         const propInfo = PROPERTY_MAP[charData.property?.key];
         if (propInfo) {
-            const elementUrl = `${ASSETS_BASE}/elements/${propInfo.element}-active.png`;
-            overrideCSS += `.scraped-style-${s + 8} { background-color: ${propInfo.bgColor} !important; }\n`;
-            overrideCSS += `.scraped-style-${s + 9} { background-image: url("${escapeCssUrl(elementUrl)}") !important; }\n`;
+            clsNum(`elem-cont:${charData.property.key}`);
+            clsNum(`elem-icon:${charData.property.key}`);
         }
-
-        // Evolve phase icon  →  scraped-style-{s+15}
-        if (evolvePhase !== null && evolvePhase !== undefined) {
-            const evolveUrl = `${ASSETS_BASE}/evolve-phases/phase-${evolvePhase}.png`;
-            overrideCSS += `.scraped-style-${s + 15} { background-image: url("${escapeCssUrl(evolveUrl)}") !important; }\n`;
-        }
+        if (evolvePhase != null)             clsNum(`evolve:${evolvePhase}`);
     });
 
-    const cards = chars.map((char, idx) => {
-        const { charData, level } = char;
-        const name = charData?.name ?? '—';
-        const s = 2 + idx * 20;
+    // Grid overrides
+    let dynamicCSS = '\n/* Grid overrides */\n';
+    dynamicCSS += `.css-0 { height: auto !important; overflow: visible !important; }\n`;
+    dynamicCSS += `.css-1 { height: auto !important; grid-template-rows: repeat(${numRows}, 140.65px) !important; grid-template-columns: repeat(${numCols}, 84.8px) !important; }\n`;
 
-        return `<div class="OperatorCard__ScaleContainer-QlPmq geVdDu scraped-style-${s}"><div class="OperatorCard__Wrapper-VeqHO ecWcHG scraped-style-${s + 1}"><div class="OperatorCard__WrapInner-jQqQsD crcAhl scraped-style-${s + 2}"><div class="OperatorCard__AvatarWrap-CaNUI iHYZtW scraped-style-${s + 3}"><div class="OperatorCard__Avatar-gSVgbk scraped-style-${s + 4}"></div><div class="OperatorCard__PropertyWrap-grXkRa jRVPIc scraped-style-${s + 5}"><div class="sc-hApDpY eSTnmd OperatorCard__Profession-gxHNRD iRCNGQ scraped-style-${s + 6}"><div class="sc-esUyCF scraped-style-${s + 7}"></div></div><div class="sc-cfLHZC OperatorCard__Property-dJzhsq bxVqnM scraped-style-${s + 8}"><div class="sc-knMmLf scraped-style-${s + 9}"></div></div></div><div class="OperatorCard__UserStatus-csBdnw bODGjO scraped-style-${s + 10}"><div class="sc-ezERCi OperatorCard__Potential-AcSBJ ihwnus scraped-style-${s + 11}"></div><div class="OperatorCard__LevelStatus-kokgQf iVJIQv scraped-style-${s + 12}"><div class="OperatorCard__LevelText-ezEXiu dERcJb scraped-style-${s + 13}">Lv.<span class="count scraped-style-${s + 14}">${level ?? '?'}</span></div><div class="sc-biCyHy kBumbK OperatorCard__EvolvePhase-hBKtN eVxebN scraped-style-${s + 15}"></div></div></div></div><div class="OperatorCard__Bottom-gYxBRu DwGSe scraped-style-${s + 16}"><div class="OperatorCard__Name-eTwRoa kncQEL scraped-style-${s + 17}">${name}</div><div class="OperatorCard__FakeName-lfmwJL huwWDh scraped-style-${s + 18}">${name}</div><div class="OperatorCard__BottomDecorator-gZXihR jfPkvD scraped-style-${s + 19}"></div></div></div></div></div>`;
+    // Dynamic per-unique-value classes
+    dynamicCSS += '\n/* Dynamic card properties */\n';
+    for (const [key, n] of registry) {
+        if (key.startsWith('avatar:')) {
+            const url = key.slice('avatar:'.length);
+            dynamicCSS += `.css-${n} { background-image: url("${escapeCssUrl(url)}"); background-position: 50%; background-repeat: no-repeat; background-size: cover; height: 124.883px; width: 89.35px; }\n`;
+        } else if (key.startsWith('prof:')) {
+            const profKey = key.slice('prof:'.length);
+            const iconUrl = `${ASSETS_BASE}/professions/${profKey}.png`;
+            dynamicCSS += `.css-${n} { background-image: url("${escapeCssUrl(iconUrl)}"); background-position: 50%; background-repeat: no-repeat; background-size: contain; height: 14.8333px; transition-duration: 0.16s; transition-property: background-image; transition-timing-function: ease-in-out; width: 14.8333px; }\n`;
+        } else if (key.startsWith('elem-cont:')) {
+            const propKey = key.slice('elem-cont:'.length);
+            const propInfo = PROPERTY_MAP[propKey];
+            if (propInfo) {
+                dynamicCSS += `.css-${n} { align-items: center; background-color: ${propInfo.bgColor}; border-radius: 1px; display: flex; height: 16.2333px; justify-content: center; transition-duration: 0.16s; transition-property: background-color; transition-timing-function: ease-in-out; width: 16.2333px; }\n`;
+            }
+        } else if (key.startsWith('elem-icon:')) {
+            const propKey = key.slice('elem-icon:'.length);
+            const propInfo = PROPERTY_MAP[propKey];
+            if (propInfo) {
+                const iconUrl = `${ASSETS_BASE}/elements/${propInfo.element}-active.png`;
+                dynamicCSS += `.css-${n} { background-image: url("${escapeCssUrl(iconUrl)}"); background-position: 50%; background-repeat: no-repeat; background-size: contain; height: 16.2333px; width: 16.2333px; }\n`;
+            }
+        } else if (key.startsWith('evolve:')) {
+            const phase = key.slice('evolve:'.length);
+            const evolveUrl = `${ASSETS_BASE}/evolve-phases/phase-${phase}.png`;
+            dynamicCSS += `.css-${n} { background-image: url("${escapeCssUrl(evolveUrl)}"); background-position: 50%; background-repeat: no-repeat; background-size: contain; filter: drop-shadow(rgba(0,0,0,0.4) 0px 0px 1px); height: 14.2px; width: 14.2px; }\n`;
+        }
+    }
+
+    // Generate card HTML using the new deduplicated css-N structure
+    const cards = chars.map(({ charData, level, evolvePhase }) => {
+        const name = charData?.name ?? '—';
+
+        const avatarCls  = charData?.avatarSqUrl                        ? `css-${clsNum(`avatar:${charData.avatarSqUrl}`)}` : '';
+        const profCls    = PROFESSION_MAP[charData?.profession?.key]     ? `css-${clsNum(`prof:${PROFESSION_MAP[charData.profession.key]}`)}` : '';
+        const propInfo   = PROPERTY_MAP[charData?.property?.key];
+        const elemContCls = propInfo ? `css-${clsNum(`elem-cont:${charData.property.key}`)}` : '';
+        const elemIconCls = propInfo ? `css-${clsNum(`elem-icon:${charData.property.key}`)}` : '';
+        const evolveCls  = (evolvePhase != null) ? `css-${clsNum(`evolve:${evolvePhase}`)}` : '';
+
+        return `<div class="css-2"><div class="css-3"><div class="css-4"><div class="css-5"><div class="${avatarCls}"></div><div class="css-7"><div class="css-8"><div class="${profCls}"></div></div><div class="${elemContCls}"><div class="${elemIconCls}"></div></div></div><div class="css-12"><div class="css-13"></div><div class="css-14"><div class="css-15">Lv.<span class="css-16">${level ?? '?'}</span></div><div class="${evolveCls}"></div></div></div></div><div class="css-18"><div class="css-19">${name}</div><div class="css-20">${name}</div><div class="css-21"></div></div></div></div></div>`;
     }).join('');
 
     return `<!DOCTYPE html>
@@ -135,12 +160,12 @@ async function generateOperatorsHtml(chars) {
 <style>
 body { margin: 0; padding: 0; background: transparent; }
 ${css}
-${overrideCSS}
+${dynamicCSS}
 </style>
 </head>
 <body>
-<div class="operator-list__Scroll-evdVpD gUOWQu scraped-style-0">
-    <div class="operator-list__OperatorGrid-eCpEkK eddQOz scraped-style-1">${cards}</div>
+<div class="css-0">
+    <div class="css-1">${cards}</div>
 </div>
 </body>
 </html>`;
