@@ -40,7 +40,7 @@ async function generateOperatorsHtml(chars) {
         const potentialLevel = char.potentialLevel || 0;
         const weaponName = escapeHtml(char.weapon?.name || '');
         const weaponLevel = char.weapon?.level || 0;
-        const weaponIconUrl = escapeHtml(char.weapon?.Url || '');
+        const weaponIconUrl = escapeHtml(char.weapon?.iconUrl || '');
 
         return `<div class="card">
   <div class="avatar" style="background-image:url('${avatarUrl}');">
