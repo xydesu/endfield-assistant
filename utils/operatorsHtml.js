@@ -1,9 +1,11 @@
 const COLS = 6;
 const CARD_W = 84;
-const IMAGE_H = 110;
-const NAME_H = 30;
+const IMAGE_H = 120;
+const NAME_H = 26;
 const GAP = 8;
 const PADDING = 16;
+
+const EVOLVE_PHASE_BASE_URL = 'https://assets.skport.com/ui-component/endfield/assets/evolve-phases';
 
 const RARITY_COLORS = {
     '6': '#FFB800',
@@ -22,6 +24,15 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+function renderPotentialDots(potentialLevel) {
+    const MAX = 5;
+    let html = '';
+    for (let i = 0; i < MAX; i++) {
+        html += `<span class="pot-dot${i < potentialLevel ? ' filled' : ''}"></span>`;
+    }
+    return html;
+}
+
 function generateOperatorsHtml(chars) {
 
     const sorted = [...chars].sort((a, b) => {
@@ -35,14 +46,29 @@ function generateOperatorsHtml(chars) {
         const name = escapeHtml(char.charData?.name || '?');
         const level = char.level || 0;
         const rarity = char.charData?.rarity?.value || '4';
-        const avatarUrl = escapeHtml(char.charData?.avatarSqUrl || '');
+        const avatarUrl = escapeHtml(char.charData?.avatarRtUrl || '');
         const rarityColor = RARITY_COLORS[rarity] || RARITY_COLORS['3'];
+        const professionIconUrl = escapeHtml(char.charData?.profession?.iconUrl || '');
+        const elementIconUrl = escapeHtml(char.charData?.skill_property_cryst?.iconUrl || '');
+        const evolvePhase = char.evolvePhase || 0;
+        const potentialLevel = char.potentialLevel || 0;
+        const evolvePhaseUrl = escapeHtml(`${EVOLVE_PHASE_BASE_URL}/phase-${evolvePhase}.png`);
 
-        return `<div class="card" style="border-top:3px solid ${rarityColor};">
+        return `<div class="card">
   <div class="avatar" style="background-image:url('${avatarUrl}');">
-    <div class="level-badge">Lv.${level}</div>
+    <div class="badge-col">
+      ${professionIconUrl ? `<div class="badge profession-badge"><div class="badge-icon" style="background-image:url('${professionIconUrl}');"></div></div>` : ''}
+      ${elementIconUrl ? `<div class="badge element-badge"><div class="badge-icon" style="background-image:url('${elementIconUrl}');"></div></div>` : ''}
+    </div>
+    <div class="avatar-bottom">
+      <div class="potential-dots">${renderPotentialDots(potentialLevel)}</div>
+      <div class="level-section">
+        <div class="level-text">Lv.<span class="level-num">${level}</span></div>
+        ${evolvePhase > 0 ? `<div class="evolve-icon" style="background-image:url('${evolvePhaseUrl}');"></div>` : ''}
+      </div>
+    </div>
   </div>
-  <div class="name">${name}</div>
+  <div class="name" style="border-bottom:3px solid ${rarityColor};">${name}</div>
 </div>`;
     }).join('\n');
 
@@ -73,10 +99,10 @@ body {
 }
 .card {
     width: ${CARD_W}px;
-    background: #2c2c2c;
+    background: #fff;
     border-radius: 2px 4px 3px 3px;
     overflow: hidden;
-    box-shadow: rgba(0,0,0,0.25) 0 2px 6px;
+    box-shadow: rgba(0,0,0,0.1) 0 1px 6px;
 }
 .avatar {
     width: ${CARD_W}px;
@@ -86,25 +112,94 @@ body {
     background-position: top center;
     position: relative;
 }
-.level-badge {
+.badge-col {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.badge {
+    width: 15px;
+    height: 15px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.profession-badge {
+    background: #444;
+}
+.element-badge {
+    background: #21c6d0;
+}
+.badge-icon {
+    width: 13px;
+    height: 13px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+.avatar-bottom {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,0.75));
-    padding: 10px 4px 3px;
-    font-size: 11px;
-    font-weight: bold;
+    height: 22px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.6));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px 2px;
+}
+.potential-dots {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.pot-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+}
+.pot-dot.filled {
+    background: #ffd700;
+}
+.level-section {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.level-text {
+    font-size: 9px;
+    font-weight: 700;
     color: #fff;
-    text-align: center;
+    text-shadow: 0 0 1px rgba(0,0,0,0.4);
+    line-height: 1;
+}
+.level-num {
+    font-size: 13px;
+}
+.evolve-icon {
+    width: 12px;
+    height: 12px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: drop-shadow(0 0 1px rgba(0,0,0,0.4));
 }
 .name {
     height: ${NAME_H}px;
+    background: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 10px;
-    color: #e0e0e0;
+    font-weight: 700;
+    color: #292929;
     padding: 0 3px;
     text-align: center;
     overflow: hidden;
