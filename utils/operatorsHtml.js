@@ -61,7 +61,7 @@ async function generateOperatorsHtml(chars) {
 
   <div class="name">
     <span class="name-text">${name}</span>
-    ${evolvePhase > 0 ? `<div class="evolve-tag">P${evolvePhase}</div>` : ''}
+    ${evolvePhase > 0 ? `<div class="evolve-tag">菁英化${evolvePhase}</div>` : ''}
   </div>
 
   ${weaponName ? `
