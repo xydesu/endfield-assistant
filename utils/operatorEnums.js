@@ -55,6 +55,10 @@ function fetchText(url) {
         const req = https.request(
             { hostname: u.hostname, path: u.pathname + u.search, method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' } },
             (res) => {
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    res.resume();
+                    return reject(new Error(`HTTP ${res.statusCode} fetching ${url}`));
+                }
                 const chunks = [];
                 res.on('data', (c) => chunks.push(c));
                 res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
@@ -75,7 +79,7 @@ async function getProfessionIcons() {
 
     const text = await fetchText(PROFESSION_ENUM_URL);
     // Each profession icon is a data:image/png;base64,… literal in the file.
-    const uris = Array.from(text.matchAll(/data:image\/png;base64,[A-Za-z0-9+/]+=*/g), (m) => m[0]);
+    const uris = text.match(/data:image\/png;base64,[A-Za-z0-9+/]+={0,2}/g) || [];
 
     const icons = {};
     PROFESSION_KEY_ORDER.forEach((key, i) => {
