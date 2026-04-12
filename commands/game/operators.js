@@ -54,13 +54,6 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            // Temporary diagnostic: log the first charData so the field names/values are visible in production logs
-            if (chars.length > 0) {
-                console.log('[operators] sample charData keys:', Object.keys(chars[0].charData || {}));
-                console.log('[operators] sample charData:', JSON.stringify(chars[0].charData, null, 2));
-                console.log('[operators] sample char (top-level):', JSON.stringify({ level: chars[0].level, evolvePhase: chars[0].evolvePhase, potentialLevel: chars[0].potentialLevel }));
-            }
-
             const html = await generateOperatorsHtml(chars);
 
             const viewportW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;

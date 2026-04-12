@@ -43,8 +43,8 @@ async function generateOperatorsHtml(chars) {
         const rarity = char.charData?.rarity?.value || '4';
         const avatarUrl = escapeHtml(char.charData?.avatarRtUrl || '');
         const rarityColor = RARITY_COLORS[rarity] || RARITY_COLORS['3'];
-        const professionIconUrl = escapeHtml(professionIcons[char.charData?.profession] || '');
-        const elementKey = char.charData?.skill_property_cryst || '';
+        const professionIconUrl = escapeHtml(professionIcons[char.charData?.profession?.key] || '');
+        const elementKey = char.charData?.skills?.[0]?.property?.key || '';
         const elementIconUrl = escapeHtml(ELEMENT_ICONS[elementKey] || '');
         const elementBgColor = ELEMENT_COLORS[elementKey] || '#888888';
         const evolvePhase = char.evolvePhase || 0;
