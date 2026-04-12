@@ -1,3 +1,5 @@
+const { ELEMENT_ICONS, ELEMENT_COLORS, RARITY_COLORS, getProfessionIcons } = require('./operatorEnums');
+
 const COLS = 6;
 const CARD_W = 84;
 const IMAGE_H = 120;
@@ -8,15 +10,6 @@ const PADDING = 16;
 const EVOLVE_PHASE_BASE_URL = 'https://assets.skport.com/ui-component/endfield/assets/evolve-phases';
 
 const MAX_POTENTIAL_LEVEL = 5;
-
-const RARITY_COLORS = {
-    '6': '#FFB800',
-    '5': '#C0A0FF',
-    '4': '#00C8FF',
-    '3': '#808080',
-    '2': '#555555',
-    '1': '#333333',
-};
 
 function escapeHtml(str) {
     return String(str)
@@ -34,7 +27,8 @@ function renderPotentialDots(potentialLevel) {
     return html;
 }
 
-function generateOperatorsHtml(chars) {
+async function generateOperatorsHtml(chars) {
+    const professionIcons = await getProfessionIcons();
 
     const sorted = [...chars].sort((a, b) => {
         if (b.level !== a.level) return b.level - a.level;
@@ -49,8 +43,10 @@ function generateOperatorsHtml(chars) {
         const rarity = char.charData?.rarity?.value || '4';
         const avatarUrl = escapeHtml(char.charData?.avatarRtUrl || '');
         const rarityColor = RARITY_COLORS[rarity] || RARITY_COLORS['3'];
-        const professionIconUrl = escapeHtml(char.charData?.profession?.iconUrl || '');
-        const elementIconUrl = escapeHtml(char.charData?.skill_property_cryst?.iconUrl || '');
+        const professionIconUrl = escapeHtml(professionIcons[char.charData?.profession] || '');
+        const elementKey = char.charData?.skill_property_cryst || '';
+        const elementIconUrl = escapeHtml(ELEMENT_ICONS[elementKey] || '');
+        const elementBgColor = ELEMENT_COLORS[elementKey] || '#888888';
         const evolvePhase = char.evolvePhase || 0;
         const potentialLevel = char.potentialLevel || 0;
         const evolvePhaseUrl = escapeHtml(`${EVOLVE_PHASE_BASE_URL}/phase-${evolvePhase}.png`);
@@ -59,7 +55,7 @@ function generateOperatorsHtml(chars) {
   <div class="avatar" style="background-image:url('${avatarUrl}');">
     <div class="badge-col">
       ${professionIconUrl ? `<div class="badge profession-badge"><div class="badge-icon" style="background-image:url('${professionIconUrl}');"></div></div>` : ''}
-      ${elementIconUrl ? `<div class="badge element-badge"><div class="badge-icon" style="background-image:url('${elementIconUrl}');"></div></div>` : ''}
+      ${elementIconUrl ? `<div class="badge element-badge" style="background:${elementBgColor};"><div class="badge-icon" style="background-image:url('${elementIconUrl}');"></div></div>` : ''}
     </div>
     <div class="avatar-bottom">
       <div class="potential-dots">${renderPotentialDots(potentialLevel)}</div>
@@ -133,7 +129,7 @@ body {
     background: #444;
 }
 .element-badge {
-    background: #21c6d0;
+    background: #21c6d0; /* fallback; overridden per-element via inline style */
 }
 .badge-icon {
     width: 13px;
