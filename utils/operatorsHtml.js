@@ -1,7 +1,7 @@
 const https = require('https');
 const { URL } = require('url');
 
-const CSS_URL = 'https://gist.githubusercontent.com/xydesu/2b5a43548db736c72b161c65b6ccbdc1/raw/eac4fc55ade3ba1267ce49b90954e58b7f70f004/style.css';
+const CSS_URL = 'https://gist.githubusercontent.com/xydesu/2b5a43548db736c72b161c65b6ccbdc1/raw/267d9e899aad9f9f5b0895579bacd90e0266c271/style.css';
 const ASSETS_BASE = 'https://assets.skport.com/ui-component/endfield/assets';
 
 // Maps char property key → { element filename suffix, background-color }
@@ -67,6 +67,9 @@ function escapeCssUrl(url) {
 /**
  * Generates the HTML page for the operator showcase grid.
  *
+ * Each card at index N uses scraped-style numbers from (2 + N*20) to (21 + N*20),
+ * matching the structure of the full scraped HTML.
+ *
  * @param {Array<{id: string, charData: object, level: number, evolvePhase: number, potentialLevel: number}>} chars
  * @returns {Promise<string>} HTML string
  */
@@ -74,80 +77,55 @@ async function generateOperatorsHtml(chars) {
     const css = await getOperatorsCSS();
 
     const numCols = Math.min(chars.length, 4);
+    const numRows = Math.ceil(chars.length / 4);
 
     let overrideCSS = '\n/* Dynamic operator overrides */\n';
 
-    // Allow the grid to grow beyond a single row
+    // Allow the grid to grow to the correct number of rows
     overrideCSS += `.scraped-style-0 { height: auto !important; overflow: visible !important; }\n`;
-    overrideCSS += `.scraped-style-1 { height: auto !important; grid-template-rows: auto !important; grid-template-columns: repeat(${numCols}, 84.8px) !important; }\n`;
+    overrideCSS += `.scraped-style-1 { height: auto !important; grid-template-rows: repeat(${numRows}, 140.65px) !important; grid-template-columns: repeat(${numCols}, 84.8px) !important; }\n`;
 
     chars.forEach((char, idx) => {
         const { charData, evolvePhase } = char;
         if (!charData) return;
 
-        const sel = `.op-card-${idx}`;
+        // Each card block starts at scraped-style-(2 + idx*20)
+        const s = 2 + idx * 20;
 
-        // Avatar
+        // Avatar  →  scraped-style-{s+4}
         if (charData.avatarSqUrl) {
-            overrideCSS += `${sel} .scraped-style-6 { background-image: url("${escapeCssUrl(charData.avatarSqUrl)}") !important; }\n`;
+            overrideCSS += `.scraped-style-${s + 4} { background-image: url("${escapeCssUrl(charData.avatarSqUrl)}") !important; }\n`;
         }
 
-        // Property (element) icon + background colour
-        const propInfo = PROPERTY_MAP[charData.property?.key];
-        if (propInfo) {
-            const elementUrl = `${ASSETS_BASE}/elements/${propInfo.element}-active.png`;
-            overrideCSS += `${sel} .scraped-style-10 { background-color: ${propInfo.bgColor} !important; }\n`;
-            overrideCSS += `${sel} .scraped-style-11 { background-image: url("${escapeCssUrl(elementUrl)}") !important; }\n`;
-        }
-
-        // Profession icon
+        // Profession icon  →  scraped-style-{s+7}
         const profKey = PROFESSION_MAP[charData.profession?.key];
         if (profKey) {
             const profIconUrl = `${ASSETS_BASE}/professions/${profKey}.png`;
-            overrideCSS += `${sel} .scraped-style-9 { background-image: url("${escapeCssUrl(profIconUrl)}") !important; }\n`;
+            overrideCSS += `.scraped-style-${s + 7} { background-image: url("${escapeCssUrl(profIconUrl)}") !important; }\n`;
         }
 
-        // Evolve phase icon
+        // Element container bg  →  scraped-style-{s+8}
+        // Element icon          →  scraped-style-{s+9}
+        const propInfo = PROPERTY_MAP[charData.property?.key];
+        if (propInfo) {
+            const elementUrl = `${ASSETS_BASE}/elements/${propInfo.element}-active.png`;
+            overrideCSS += `.scraped-style-${s + 8} { background-color: ${propInfo.bgColor} !important; }\n`;
+            overrideCSS += `.scraped-style-${s + 9} { background-image: url("${escapeCssUrl(elementUrl)}") !important; }\n`;
+        }
+
+        // Evolve phase icon  →  scraped-style-{s+15}
         if (evolvePhase !== null && evolvePhase !== undefined) {
             const evolveUrl = `${ASSETS_BASE}/evolve-phases/phase-${evolvePhase}.png`;
-            overrideCSS += `${sel} .scraped-style-17 { background-image: url("${escapeCssUrl(evolveUrl)}") !important; }\n`;
+            overrideCSS += `.scraped-style-${s + 15} { background-image: url("${escapeCssUrl(evolveUrl)}") !important; }\n`;
         }
     });
 
     const cards = chars.map((char, idx) => {
         const { charData, level } = char;
         const name = charData?.name ?? '—';
+        const s = 2 + idx * 20;
 
-        return `
-            <div class="OperatorCard__ScaleContainer-QlPmq geVdDu scraped-style-2 op-card-${idx}">
-                <div class="OperatorCard__Wrapper-VeqHO ecWcHG scraped-style-3">
-                    <div class="OperatorCard__WrapInner-jQqQsD crcAhl scraped-style-4">
-                        <div class="OperatorCard__AvatarWrap-CaNUI iHYZtW scraped-style-5">
-                            <div class="OperatorCard__Avatar-gSVgbk kqvihx scraped-style-6"></div>
-                            <div class="OperatorCard__PropertyWrap-grXkRa jRVPIc scraped-style-7">
-                                <div class="sc-hApDpY eSTnmd OperatorCard__Profession-gxHNRD iRCNGQ scraped-style-8">
-                                    <div class="sc-esUyCF hWCrNh scraped-style-9"></div>
-                                </div>
-                                <div class="sc-cfLHZC bHuRra OperatorCard__Property-dJzhsq bxVqnM scraped-style-10">
-                                    <div class="sc-knMmLf kVWGWq scraped-style-11"></div>
-                                </div>
-                            </div>
-                            <div class="OperatorCard__UserStatus-csBdnw bODGjO scraped-style-12">
-                                <div class="sc-ezERCi fpeSgz OperatorCard__Potential-AcSBJ ihwnus scraped-style-13"></div>
-                                <div class="OperatorCard__LevelStatus-kokgQf iVJIQv scraped-style-14">
-                                    <div class="OperatorCard__LevelText-ezEXiu eceHDy scraped-style-15">Lv.<span class="count scraped-style-16">${level ?? '?'}</span></div>
-                                    <div class="sc-biCyHy kBumbK OperatorCard__EvolvePhase-hBKtN eVxebN scraped-style-17"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="OperatorCard__Bottom-gYxBRu bCOzFP scraped-style-18">
-                            <div class="OperatorCard__Name-eTwRoa jWgMNa scraped-style-19">${name}</div>
-                            <div class="OperatorCard__FakeName-lfmwJL bHLscd scraped-style-20">${name}</div>
-                            <div class="OperatorCard__BottomDecorator-gZXihR jfPkvD scraped-style-21"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
+        return `<div class="OperatorCard__ScaleContainer-QlPmq geVdDu scraped-style-${s}"><div class="OperatorCard__Wrapper-VeqHO ecWcHG scraped-style-${s + 1}"><div class="OperatorCard__WrapInner-jQqQsD crcAhl scraped-style-${s + 2}"><div class="OperatorCard__AvatarWrap-CaNUI iHYZtW scraped-style-${s + 3}"><div class="OperatorCard__Avatar-gSVgbk scraped-style-${s + 4}"></div><div class="OperatorCard__PropertyWrap-grXkRa jRVPIc scraped-style-${s + 5}"><div class="sc-hApDpY eSTnmd OperatorCard__Profession-gxHNRD iRCNGQ scraped-style-${s + 6}"><div class="sc-esUyCF scraped-style-${s + 7}"></div></div><div class="sc-cfLHZC OperatorCard__Property-dJzhsq bxVqnM scraped-style-${s + 8}"><div class="sc-knMmLf scraped-style-${s + 9}"></div></div></div><div class="OperatorCard__UserStatus-csBdnw bODGjO scraped-style-${s + 10}"><div class="sc-ezERCi OperatorCard__Potential-AcSBJ ihwnus scraped-style-${s + 11}"></div><div class="OperatorCard__LevelStatus-kokgQf iVJIQv scraped-style-${s + 12}"><div class="OperatorCard__LevelText-ezEXiu dERcJb scraped-style-${s + 13}">Lv.<span class="count scraped-style-${s + 14}">${level ?? '?'}</span></div><div class="sc-biCyHy kBumbK OperatorCard__EvolvePhase-hBKtN eVxebN scraped-style-${s + 15}"></div></div></div></div><div class="OperatorCard__Bottom-gYxBRu DwGSe scraped-style-${s + 16}"><div class="OperatorCard__Name-eTwRoa kncQEL scraped-style-${s + 17}">${name}</div><div class="OperatorCard__FakeName-lfmwJL huwWDh scraped-style-${s + 18}">${name}</div><div class="OperatorCard__BottomDecorator-gZXihR jfPkvD scraped-style-${s + 19}"></div></div></div></div></div>`;
     }).join('');
 
     return `<!DOCTYPE html>
@@ -162,9 +140,7 @@ ${overrideCSS}
 </head>
 <body>
 <div class="operator-list__Scroll-evdVpD gUOWQu scraped-style-0">
-    <div class="operator-list__OperatorGrid-eCpEkK eddQOz scraped-style-1">
-        ${cards}
-    </div>
+    <div class="operator-list__OperatorGrid-eCpEkK eddQOz scraped-style-1">${cards}</div>
 </div>
 </body>
 </html>`;
