@@ -78,7 +78,7 @@ module.exports = {
                 const attachment = new AttachmentBuilder(imageBuffer, { name: 'operators.png' });
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle(`🧑‍✈️ ${base?.name ?? interaction.user.username} 的幹員列表`)
+                    .setTitle(`${base?.name ?? interaction.user.username} 的幹員列表`)
                     .setImage('attachment://operators.png')
                     .setTimestamp();
                 await interaction.editReply({ embeds: [embed], files: [attachment] });

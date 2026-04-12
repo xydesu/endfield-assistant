@@ -53,7 +53,7 @@ async function generateOperatorsHtml(chars) {
   </div>
   <div class="name" style="border-bottom:3px solid ${rarityColor};">
     <span class="name-text">${name}</span>
-    ${evolvePhase > 0 ? `<div class="evolve-tag" style="background:${rarityColor};">菁英化${evolvePhase}</div>` : ''}
+    ${evolvePhase > 0 ? `<div class="evolve-tag">菁英化${evolvePhase}</div>` : ''}
   </div>
 </div>`;
     }).join('\n');
@@ -178,6 +178,7 @@ body {
     white-space: nowrap;
     color: #fff;
     flex-shrink: 0;
+    background: rgba(0,0,0,0.45);
 }
 .name {
     height: ${NAME_H}px;
