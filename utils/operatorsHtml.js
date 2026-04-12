@@ -7,24 +7,12 @@ const NAME_H = 26;
 const GAP = 8;
 const PADDING = 16;
 
-const EVOLVE_PHASE_BASE_URL = 'https://assets.skport.com/ui-component/endfield/assets/evolve-phases';
-
-const MAX_POTENTIAL_LEVEL = 5;
-
 function escapeHtml(str) {
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
-}
-
-function renderPotentialDots(potentialLevel) {
-    let html = '';
-    for (let i = 0; i < MAX_POTENTIAL_LEVEL; i++) {
-        html += `<span class="pot-dot${i < potentialLevel ? ' filled' : ''}"></span>`;
-    }
-    return html;
 }
 
 async function generateOperatorsHtml(chars) {
@@ -49,7 +37,6 @@ async function generateOperatorsHtml(chars) {
         const elementBgColor = ELEMENT_COLORS[elementKey] || '#888888';
         const evolvePhase = char.evolvePhase || 0;
         const potentialLevel = char.potentialLevel || 0;
-        const evolvePhaseUrl = escapeHtml(`${EVOLVE_PHASE_BASE_URL}/phase-${evolvePhase}.png`);
 
         return `<div class="card">
   <div class="avatar" style="background-image:url('${avatarUrl}');">
@@ -58,10 +45,10 @@ async function generateOperatorsHtml(chars) {
       ${elementIconUrl ? `<div class="badge element-badge" style="background:${elementBgColor};"><div class="badge-icon" style="background-image:url('${elementIconUrl}');"></div></div>` : ''}
     </div>
     <div class="avatar-bottom">
-      <div class="potential-dots">${renderPotentialDots(potentialLevel)}</div>
+      ${potentialLevel > 0 ? `<div class="info-tag potential-tag">潛${potentialLevel}</div>` : '<span></span>'}
       <div class="level-section">
         <div class="level-text">Lv.<span class="level-num">${level}</span></div>
-        ${evolvePhase > 0 ? `<div class="evolve-icon" style="background-image:url('${evolvePhaseUrl}');"></div>` : ''}
+        ${evolvePhase > 0 ? `<div class="info-tag evolve-tag">菁英化${evolvePhase}</div>` : ''}
       </div>
     </div>
   </div>
@@ -151,21 +138,6 @@ body {
     justify-content: space-between;
     padding: 0 4px 2px;
 }
-.potential-dots {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-}
-.pot-dot {
-    display: inline-block;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.35);
-}
-.pot-dot.filled {
-    background: #ffd700;
-}
 .level-section {
     display: flex;
     align-items: center;
@@ -181,13 +153,24 @@ body {
 .level-num {
     font-size: 13px;
 }
-.evolve-icon {
-    width: 12px;
-    height: 12px;
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    filter: drop-shadow(0 0 1px rgba(0,0,0,0.4));
+.info-tag {
+    font-size: 7px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 1px 2px;
+    border-radius: 2px;
+    border: 1px solid;
+    white-space: nowrap;
+}
+.potential-tag {
+    color: #ffd700;
+    border-color: #ffd700;
+    background: rgba(0,0,0,0.45);
+}
+.evolve-tag {
+    color: #7ee8ff;
+    border-color: #7ee8ff;
+    background: rgba(0,0,0,0.45);
 }
 .name {
     height: ${NAME_H}px;
