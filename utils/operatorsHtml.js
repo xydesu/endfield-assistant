@@ -48,11 +48,13 @@ async function generateOperatorsHtml(chars) {
       ${potentialLevel > 0 ? `<div class="info-tag potential-tag">潛${potentialLevel}</div>` : '<span></span>'}
       <div class="level-section">
         <div class="level-text">Lv.<span class="level-num">${level}</span></div>
-        ${evolvePhase > 0 ? `<div class="info-tag evolve-tag">菁英化${evolvePhase}</div>` : ''}
       </div>
     </div>
   </div>
-  <div class="name" style="border-bottom:3px solid ${rarityColor};">${name}</div>
+  <div class="name" style="border-bottom:3px solid ${rarityColor};">
+    <span class="name-text">${name}</span>
+    ${evolvePhase > 0 ? `<div class="evolve-tag" style="background:${rarityColor};">菁英化${evolvePhase}</div>` : ''}
+  </div>
 </div>`;
     }).join('\n');
 
@@ -168,24 +170,33 @@ body {
     background: rgba(0,0,0,0.45);
 }
 .evolve-tag {
-    color: #7ee8ff;
-    border-color: #7ee8ff;
-    background: rgba(0,0,0,0.45);
+    font-size: 7px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 1px 3px;
+    border-radius: 2px;
+    white-space: nowrap;
+    color: #fff;
+    flex-shrink: 0;
 }
 .name {
     height: ${NAME_H}px;
     background: #fff;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 2px;
     font-size: 10px;
     font-weight: 700;
     color: #292929;
     padding: 0 3px;
-    text-align: center;
+    overflow: hidden;
+}
+.name-text {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+    min-width: 0;
 }
 </style>
 </head>
