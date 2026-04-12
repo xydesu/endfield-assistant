@@ -38,40 +38,40 @@ async function generateOperatorsHtml(chars) {
         const elementBgColor = ELEMENT_COLORS[elementKey] || '#888888';
         const evolvePhase = char.evolvePhase || 0;
         const potentialLevel = char.potentialLevel || 0;
-        const weaponName = escapeHtml(char.weapon?.name || '');
-        const weaponLevel = char.weapon?.level || 0;
-        const weaponIconUrl = escapeHtml(char.weapon?.iconUrl || '');
+        // 武器數據獲取 (修正路徑)
+        const weaponObj = char.weapon || {};
+        const weaponData = weaponObj.weaponData || {};
+        const weaponName = escapeHtml(weaponData.name || '');
+        const weaponLevel = weaponObj.level || 0;
+        const weaponIconUrl = escapeHtml(weaponData.iconUrl || '');
 
         return `<div class="card">
   <div class="avatar" style="background-image:url('${avatarUrl}');">
-    <div class="badge-col">
-      ${professionIconUrl ? `<div class="badge profession-badge"><div class="badge-icon" style="background-image:url('${professionIconUrl}');"></div></div>` : ''}
-      ${elementIconUrl ? `<div class="badge element-badge" style="background:${elementBgColor};"><div class="badge-icon" style="background-image:url('${elementIconUrl}');"></div></div>` : ''}
     </div>
-    <div class="avatar-bottom">
-      ${potentialLevel > 0 ? `<div class="info-tag potential-tag">潛${potentialLevel}</div>` : '<span></span>'}
-      <div class="level-section">
-        <div class="level-text">Lv.<span class="level-num">${level}</span></div>
-      </div>
-    </div>
-  </div>
-  <div class="name" style="border-bottom:3px solid ${rarityColor};">
+  
+  <div class="name">
     <span class="name-text">${name}</span>
     ${evolvePhase > 0 ? `<div class="evolve-tag">菁英化${evolvePhase}</div>` : ''}
   </div>
-  ${weaponName ? `<div class="weapon" style="border:1px solid ${rarityColor};">
+
+  ${weaponName ? `
+  <div class="weapon">
     <div class="weapon-info">
       <div class="weapon-name">${weaponName}</div>
       <div class="weapon-level">Lv.${weaponLevel}</div>
     </div>
     ${weaponIconUrl ? `<div class="weapon-icon" style="background-image:url('${weaponIconUrl}');"></div>` : ''}
   </div>` : ''}
+  
+  <div class="rarity-line" style="background-color: ${rarityColor};"></div>
 </div>`;
     }).join('\n');
 
+    const LINE_H = 4; // 稀有度線高度
     const rows = Math.ceil(sorted.length / COLS);
     const containerW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
-    const containerH = rows * (IMAGE_H + NAME_H + WEAPON_H) + (rows - 1) * GAP + PADDING * 2;
+    // 高度計算加入 LINE_H
+    const containerH = rows * (IMAGE_H + NAME_H + WEAPON_H + LINE_H) + (rows - 1) * GAP + PADDING * 2;
 
     return `<!DOCTYPE html>
 <html>
@@ -201,8 +201,9 @@ body {
     font-size: 10px;
     font-weight: 700;
     color: #292929;
-    padding: 0 3px;
+    padding: 0 6px; /* 稍微增加左右內邊距 */
     overflow: hidden;
+    /* border-bottom: 3px solid ... ; <-- 這裡刪除了 */
 }
 .name-text {
     overflow: hidden;
@@ -212,43 +213,55 @@ body {
 }
 .weapon {
     height: ${WEAPON_H}px;
-    background: #fff;
+    background: #f9f9f9;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 3px 4px;
-    gap: 3px;
-    overflow: hidden;
+    padding: 2px 6px;
+    gap: 4px;
+    border-top: 1px solid #eee; /* 名稱與武器之間的細分割線 */
 }
+
 .weapon-info {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 2px;
     min-width: 0;
     flex: 1;
 }
+
 .weapon-name {
     font-size: 8px;
     font-weight: 700;
-    color: #292929;
+    color: #333333; /* 深灰文字 */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.2;
 }
+
 .weapon-level {
     font-size: 7px;
-    color: #666;
-    line-height: 1;
+    color: #999999; /* 輔助文字顏色 */
+    font-family: 'Verdana', sans-serif;
+    margin-top: 1px;
 }
+
 .weapon-icon {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     flex-shrink: 0;
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
+    background-color: #ffffff; /* 圖示底色 */
+    border: 1px solid #f0f0f0;
+    border-radius: 1px;
+}
+.rarity-line {
+    height: 4px; /* 增加到 4px 會更有質感 */
+    width: 100%;
+    flex-shrink: 0;
 }
 </style>
 </head>
