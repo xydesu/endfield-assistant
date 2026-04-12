@@ -5,6 +5,11 @@ const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { generateOperatorsHtml } = require('../../utils/operatorsHtml');
 
+// Viewport width should comfortably fit 4 operator cards (≈85 px each) plus padding
+const VIEWPORT_WIDTH = 600;
+const VIEWPORT_HEIGHT = 400;
+const PAGE_LOAD_TIMEOUT_MS = 30000;
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('operators')
@@ -73,8 +78,8 @@ module.exports = {
                     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
                 });
                 const page = await browser.newPage();
-                await page.setViewport({ width: 600, height: 400, deviceScaleFactor: 2 });
-                await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+                await page.setViewport({ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT, deviceScaleFactor: 2 });
+                await page.setContent(html, { waitUntil: 'networkidle0', timeout: PAGE_LOAD_TIMEOUT_MS });
 
                 const gridElement = await page.$('.operator-list__Scroll-evdVpD');
                 if (!gridElement) throw new Error('Operator grid element not found');

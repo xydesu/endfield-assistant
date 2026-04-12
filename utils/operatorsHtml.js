@@ -60,7 +60,8 @@ async function getOperatorsCSS() {
 }
 
 function escapeCssUrl(url) {
-    return url.replace(/"/g, '%22');
+    // Percent-encode characters that are special inside a CSS url("…") value
+    return url.replace(/[^A-Za-z0-9\-_.~:/?#[\]@!$&'()*+,;=%]/g, encodeURIComponent);
 }
 
 /**
@@ -107,7 +108,7 @@ async function generateOperatorsHtml(chars) {
         }
 
         // Evolve phase icon
-        if (evolvePhase != null) {
+        if (evolvePhase !== null && evolvePhase !== undefined) {
             const evolveUrl = `${ASSETS_BASE}/evolve-phases/phase-${evolvePhase}.png`;
             overrideCSS += `${sel} .scraped-style-17 { background-image: url("${escapeCssUrl(evolveUrl)}") !important; }\n`;
         }
