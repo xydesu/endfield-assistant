@@ -3,16 +3,12 @@ const puppeteer = require('puppeteer');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
-const { generateOperatorsHtml } = require('../../utils/operatorsHtml');
+const { generateOperatorsHtml, COLS, CARD_W, IMAGE_H, NAME_H, GAP, PADDING } = require('../../utils/operatorsHtml');
 
 const DEVICE_SCALE = 2;
 
-const COLS = 6;
-const CARD_W = 84;
-const GAP = 8;
-const PADDING = 16;
-const IMAGE_H = 110;
-const NAME_H = 30;
+// Extra pixels added to the viewport height so nothing is clipped during rendering
+const VIEWPORT_HEIGHT_BUFFER = 100;
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -62,7 +58,7 @@ module.exports = {
 
             const viewportW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
             const rows = Math.ceil(chars.length / COLS);
-            const viewportH = rows * (IMAGE_H + NAME_H) + (rows - 1) * GAP + PADDING * 2 + 100;
+            const viewportH = rows * (IMAGE_H + NAME_H) + (rows - 1) * GAP + PADDING * 2 + VIEWPORT_HEIGHT_BUFFER;
 
             let browser;
             try {

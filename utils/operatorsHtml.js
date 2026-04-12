@@ -1,3 +1,10 @@
+const COLS = 6;
+const CARD_W = 84;
+const IMAGE_H = 110;
+const NAME_H = 30;
+const GAP = 8;
+const PADDING = 16;
+
 const RARITY_COLORS = {
     '6': '#FFB800',
     '5': '#C0A0FF',
@@ -16,12 +23,6 @@ function escapeHtml(str) {
 }
 
 function generateOperatorsHtml(chars) {
-    const COLS = 6;
-    const CARD_W = 84;
-    const IMAGE_H = 110;
-    const NAME_H = 30;
-    const GAP = 8;
-    const PADDING = 16;
 
     const sorted = [...chars].sort((a, b) => {
         if (b.level !== a.level) return b.level - a.level;
@@ -122,4 +123,4 @@ ${cardsHtml}
 </html>`;
 }
 
-module.exports = { generateOperatorsHtml };
+module.exports = { generateOperatorsHtml, COLS, CARD_W, IMAGE_H, NAME_H, GAP, PADDING };
