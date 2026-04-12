@@ -7,6 +7,8 @@ const PADDING = 16;
 
 const EVOLVE_PHASE_BASE_URL = 'https://assets.skport.com/ui-component/endfield/assets/evolve-phases';
 
+const MAX_POTENTIAL_LEVEL = 5;
+
 const RARITY_COLORS = {
     '6': '#FFB800',
     '5': '#C0A0FF',
@@ -25,9 +27,8 @@ function escapeHtml(str) {
 }
 
 function renderPotentialDots(potentialLevel) {
-    const MAX = 5;
     let html = '';
-    for (let i = 0; i < MAX; i++) {
+    for (let i = 0; i < MAX_POTENTIAL_LEVEL; i++) {
         html += `<span class="pot-dot${i < potentialLevel ? ' filled' : ''}"></span>`;
     }
     return html;
