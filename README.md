@@ -20,6 +20,7 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 - **Player profile** – view your in-game level, stamina, battle pass progress, and more with `/profile`
 - **Exploration progress** – check per-region exploration status with `/explore`
 - **Achievement showcase** – display your 光榮之路 achievement card with `/achieve`
+- **Operator list** – view your full operator roster as a generated image card with `/operators`
 - **Stamina notifications** – receive an alert in the notify channel when stamina reaches a set threshold with `/stamina-notify`
 
 ---
@@ -37,6 +38,7 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 | `/profile` | View player profile (level, stamina, BP, etc.) | Everyone |
 | `/explore` | View per-area exploration progress | Everyone |
 | `/achieve` | View achievement showcase (光榮之路) | Everyone |
+| `/operators` | View your operator roster | Everyone |
 | `/stamina-notify <enable> [threshold] [tag]` | Configure stamina-full notification | Everyone |
 | `/set-notify-channel [channel]` | Set the guild notification channel | Administrator |
 
@@ -138,9 +140,12 @@ endfield-assistant/
 │   ├── User.js            # Bound user data
 │   └── Server.js          # Per-guild notification channel
 ├── utils/
+│   ├── achieveHtml.js     # HTML template for achievement card rendering
 │   ├── attendance.js      # HTTP sign-in logic
 │   ├── constants.js       # Shared constants
 │   ├── encryption.js      # AES-256-CBC encrypt / decrypt
+│   ├── operatorEnums.js   # Operator rarity / weapon-type enums
+│   ├── operatorsHtml.js   # HTML template for operator roster rendering
 │   └── scheduler.js       # node-schedule daily job manager
 ├── deploy-commands.js     # Registers slash commands via REST
 └── index.js               # Bot entry point
@@ -155,8 +160,10 @@ endfield-assistant/
 | `discord.js` | Discord API client |
 | `dotenv` | Environment variable loading |
 | `node-schedule` | Cron-like job scheduler |
+| `puppeteer` | Headless browser for image card generation |
 | `sequelize` | ORM for database access |
 | `sqlite3` | SQLite database driver |
+| `upng-js` | PNG image processing |
 
 ---
 
