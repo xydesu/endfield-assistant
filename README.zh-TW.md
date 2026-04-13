@@ -20,6 +20,7 @@
 - **玩家個人資料** – 使用 `/profile` 查看遊戲內等級、體力、戰鬥通行證進度等資訊
 - **探索進度** – 使用 `/explore` 檢視各地區的探索狀態
 - **成就展示** – 使用 `/achieve` 顯示你的光榮之路成就卡片
+- **幹員列表** – 使用 `/operators` 以生成圖卡形式查看你的完整幹員名單
 - **體力通知** – 當體力達到設定門檻時，透過 `/stamina-notify` 在通知頻道收到提醒
 
 ---
@@ -37,6 +38,7 @@
 | `/profile` | 查看玩家個人資料（等級、體力、BP 等） | 所有人 |
 | `/explore` | 查看各地區探索進度 | 所有人 |
 | `/achieve` | 查看成就展示（光榮之路） | 所有人 |
+| `/operators` | 查看幹員列表 | 所有人 |
 | `/stamina-notify <enable> [threshold] [tag]` | 設定體力滿載通知 | 所有人 |
 | `/set-notify-channel [channel]` | 設定伺服器通知頻道 | 管理員 |
 
@@ -138,9 +140,12 @@ endfield-assistant/
 │   ├── User.js            # 已綁定的使用者資料
 │   └── Server.js          # 各伺服器的通知頻道設定
 ├── utils/
+│   ├── achieveHtml.js     # 成就卡片的 HTML 模板渲染
 │   ├── attendance.js      # HTTP 簽到邏輯
 │   ├── constants.js       # 共用常數
 │   ├── encryption.js      # AES-256-CBC 加密 / 解密
+│   ├── operatorEnums.js   # 幹員稀有度 / 武器類型列舉
+│   ├── operatorsHtml.js   # 幹員名單的 HTML 模板渲染
 │   └── scheduler.js       # node-schedule 每日工作管理
 ├── deploy-commands.js     # 透過 REST 註冊斜線指令
 └── index.js               # 機器人進入點
@@ -155,8 +160,10 @@ endfield-assistant/
 | `discord.js` | Discord API 客戶端 |
 | `dotenv` | 環境變數載入 |
 | `node-schedule` | 類 Cron 工作排程器 |
+| `puppeteer` | 無頭瀏覽器，用於圖卡生成 |
 | `sequelize` | 資料庫存取 ORM |
 | `sqlite3` | SQLite 資料庫驅動程式 |
+| `upng-js` | PNG 圖片處理 |
 
 ---
 

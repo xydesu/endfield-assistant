@@ -374,6 +374,14 @@
       </div>
 
       <div class="feature-card">
+        <div class="feature-icon">🧑‍✈️</div>
+        <h3 data-i18n="feat.operators.title">幹員列表</h3>
+        <p data-i18n="feat.operators.desc">
+          以生成圖卡形式一覽你的完整幹員名單，包含稀有度與武器類型資訊。
+        </p>
+      </div>
+
+      <div class="feature-card">
         <div class="feature-icon">🛡️</div>
         <h3 data-i18n="feat.security.title">安全加密</h3>
         <p data-i18n="feat.security.desc">
@@ -441,6 +449,11 @@
           <tr>
             <td><span class="cmd">/achieve</span></td>
             <td data-i18n="cmd.achieve">查看成就獎章展示</td>
+            <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
+          </tr>
+          <tr>
+            <td><span class="cmd">/operators</span></td>
+            <td data-i18n="cmd.operators">查看幹員列表</td>
             <td><span class="badge" data-i18n="perm.everyone">所有人</span></td>
           </tr>
           <tr>
@@ -573,6 +586,8 @@
       'feat.notify.desc': '指定伺服器頻道接收簽到結果通知，讓整個公會都能即時掌握資訊。',
       'feat.achieve.title':'成就展示',
       'feat.achieve.desc':'以精美圖卡形式展示你的遊戲成就獎章，直接在 Discord 頻道中分享。',
+      'feat.operators.title':'幹員列表',
+      'feat.operators.desc':'以生成圖卡形式一覽你的完整幹員名單，包含稀有度與武器類型資訊。',
       'feat.security.title':'安全加密',
       'feat.security.desc':'所有帳號憑證在本地以 AES-256 加密儲存，無法從外部存取你的個人資料。',
       'commands.label':   '可用指令',
@@ -589,6 +604,7 @@
       'cmd.schedule':     '設定每日自動簽到時間（HH:mm 格式）',
       'cmd.profile':      '查看玩家個人資料',
       'cmd.achieve':      '查看成就獎章展示',
+      'cmd.operators':    '查看幹員列表',
       'cmd.explore':      '查看探索資料',
       'cmd.stamina':      '設定體力通知',
       'cmd.setnc':        '設定伺服器通知頻道',
@@ -633,6 +649,8 @@
       'feat.notify.desc': 'Designate a server channel to receive sign-in result notifications for your whole guild.',
       'feat.achieve.title':'Achievement Display',
       'feat.achieve.desc':'Show off your in-game achievement medals as beautiful image cards right inside Discord.',
+      'feat.operators.title':'Operator Roster',
+      'feat.operators.desc':'View your full operator roster as a generated image card, complete with rarity and weapon type details.',
       'feat.security.title':'Secure Encryption',
       'feat.security.desc':'All credentials are stored locally with AES-256 encryption — your data is never accessible from the outside.',
       'commands.label':   'Commands',
@@ -649,6 +667,7 @@
       'cmd.schedule':     'Set a daily auto sign-in time (HH:mm format)',
       'cmd.profile':      'View your player profile',
       'cmd.achieve':      'View your achievement medal display',
+      'cmd.operators':    'View your operator roster',
       'cmd.explore':      'View your exploration data',
       'cmd.stamina':      'Configure stamina notifications',
       'cmd.setnc':        'Set the guild notification channel',
