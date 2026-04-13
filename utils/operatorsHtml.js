@@ -8,6 +8,11 @@ const WEAPON_H = 36;
 const GAP = 8;
 const PADDING = 16;
 
+const SERVER_ID_TO_NAME = {
+    '2': 'Asia',
+    '3': 'Americas/Europe',
+};
+
 function escapeHtml(str) {
     return String(str)
         .replace(/&/g, '&amp;')
@@ -85,7 +90,7 @@ async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName =
     const containerH = rows * (IMAGE_H + NAME_H + WEAPON_H + LINE_H) + (rows - 1) * GAP + PADDING * 2 + FOOTER_H;
 
     const safeUid = escapeHtml(uid || '');
-    const safeServerId = escapeHtml(serverId || '');
+    const safeServerName = escapeHtml(SERVER_ID_TO_NAME[serverId] || serverId || '');
     const safeBotName = escapeHtml(botName || '終末地簽到小助手');
 
     return `<!DOCTYPE html>
@@ -307,7 +312,7 @@ ${cardsHtml}
   <div class="footer">
     <div class="footer-left">
       ${safeUid ? `<span>UID: ${safeUid}</span>` : ''}
-      ${safeServerId ? `<span>Server: ${safeServerId}</span>` : ''}
+      ${safeServerName ? `<span>Server: ${safeServerName}</span>` : ''}
     </div>
     <span class="footer-bot">${safeBotName}</span>
   </div>
