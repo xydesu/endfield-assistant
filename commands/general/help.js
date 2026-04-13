@@ -35,6 +35,8 @@ module.exports = {
                     value: [
                         '`/profile` 查詢玩家個人資料（等級、理智、BP 等）',
                         '`/explore` 查詢各區域探索進度（寶箱、謎題、暗箱等）',
+                        '`/achieve` 查詢光榮之路成就展示',
+                        '`/operators` 查詢幹員列表',
                         '`/stamina-notify` 設定理智快滿提醒',
                     ].join('\n'),
                 },
