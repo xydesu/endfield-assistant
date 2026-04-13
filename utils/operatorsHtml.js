@@ -1,7 +1,7 @@
 const { ELEMENT_ICONS, ELEMENT_COLORS, RARITY_COLORS, getProfessionIcons } = require('./operatorEnums');
 
 const COLS = 6;
-const CARD_W = 84;
+const CARD_W = 96;
 const IMAGE_H = 120;
 const NAME_H = 26;
 const WEAPON_H = 36;
