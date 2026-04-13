@@ -55,6 +55,19 @@ async function getAchieveCSS() {
     return cssCache;
 }
 
+const SERVER_ID_TO_NAME = {
+    '2': 'Asia',
+    '3': 'Americas/Europe',
+};
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // Escape double quotes in a URL so it is safe to embed inside CSS url("…")
 function escapeCssUrl(url) {
     return url.replace(/"/g, '%22');
@@ -98,7 +111,7 @@ function buildDisplayMedals(achieve) {
     return result;
 }
 
-async function generateAchieveHtml(achieve, { hideCertify = false } = {}) {
+async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', serverId = '', botName = '終末地簽到小助手' } = {}) {
     const css = await getAchieveCSS();
 
     const medals = achieve.achieveMedals || [];
@@ -141,6 +154,10 @@ async function generateAchieveHtml(achieve, { hideCertify = false } = {}) {
         .map((cls) => `<div class="sc-efhFTv ${cls}"></div>`)
         .join('');
 
+    const safeUid = escapeHtml(uid || '');
+    const safeServerName = escapeHtml(SERVER_ID_TO_NAME[serverId] || serverId || '');
+    const safeBotName = escapeHtml(botName || '終末地簽到小助手');
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -149,6 +166,27 @@ async function generateAchieveHtml(achieve, { hideCertify = false } = {}) {
 body { margin: 0; padding: 0; background: transparent; }
 ${css}
 ${overrideCSS}
+.bESBDX { padding-bottom: 36px !important; }
+.achieve-footer {
+    margin-top: 8px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #888;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    padding-top: 6px;
+    white-space: nowrap;
+    font-family: Arial, 'Noto Sans TC', sans-serif;
+}
+.achieve-footer-left {
+    display: flex;
+    gap: 10px;
+}
+.achieve-footer-bot {
+    color: #aaa;
+}
 </style>
 </head>
 <body>
@@ -175,6 +213,13 @@ ${overrideCSS}
     <div class="sc-kkeOlZ gECvjk">
         <div class="sc-kYLqRS iGzefe">${topRow}</div>
         <div class="sc-kYLqRS bgFXsx">${bottomRow}</div>
+    </div>
+    <div class="achieve-footer">
+        <div class="achieve-footer-left">
+            ${safeUid ? `<span>UID: ${safeUid}</span>` : ''}
+            ${safeServerName ? `<span>Server: ${safeServerName}</span>` : ''}
+        </div>
+        <span class="achieve-footer-bot">${safeBotName}</span>
     </div>
 </div>
 </body>
