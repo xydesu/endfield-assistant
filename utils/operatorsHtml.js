@@ -8,6 +8,11 @@ const WEAPON_H = 36;
 const GAP = 8;
 const PADDING = 16;
 
+const SERVER_ID_TO_NAME = {
+    '2': 'Asia',
+    '3': 'Americas/Europe',
+};
+
 function escapeHtml(str) {
     return String(str)
         .replace(/&/g, '&amp;')
@@ -16,7 +21,7 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
-async function generateOperatorsHtml(chars) {
+async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName = '終末地簽到小助手' } = {}) {
     const professionIcons = await getProfessionIcons();
 
     const sorted = [...chars].sort((a, b) => {
@@ -78,10 +83,15 @@ async function generateOperatorsHtml(chars) {
     }).join('\n');
 
     const LINE_H = 4; // 稀有度線高度
+    const FOOTER_H = 28; // 頁腳高度
     const rows = Math.ceil(sorted.length / COLS);
     const containerW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
-    // 高度計算加入 LINE_H
-    const containerH = rows * (IMAGE_H + NAME_H + WEAPON_H + LINE_H) + (rows - 1) * GAP + PADDING * 2;
+    // 高度計算加入 LINE_H 和 FOOTER_H
+    const containerH = rows * (IMAGE_H + NAME_H + WEAPON_H + LINE_H) + (rows - 1) * GAP + PADDING * 2 + FOOTER_H;
+
+    const safeUid = escapeHtml(uid || '');
+    const safeServerName = escapeHtml(SERVER_ID_TO_NAME[serverId] || serverId || '');
+    const safeBotName = escapeHtml(botName || '終末地簽到小助手');
 
     return `<!DOCTYPE html>
 <html>
@@ -273,12 +283,38 @@ body {
     width: 100%;
     flex-shrink: 0;
 }
+.footer {
+    margin-top: 10px;
+    padding: 0 2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #888;
+    border-top: 1px solid #eee;
+    padding-top: 6px;
+    white-space: nowrap;
+}
+.footer-left {
+    display: flex;
+    gap: 10px;
+}
+.footer-bot {
+    color: #aaa;
+}
 </style>
 </head>
 <body>
 <div id="wrapper">
   <div class="grid">
 ${cardsHtml}
+  </div>
+  <div class="footer">
+    <div class="footer-left">
+      ${safeUid ? `<span>UID: ${safeUid}</span>` : ''}
+      ${safeServerName ? `<span>Server: ${safeServerName}</span>` : ''}
+    </div>
+    <span class="footer-bot">${safeBotName}</span>
   </div>
 </div>
 </body>
