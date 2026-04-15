@@ -87,7 +87,7 @@ async function getCertifyPositions(page, slotIndices) {
         const vw = window.innerWidth;
         const badgeSizeCSS = 1.54028 * vw / 100;
         const badgeTopOffsetCSS = 0.23696 * vw / 100;
-        const cardEl = document.querySelector('.bESBDX');
+        const cardEl = document.querySelector('#capture-root');
         const cardRect = cardEl ? cardEl.getBoundingClientRect() : { left: 0, top: 0 };
 
         return indices.map((idx) => {
@@ -212,10 +212,10 @@ module.exports = {
                     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
                 });
                 const page = await browser.newPage();
-                await page.setViewport({ width: 1400, height: 400, deviceScaleFactor: DEVICE_SCALE });
+                await page.setViewport({ width: 1800, height: 900, deviceScaleFactor: 2 });
                 await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
 
-                const cardElement = await page.$('.bESBDX');
+                const cardElement = await page.$('#capture-root');
                 if (!cardElement) throw new Error('Card element not found');
 
                 let imageBuffer;

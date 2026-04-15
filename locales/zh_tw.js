@@ -161,6 +161,16 @@ module.exports = {
     scheduler_stamina_title: '🔋 理智快滿提醒',
     scheduler_stamina_desc: (cur, max) => `您的理智已達 **${cur} / ${max}**，請記得消耗理智！`,
 
+    // ─── daily-notify ─────────────────────────────────────────────────────────
+    daily_notify_title: '📋 每日任務提醒設定',
+    daily_notify_missing_hour_title: '❌ 缺少必要參數',
+    daily_notify_missing_hour_desc: '開啟每日任務提醒時，請提供 `hour` 參數（0–23）。',
+    daily_notify_enabled_desc: (timeDisplay, isDailyTag) => `✅ 已開啟每日任務提醒。\n提醒時間：**${timeDisplay}**\n🔔 通知提及 (Tag): ${isDailyTag ? '開啟' : '關閉'}\n\n⚠️ 前置需求：\n• 請先使用 \`/set-notify-channel\` 設定伺服器通知頻道。`,
+    daily_notify_disabled_desc: '🔕 已關閉每日任務提醒。',
+    daily_notify_fail_title: '❌ 設定失敗',
+    scheduler_daily_title: '📋 每日任務未完成提醒',
+    scheduler_daily_desc: (cur, max) => `您今日的活躍度僅完成 **${cur} / ${max}**，請記得完成每日任務！`,
+
     // ─── html image render ────────────────────────────────────────────────────
     html_potential: '潛',
     html_evolve: '菁英化',

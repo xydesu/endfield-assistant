@@ -161,6 +161,16 @@ module.exports = {
     scheduler_stamina_title: '🔋 理性リマインダー',
     scheduler_stamina_desc: (cur, max) => `理性が **${cur} / ${max}** に達しました。理性を消費してください！`,
 
+    // ─── daily-notify ─────────────────────────────────────────────────────────
+    daily_notify_title: '📋 デイリーミッション通知設定',
+    daily_notify_missing_hour_title: '❌ 必要なパラメータが不足しています',
+    daily_notify_missing_hour_desc: 'デイリー通知を有効にする場合は、`hour` パラメータ（0–23）を指定してください。',
+    daily_notify_enabled_desc: (timeDisplay, isDailyTag) => `✅ デイリーミッション通知を有効にしました。\n通知時間：**${timeDisplay}**\n🔔 メンション (Tag): ${isDailyTag ? '有効' : '無効'}\n\n⚠️ 前提条件：\n• \`/set-notify-channel\` で通知チャンネルを設定してください。`,
+    daily_notify_disabled_desc: '🔕 デイリーミッション通知を無効にしました。',
+    daily_notify_fail_title: '❌ 設定に失敗しました',
+    scheduler_daily_title: '📋 デイリーミッション未完了通知',
+    scheduler_daily_desc: (cur, max) => `本日の活躍度は **${cur} / ${max}** のみ達成しています。デイリーミッションを完了してください！`,
+
     // ─── html image render ────────────────────────────────────────────────────
     html_potential: '潜',
     html_evolve: '精鋭化',

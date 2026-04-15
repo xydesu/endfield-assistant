@@ -161,6 +161,16 @@ module.exports = {
     scheduler_stamina_title: '🔋 Stamina Reminder',
     scheduler_stamina_desc: (cur, max) => `Your stamina has reached **${cur} / ${max}**. Remember to use your stamina!`,
 
+    // ─── daily-notify ─────────────────────────────────────────────────────────
+    daily_notify_title: '📋 Daily Mission Reminder Settings',
+    daily_notify_missing_hour_title: '❌ Missing Required Parameter',
+    daily_notify_missing_hour_desc: 'Please provide the `hour` parameter (0–23) when enabling daily mission reminders.',
+    daily_notify_enabled_desc: (timeDisplay, isDailyTag) => `✅ Daily mission reminder enabled.\nReminder time: **${timeDisplay}**\n🔔 Mention (Tag): ${isDailyTag ? 'On' : 'Off'}\n\n⚠️ Prerequisites:\n• Use \`/set-notify-channel\` to set the server notification channel.`,
+    daily_notify_disabled_desc: '🔕 Daily mission reminder disabled.',
+    daily_notify_fail_title: '❌ Settings Failed',
+    scheduler_daily_title: '📋 Daily Mission Incomplete Reminder',
+    scheduler_daily_desc: (cur, max) => `You have only completed **${cur} / ${max}** activity today. Remember to finish your daily missions!`,
+
     // ─── html image render ────────────────────────────────────────────────────
     html_potential: 'Pot.',
     html_evolve: 'Elite',

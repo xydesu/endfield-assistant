@@ -55,6 +55,22 @@ const User = sequelize.define('users', {
         type: Sequelize.STRING,
         defaultValue: 'zh_tw', // zh_tw | zh_cn | ja | en
     },
+    dailyNotify: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
+    },
+    dailyNotifyTime: {
+        type: Sequelize.STRING, // Format: "HH:mm" (UTC)
+        defaultValue: null,
+    },
+    isDailyTag: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: true,
+    },
+    dailyNotified: {
+        type: Sequelize.BOOLEAN, // True once notified for the current daily cycle; reset at server daily reset time
+        defaultValue: false,
+    },
 });
 
 module.exports = User;
