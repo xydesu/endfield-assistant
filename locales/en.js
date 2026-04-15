@@ -69,10 +69,10 @@ module.exports = {
     explore_title: (name, level) => `🗺️ ${name} (Level ${level})`,
     explore_no_data: 'No exploration data available.',
     explore_no_data_title: '🗺️ Exploration Progress',
-    explore_treasure: 'Treasure Chests',
+    explore_treasure: 'Storage Crates',
     explore_blackbox: 'Black Boxes',
-    explore_puzzle: 'Puzzles',
-    explore_piece: 'Dimensional Shards',
+    explore_puzzle: 'Aurylenes',
+    explore_piece: 'Repair Logics',
     explore_equip: 'Equipment Chests',
     explore_currency: (name) => `💰 ${name} Currency`,
 
