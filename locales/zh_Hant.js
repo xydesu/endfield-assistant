@@ -96,6 +96,12 @@ module.exports = {
     // ─── bind ─────────────────────────────────────────────────────────────────
     bind_tutorial_title: 'Endfield 自動簽到綁定教學',
     bind_tutorial_desc: '請依照以下步驟獲取您的憑證並進行綁定：',
+    bind_step1_label: '步驟 1',
+    bind_step2_label: '步驟 2',
+    bind_step3_label: '步驟 3',
+    bind_script_label: '指令',
+    bind_step4_label: '步驟 4',
+    bind_step5_label: '步驟 5',
     bind_step1: '使用電腦瀏覽器開啟任意 [鷹角網站](https://www.skport.com) 並登入帳號。',
     bind_step2: '按下 `F12` 開啟開發者工具，切換至 `Console` 分頁。',
     bind_step3: '複製下方指令並貼上到 Console 中執行：',

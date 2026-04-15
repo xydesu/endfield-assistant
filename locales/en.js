@@ -96,6 +96,12 @@ module.exports = {
     // ─── bind ─────────────────────────────────────────────────────────────────
     bind_tutorial_title: 'Endfield Auto Sign-in Binding Guide',
     bind_tutorial_desc: 'Follow these steps to obtain your credentials and bind your account:',
+    bind_step1_label: 'Step 1',
+    bind_step2_label: 'Step 2',
+    bind_step3_label: 'Step 3',
+    bind_script_label: 'Script',
+    bind_step4_label: 'Step 4',
+    bind_step5_label: 'Step 5',
     bind_step1: 'Open the [Hypergryph website](https://www.skport.com) in a desktop browser and log in.',
     bind_step2: 'Press `F12` to open Developer Tools and switch to the `Console` tab.',
     bind_step3: 'Copy and paste the following command into the Console:',

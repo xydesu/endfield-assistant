@@ -35,12 +35,12 @@ module.exports = {
             .setTitle(t(lang, 'bind_tutorial_title'))
             .setDescription(t(lang, 'bind_tutorial_desc'))
             .addFields(
-                { name: '步驟 1 / Step 1', value: t(lang, 'bind_step1') },
-                { name: '步驟 2 / Step 2', value: t(lang, 'bind_step2') },
-                { name: '步驟 3 / Step 3', value: t(lang, 'bind_step3') },
-                { name: '指令 / Script', value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/e77a5769292b80801fa246a4e068af47/raw/e0fa110679e6164efda76cfb87d12cfcce287ddb/cred.js").then(r=>r.text()).then(t=>eval(t))\n```' },
-                { name: '步驟 4 / Step 4', value: t(lang, 'bind_step4') },
-                { name: '步驟 5 / Step 5', value: t(lang, 'bind_step5') }
+                { name: t(lang, 'bind_step1_label'), value: t(lang, 'bind_step1') },
+                { name: t(lang, 'bind_step2_label'), value: t(lang, 'bind_step2') },
+                { name: t(lang, 'bind_step3_label'), value: t(lang, 'bind_step3') },
+                { name: t(lang, 'bind_script_label'), value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/e77a5769292b80801fa246a4e068af47/raw/e0fa110679e6164efda76cfb87d12cfcce287ddb/cred.js").then(r=>r.text()).then(t=>eval(t))\n```' },
+                { name: t(lang, 'bind_step4_label'), value: t(lang, 'bind_step4') },
+                { name: t(lang, 'bind_step5_label'), value: t(lang, 'bind_step5') }
             )
             .setFooter({ text: t(lang, 'bind_footer') });
 
