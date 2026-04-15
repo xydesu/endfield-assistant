@@ -1,19 +1,23 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
 const Server = require('../../models/Server');
+const User = require('../../models/User');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('set-notify-channel')
-        .setDescription('設定自動簽到通知頻道')
+        .setDescription('設定自動簽到通知頻道 / Set notification channel')
         .addChannelOption(option =>
             option.setName('channel')
-                .setDescription('選擇通知頻道')
+                .setDescription('選擇通知頻道 / Select notification channel')
                 .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        const user = await User.findByPk(interaction.user.id);
+        const lang = user?.language || 'zh_Hant';
         const channel = interaction.options.getChannel('channel');
 
         try {
@@ -24,8 +28,8 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('✅ 設定成功')
-                .setDescription(`已將自動簽到通知頻道設定為 ${channel}。`)
+                .setTitle(t(lang, 'notify_success_title'))
+                .setDescription(t(lang, 'notify_success_desc')(channel))
                 .setTimestamp();
 
             await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -33,8 +37,8 @@ module.exports = {
             console.error(error);
             const errorEmbed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('❌ 設定失敗')
-                .setDescription('資料庫發生錯誤，請稍後再試。')
+                .setTitle(t(lang, 'notify_fail_title'))
+                .setDescription(t(lang, 'db_error'))
                 .setTimestamp();
             await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }

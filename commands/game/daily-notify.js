@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const User = require('../../models/User');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 const { scheduleDailyNotifyUser, cancelDailyNotifyUser } = require('../../utils/scheduler');
 
 // UTC offset (hours) for each server ID
@@ -38,13 +39,16 @@ module.exports = {
         const isDailyTag = interaction.options.getBoolean('tag') ?? true;
         const discordId = interaction.user.id;
 
+        let lang = 'zh_Hant';
         try {
             const user = await User.findByPk(discordId);
+            lang = user?.language || 'zh_Hant';
+
             if (!user) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 尚未綁定')
-                    .setDescription('尚未綁定帳號，請先使用 `/bind`。')
+                    .setTitle(t(lang, 'not_bound_title'))
+                    .setDescription(t(lang, 'not_bound_short'))
                     .setTimestamp();
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
@@ -53,8 +57,8 @@ module.exports = {
                 if (hourInput === null) {
                     const embed = new EmbedBuilder()
                         .setColor(EMBED_COLOR)
-                        .setTitle('❌ 缺少必要參數')
-                        .setDescription('開啟每日任務提醒時，請提供 `hour` 參數（0–23）。')
+                        .setTitle(t(lang, 'daily_notify_missing_hour_title'))
+                        .setDescription(t(lang, 'daily_notify_missing_hour_desc'))
                         .setTimestamp();
                     return interaction.reply({ embeds: [embed], ephemeral: true });
                 }
@@ -76,11 +80,10 @@ module.exports = {
                 scheduleDailyNotifyUser(user, client);
 
                 const timeDisplay = `${String(hourInput).padStart(2, '0')}:${String(minuteInput).padStart(2, '0')} (${tzLabel})`;
-                const description = `✅ 已開啟每日任務提醒。\n提醒時間：**${timeDisplay}**\n🔔 通知提及 (Tag): ${isDailyTag ? '開啟' : '關閉'}\n\n⚠️ 前置需求：\n• 請先使用 \`/set-notify-channel\` 設定伺服器通知頻道。`;
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('📋 每日任務提醒設定')
-                    .setDescription(description)
+                    .setTitle(t(lang, 'daily_notify_title'))
+                    .setDescription(t(lang, 'daily_notify_enabled_desc')(timeDisplay, isDailyTag))
                     .setTimestamp();
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             } else {
@@ -93,8 +96,8 @@ module.exports = {
 
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('📋 每日任務提醒設定')
-                    .setDescription('🔕 已關閉每日任務提醒。')
+                    .setTitle(t(lang, 'daily_notify_title'))
+                    .setDescription(t(lang, 'daily_notify_disabled_desc'))
                     .setTimestamp();
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
@@ -102,10 +105,11 @@ module.exports = {
             console.error(error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('❌ 設定失敗')
-                .setDescription('資料庫發生錯誤，請稍後再試。')
+                .setTitle(t(lang, 'daily_notify_fail_title'))
+                .setDescription(t(lang, 'db_error'))
                 .setTimestamp();
             await interaction.reply({ embeds: [embed], ephemeral: true });
         }
     },
 };
+

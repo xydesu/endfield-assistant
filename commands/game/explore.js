@@ -2,25 +2,28 @@ const { SlashCommandBuilder, EmbedBuilder, ApplicationIntegrationType, Interacti
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('explore')
-        .setDescription('查詢各區域探索進度')
+        .setDescription('查詢各區域探索進度 / View exploration progress')
         .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
         .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: false });
 
+        let lang = 'zh_Hant';
         try {
             const discordId = interaction.user.id;
             const user = await User.findByPk(discordId);
+            lang = user?.language || 'zh_Hant';
 
             if (!user) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 尚未綁定')
-                    .setDescription('您尚未綁定帳號，請先使用 `/bind` 指令進行綁定。')
+                    .setTitle(t(lang, 'not_bound_title'))
+                    .setDescription(t(lang, 'not_bound_desc'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -30,7 +33,7 @@ module.exports = {
             if (!result.success) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 查詢失敗')
+                    .setTitle(t(lang, 'query_failed_title'))
                     .setDescription(result.message)
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
@@ -41,8 +44,8 @@ module.exports = {
             if (domains.length === 0) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('🗺️ 探索進度')
-                    .setDescription('目前無探索資料。')
+                    .setTitle(t(lang, 'explore_no_data_title'))
+                    .setDescription(t(lang, 'explore_no_data'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -57,25 +60,25 @@ module.exports = {
                     const piece = lv.pieceCount;
                     const equipChest = lv.equipTrchestCount;
                     const parts = [];
-                    if (treasureChest.total > 0) parts.push(`儲藏箱:${treasureChest.count}/${treasureChest.total}`);
-                    if (blackbox.total > 0) parts.push(`協議採錄樁:${blackbox.count}/${blackbox.total}`);
-                    if (puzzle.total > 0) parts.push(`醚質:${puzzle.count}/${puzzle.total}`);
-                    if (piece.total > 0) parts.push(`維修靈感點:${piece.count}/${piece.total}`);
-                    if (equipChest.total > 0) parts.push(`裝備模板箱:${equipChest.count}/${equipChest.total}`);
+                    if (treasureChest.total > 0) parts.push(`${t(lang, 'explore_treasure')}:${treasureChest.count}/${treasureChest.total}`);
+                    if (blackbox.total > 0) parts.push(`${t(lang, 'explore_blackbox')}:${blackbox.count}/${blackbox.total}`);
+                    if (puzzle.total > 0) parts.push(`${t(lang, 'explore_puzzle')}:${puzzle.count}/${puzzle.total}`);
+                    if (piece.total > 0) parts.push(`${t(lang, 'explore_piece')}:${piece.count}/${piece.total}`);
+                    if (equipChest.total > 0) parts.push(`${t(lang, 'explore_equip')}:${equipChest.count}/${equipChest.total}`);
                     const summary = parts.length > 0 ? parts.join(' ') : '—';
                     return `**${lv.name}**\n${summary}`;
                 });
 
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle(`🗺️ ${domain.name}（等級 ${domain.level}）`)
+                    .setTitle(t(lang, 'explore_title')(domain.name, domain.level))
                     .setDescription(levelLines.join('\n\n') || '—')
                     .setTimestamp();
 
                 const moneyMgr = domain.moneyMgr;
                 if (moneyMgr) {
                     embed.addFields({
-                        name: `💰 ${domain.name}調度卷`,
+                        name: t(lang, 'explore_currency')(domain.name),
                         value: `${parseInt(moneyMgr.count).toLocaleString()} / ${parseInt(moneyMgr.total).toLocaleString()}`,
                         inline: false,
                     });
@@ -90,8 +93,8 @@ module.exports = {
             console.error('[explore]', error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('❌ 發生錯誤')
-                .setDescription('查詢時發生錯誤，請稍後再試。')
+                .setTitle(t(lang, 'error_title'))
+                .setDescription(t(lang, 'error_query'))
                 .setTimestamp();
             await interaction.editReply({ embeds: [embed] });
         }

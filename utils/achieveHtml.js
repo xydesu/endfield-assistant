@@ -1,5 +1,6 @@
 const https = require('https');
 const { URL } = require('url');
+const { t } = require('./i18n');
 
 const CSS_URL = 'https://gist.githubusercontent.com/xydesu/afe894a747f76f66eb4a1379ae711800/raw/3dc55df02c3ee9682c9c8b53a52ba8f510b83655/style.css';
 const CERTIFY_BADGE_URL = 'https://static.skport.com/skport-fe-static/skport-game-tools/images/certifyBg.135716.png';
@@ -107,7 +108,7 @@ function buildDisplayMedals(achieve) {
     return result;
 }
 
-async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', serverId = '', botName = '終末地簽到小助手' } = {}) {
+async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_Hant' } = {}) {
     const css = await getAchieveCSS();
 
     const medals = achieve.achieveMedals || [];
@@ -118,31 +119,25 @@ async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', ser
 
     const displayMedals = buildDisplayMedals(achieve);
 
-    // Dynamic medal/certify overrides (只改圖，不改幾何)
     let overrideCSS = '\n/* Dynamic medal overrides */\n';
     SLOT_CLASSES.forEach((cls, idx) => {
         const medal = displayMedals[idx];
         const iconUrl = getMedalIconUrl(medal);
 
-        // medal icon
         overrideCSS += `.${cls}::before { background-image: ${iconUrl ? `url("${escapeCssUrl(iconUrl)}")` : 'none'} !important; }\n`;
 
-        // certify badge
         if (hideCertify) {
             overrideCSS += `.${cls}::after { content: none !important; }\n`;
         } else {
             const hasCertify = !!medal?.achievementData?.canCertify;
             if (ORIGINAL_CERTIFY_SLOTS.has(cls)) {
-                if (!hasCertify) {
-                    overrideCSS += `.${cls}::after { content: none !important; }\n`;
-                }
+                if (!hasCertify) overrideCSS += `.${cls}::after { content: none !important; }\n`;
             } else if (hasCertify) {
                 overrideCSS += `.${cls}::after { ${CERTIFY_BADGE_CSS} }\n`;
             }
         }
     });
 
-    // top / bottom rows (bottom index fixed: +5)
     const topRow = SLOT_CLASSES.slice(0, 5)
         .map((cls, idx) => `<div class="sc-efhFTv ${cls} medal-slot-${idx}"></div>`)
         .join('');
@@ -166,11 +161,9 @@ body {
     background-color: #ececec;
     font-family: Arial, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
 }
-
 ${css}
 ${overrideCSS}
 
-/* ===== 外層 ===== */
 #capture-root {
     width: 39.09952vw;
     margin: 0 auto;
@@ -181,7 +174,6 @@ ${overrideCSS}
     margin: 0 auto;
 }
 
-/* ===== 卡片主體（穩定兩欄，不再改官方 class 幾何） ===== */
 .achieve-main {
     padding: 1.65876vw;
     min-height: 9.47867vw;
@@ -199,25 +191,23 @@ ${overrideCSS}
     overflow: hidden;
 }
 
-/* 左右欄容器 */
 .achieve-left,
 .achieve-right {
     min-width: 0;
     transform: none !important;
 }
 
-/* 左欄內容 */
 .achieve-left > .sc-dDEBgH {
     width: 100% !important;
     min-width: 0 !important;
     margin: 0 !important;
 }
 
-/* 右欄內容：強制靠左，清掉可能的靠右規則 */
 .achieve-right {
     justify-self: start !important;
     margin-left: 0 !important;
 }
+
 .achieve-right > .sc-kkeOlZ {
     width: 100% !important;
     min-width: 0 !important;
@@ -225,6 +215,7 @@ ${overrideCSS}
     transform: scale(0.94) !important;
     transform-origin: left top !important;
 }
+
 .achieve-right .sc-kYLqRS {
     width: 100% !important;
     margin: 0 !important;
@@ -232,14 +223,12 @@ ${overrideCSS}
     transform: none !important;
 }
 
-/* 防止舊規則把 badge 區整塊推右 */
 .sc-kkeOlZ,
 .sc-kYLqRS {
     margin-left: 0 !important;
     margin-right: 0 !important;
 }
 
-/* ===== Footer ===== */
 .achieve-footer {
     margin-top: 12px;
     padding: 0 20px;
@@ -274,7 +263,7 @@ ${overrideCSS}
             <div class="achieve-left">
                 <div class="sc-dDEBgH CQnpG">
                     <div class="sc-bNfpWB bvNmjt">${totalCount}</div>
-                    <div class="sc-dtXXuQ kzYAcF">總收集數</div>
+                    <div class="sc-dtXXuQ kzYAcF">${t(lang, 'html_achieve_total')}</div>
                     <div class="sc-drBwtj bYvpNg"></div>
                     <div class="sc-eYudRy iIFAFq">
                         <div class="sc-kzOYSC jQKmyQ">

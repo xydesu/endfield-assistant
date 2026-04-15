@@ -2,25 +2,28 @@ const { SlashCommandBuilder, EmbedBuilder, ApplicationIntegrationType, Interacti
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('profile')
-        .setDescription('查詢玩家個人資料 (等級、理智、BP 等)')
+        .setDescription('查詢玩家個人資料 / View player profile')
         .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
         .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: false });
 
+        let lang = 'zh_Hant';
         try {
             const discordId = interaction.user.id;
             const user = await User.findByPk(discordId);
+            lang = user?.language || 'zh_Hant';
 
             if (!user) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 尚未綁定')
-                    .setDescription('您尚未綁定帳號，請先使用 `/bind` 指令進行綁定。')
+                    .setTitle(t(lang, 'not_bound_title'))
+                    .setDescription(t(lang, 'not_bound_desc'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -30,7 +33,7 @@ module.exports = {
             if (!result.success) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 查詢失敗')
+                    .setTitle(t(lang, 'query_failed_title'))
                     .setDescription(result.message)
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
@@ -48,32 +51,32 @@ module.exports = {
                 if (secondsLeft > 0) {
                     const h = Math.floor(secondsLeft / 3600);
                     const m = Math.floor((secondsLeft % 3600) / 60);
-                    staminaText += `\n回滿：${h > 0 ? `${h} 小時 ` : ''}${m} 分鐘後`;
+                    staminaText += '\n' + t(lang, 'profile_stamina_full_in')(h, m);
                 } else {
-                    staminaText += '\n（已回滿）';
+                    staminaText += '\n' + t(lang, 'profile_stamina_full');
                 }
             } else {
-                staminaText += '\n（已滿）';
+                staminaText += '\n' + t(lang, 'profile_stamina_max');
             }
 
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle(`👤 ${base.name} 的玩家資料`)
+                .setTitle(t(lang, 'profile_title')(base.name))
                 .setThumbnail(base.avatarUrl ?? null)
                 .addFields(
-                    { name: '🌐 伺服器', value: base.serverName ?? '—', inline: true },
-                    { name: '📊 權限等階', value: `Lv. ${base.level}`, inline: true },
-                    { name: '🌍 探索等級', value: `${base.worldLevel}`, inline: true },
-                    { name: '👥 幹員', value: `${base.charNum}`, inline: true },
-                    { name: '⚔️ 武器', value: `${base.weaponNum}`, inline: true },
-                    { name: '📖 檔案', value: `${base.docNum}`, inline: true },
-                    { name: '🔋 理智', value: staminaText, inline: false },
-                    { name: '🏆 通行證', value: `Lv. ${bpSystem.curLevel} / ${bpSystem.maxLevel}`, inline: true },
-                    { name: '📋 活躍度', value: dailyMission ? `${dailyMission.dailyActivation} / ${dailyMission.maxDailyActivation}` : '—', inline: true },
-                    { name: '📋 每周事務', value: `${weeklyMission.score} / ${weeklyMission.total}`, inline: true },
-                    { name: '🏅 光榮之路', value: achieve ? `${achieve.count}` : '—', inline: true },
+                    { name: t(lang, 'profile_server'), value: base.serverName ?? '—', inline: true },
+                    { name: t(lang, 'profile_level'), value: `Lv. ${base.level}`, inline: true },
+                    { name: t(lang, 'profile_world_level'), value: `${base.worldLevel}`, inline: true },
+                    { name: t(lang, 'profile_char'), value: `${base.charNum}`, inline: true },
+                    { name: t(lang, 'profile_weapon'), value: `${base.weaponNum}`, inline: true },
+                    { name: t(lang, 'profile_doc'), value: `${base.docNum}`, inline: true },
+                    { name: t(lang, 'profile_stamina'), value: staminaText, inline: false },
+                    { name: t(lang, 'profile_bp'), value: `Lv. ${bpSystem.curLevel} / ${bpSystem.maxLevel}`, inline: true },
+                    { name: t(lang, 'profile_daily'), value: dailyMission ? `${dailyMission.dailyActivation} / ${dailyMission.maxDailyActivation}` : '—', inline: true },
+                    { name: t(lang, 'profile_weekly'), value: `${weeklyMission.score} / ${weeklyMission.total}`, inline: true },
+                    { name: t(lang, 'profile_achieve'), value: achieve ? `${achieve.count}` : '—', inline: true },
                 )
-                .setFooter({ text: `主線進度：${base.mainMission?.description ?? '—'}` })
+                .setFooter({ text: t(lang, 'profile_footer')(base.mainMission?.description) })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
@@ -81,8 +84,8 @@ module.exports = {
             console.error('[profile]', error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('❌ 發生錯誤')
-                .setDescription('查詢時發生錯誤，請稍後再試。')
+                .setTitle(t(lang, 'error_title'))
+                .setDescription(t(lang, 'error_query'))
                 .setTimestamp();
             await interaction.editReply({ embeds: [embed] });
         }

@@ -1,4 +1,5 @@
 const { ELEMENT_ICONS, ELEMENT_COLORS, RARITY_COLORS, getProfessionIcons } = require('./operatorEnums');
+const { t } = require('./i18n');
 
 const COLS = 6;
 const CARD_W = 96;
@@ -21,7 +22,7 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
-async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName = '終末地簽到小助手' } = {}) {
+async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_Hant' } = {}) {
     const professionIcons = await getProfessionIcons();
 
     const sorted = [...chars].sort((a, b) => {
@@ -57,7 +58,7 @@ async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName =
       ${elementIconUrl ? `<div class="badge element-badge" style="background:${elementBgColor};"><div class="badge-icon" style="background-image:url('${elementIconUrl}');"></div></div>` : ''}
     </div>
     <div class="avatar-bottom">
-      ${potentialLevel > 0 ? `<div class="info-tag potential-tag">潛${potentialLevel}</div>` : '<span></span>'}
+      ${potentialLevel > 0 ? `<div class="info-tag potential-tag">${t(lang, 'html_potential')}${potentialLevel}</div>` : '<span></span>'}
       <div class="level-section">
         <div class="level-text">Lv.<span class="level-num">${level}</span></div>
       </div>
@@ -66,7 +67,7 @@ async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName =
 
   <div class="name">
     <span class="name-text">${name}</span>
-    ${evolvePhase > 0 ? `<div class="evolve-tag">菁英化${evolvePhase}</div>` : ''}
+    ${evolvePhase > 0 ? `<div class="evolve-tag">${t(lang, 'html_evolve')} ${evolvePhase}</div>` : ''}
   </div>
 
   ${weaponName ? `

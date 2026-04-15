@@ -51,6 +51,10 @@ const User = sequelize.define('users', {
         type: Sequelize.BOOLEAN, // True once notified; reset when stamina drops back below threshold
         defaultValue: false,
     },
+    language: {
+        type: Sequelize.STRING,
+        defaultValue: 'zh_Hant', // zh_Hant | zh_Hans | ja | en
+    },
     dailyNotify: {
         type: Sequelize.BOOLEAN,
         defaultValue: false,

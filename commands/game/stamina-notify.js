@@ -1,24 +1,25 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const User = require('../../models/User');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stamina-notify')
-        .setDescription('設定理智快滿提醒 (需先設定通知頻道)')
+        .setDescription('設定理智快滿提醒 / Set stamina reminder')
         .addBooleanOption(option =>
             option.setName('enable')
-                .setDescription('是否開啟理智快滿提醒')
+                .setDescription('是否開啟理智快滿提醒 / Enable stamina reminder')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('threshold')
-                .setDescription('提醒閾值：理智達到最大值的百分比時提醒 (1–99，預設 80)')
+                .setDescription('提醒閾值 (1–99, 預設 80) / Threshold % (1–99, default 80)')
                 .setMinValue(1)
                 .setMaxValue(99)
                 .setRequired(false))
         .addBooleanOption(option =>
             option.setName('tag')
-                .setDescription('是否在理智提醒通知中提及 (Tag) 您')
+                .setDescription('是否在通知中提及您 / Mention you in notifications')
                 .setRequired(false)),
     async execute(interaction) {
         const enable = interaction.options.getBoolean('enable');
@@ -26,13 +27,16 @@ module.exports = {
         const isStaminaTag = interaction.options.getBoolean('tag') ?? true;
         const discordId = interaction.user.id;
 
+        let lang = 'zh_Hant';
         try {
             const user = await User.findByPk(discordId);
+            lang = user?.language || 'zh_Hant';
+
             if (!user) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 尚未綁定')
-                    .setDescription('尚未綁定帳號，請先使用 `/bind`。')
+                    .setTitle(t(lang, 'not_bound_title'))
+                    .setDescription(t(lang, 'not_bound_short'))
                     .setTimestamp();
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
@@ -46,12 +50,12 @@ module.exports = {
             });
 
             const description = enable
-                ? `✅ 已開啟理智提醒。\n當理智達到最大值的 **${threshold}%** 時，將於通知頻道發送提醒。\n🔔 通知提及 (Tag): ${isStaminaTag ? '開啟' : '關閉'}\n\n⚠️ 前置需求：\n• 請先使用 \`/set-notify-channel\` 設定伺服器通知頻道。\n• 請先使用 \`/schedule\` 設定自動簽到，以確保通知範圍正確。`
-                : '🔕 已關閉理智提醒。';
+                ? t(lang, 'stamina_enabled')(threshold, isStaminaTag)
+                : t(lang, 'stamina_disabled');
 
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('🔋 理智提醒設定')
+                .setTitle(t(lang, 'stamina_title'))
                 .setDescription(description)
                 .setTimestamp();
             await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -59,8 +63,8 @@ module.exports = {
             console.error(error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('❌ 設定失敗')
-                .setDescription('資料庫發生錯誤，請稍後再試。')
+                .setTitle(t(lang, 'stamina_fail_title'))
+                .setDescription(t(lang, 'db_error'))
                 .setTimestamp();
             await interaction.reply({ embeds: [embed], ephemeral: true });
         }

@@ -2,6 +2,7 @@ const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Modal
 const User = require('../../models/User');
 const { encrypt } = require('../../utils/encryption');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 const { getBindingList } = require('../../utils/attendance');
 
 // Temporarily hold raw cred while user is choosing a role (TTL: 10 minutes)
@@ -23,28 +24,31 @@ function resolveServerId(role) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('bind')
-        .setDescription('綁定 Endfield 帳號 (包含教學與腳本)'),
+        .setDescription('綁定 Endfield 帳號 / Bind Endfield account'),
 
     async execute(interaction) {
+        const user = await User.findByPk(interaction.user.id);
+        const lang = user?.language || 'zh_Hant';
+
         const embed = new EmbedBuilder()
             .setColor(EMBED_COLOR)
-            .setTitle('Endfield 自動簽到綁定教學')
-            .setDescription('請依照以下步驟獲取您的憑證並進行綁定：')
+            .setTitle(t(lang, 'bind_tutorial_title'))
+            .setDescription(t(lang, 'bind_tutorial_desc'))
             .addFields(
-                { name: '步驟 1', value: '使用電腦瀏覽器開啟任意 [鷹角網站](https://www.skport.com) 並登入帳號。' },
-                { name: '步驟 2', value: '按下 `F12` 開啟開發者工具，切換至 `Console` 分頁。' },
-                { name: '步驟 3', value: '複製下方指令並貼上到 Console 中執行：' },
-                { name: '指令', value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/e77a5769292b80801fa246a4e068af47/raw/e0fa110679e6164efda76cfb87d12cfcce287ddb/cred.js").then(r=>r.text()).then(t=>eval(t))\n```' },
-                { name: '步驟 4', value: '執行後 Console 將顯示您的 `cred` 值，複製該值。' },
-                { name: '步驟 5', value: '點擊下方「輸入 Cred」按鈕貼上並送出，機器人會自動查詢可用角色供您選擇。' }
+                { name: t(lang, 'bind_step1_label'), value: t(lang, 'bind_step1') },
+                { name: t(lang, 'bind_step2_label'), value: t(lang, 'bind_step2') },
+                { name: t(lang, 'bind_step3_label'), value: t(lang, 'bind_step3') },
+                { name: t(lang, 'bind_script_label'), value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/e77a5769292b80801fa246a4e068af47/raw/e0fa110679e6164efda76cfb87d12cfcce287ddb/cred.js").then(r=>r.text()).then(t=>eval(t))\n```' },
+                { name: t(lang, 'bind_step4_label'), value: t(lang, 'bind_step4') },
+                { name: t(lang, 'bind_step5_label'), value: t(lang, 'bind_step5') }
             )
-            .setFooter({ text: '注意：請勿將憑證洩漏給他人' });
+            .setFooter({ text: t(lang, 'bind_footer') });
 
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId(`bind:enter:${interaction.user.id}`)
-                    .setLabel('輸入 Cred')
+                    .setLabel(t(lang, 'bind_enter_btn'))
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('🔐')
             );
@@ -58,24 +62,27 @@ module.exports = {
     async handleButton(interaction, action) {
         if (action === 'enter') {
             const [, , targetUserId] = interaction.customId.split(':');
+            const user = await User.findByPk(interaction.user.id);
+            const lang = user?.language || 'zh_Hant';
+
             if (targetUserId && interaction.user.id !== targetUserId) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 權限不足')
-                    .setDescription('只有指令使用者可以操作此按鈕。')
+                    .setTitle(t(lang, 'bind_permission_title'))
+                    .setDescription(t(lang, 'bind_permission_desc'))
                     .setTimestamp();
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
 
             const modal = new ModalBuilder()
                 .setCustomId('bind:credSubmit')
-                .setTitle('綁定帳號');
+                .setTitle(t(lang, 'bind_modal_title'));
 
             const credInput = new TextInputBuilder()
                 .setCustomId('credInput')
-                .setLabel('請輸入您的 Cred')
+                .setLabel(t(lang, 'bind_modal_label'))
                 .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('貼上腳本輸出 cred 值')
+                .setPlaceholder(t(lang, 'bind_modal_placeholder'))
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(credInput));
@@ -86,6 +93,9 @@ module.exports = {
     async handleModal(interaction, action) {
         if (action === 'credSubmit') {
             await interaction.deferReply({ ephemeral: true });
+
+            const user = await User.findByPk(interaction.user.id);
+            const lang = user?.language || 'zh_Hant';
 
             const inputText = interaction.fields.getTextInputValue('credInput').trim();
 
@@ -101,8 +111,8 @@ module.exports = {
             if (!cred) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 輸入錯誤')
-                    .setDescription('無法解析 cred，請確認您複製了正確的內容。')
+                    .setTitle(t(lang, 'bind_input_error_title'))
+                    .setDescription(t(lang, 'bind_input_error_desc'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -113,8 +123,8 @@ module.exports = {
             } catch (error) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 查詢失敗')
-                    .setDescription(`無法取得角色資訊：${error.message.substring(0, 200)}\n請確認您的 Cred 是否有效。`)
+                    .setTitle(t(lang, 'query_failed_title'))
+                    .setDescription(t(lang, 'bind_fetch_fail_desc')(error.message.substring(0, 200)))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -122,8 +132,8 @@ module.exports = {
             if (!roles || roles.length === 0) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 查無角色')
-                    .setDescription('未找到任何角色資料，請確認您已登入遊戲帳號。')
+                    .setTitle(t(lang, 'bind_no_roles_title'))
+                    .setDescription(t(lang, 'bind_no_roles_desc'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -141,20 +151,20 @@ module.exports = {
                 const sid = resolveServerId(role);
                 return {
                     label: `${role.serverName} | ${role.nickname}`.substring(0, 100),
-                    description: `等級: ${role.level} | RoleID: ${role.roleId}`.substring(0, 100),
+                    description: `${t(lang, 'bind_role_level')(role.level)} | RoleID: ${role.roleId}`.substring(0, 100),
                     value: `${role.roleId}_${sid ?? 'unknown'}`.substring(0, 100),
                 };
             });
 
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('bind:select')
-                .setPlaceholder('請選擇要綁定的角色...')
+                .setPlaceholder(t(lang, 'bind_select_placeholder'))
                 .addOptions(options);
 
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('🎮 選擇綁定角色')
-                .setDescription(`找到 **${roles.length}** 個角色，請從下方選單選擇要進行自動簽到的角色。`)
+                .setTitle(t(lang, 'bind_select_title'))
+                .setDescription(t(lang, 'bind_select_desc')(roles.length))
                 .setTimestamp();
 
             await interaction.editReply({
@@ -167,14 +177,16 @@ module.exports = {
     async handleSelectMenu(interaction, action) {
         if (action === 'select') {
             const userId = interaction.user.id;
+            const user = await User.findByPk(userId);
+            const lang = user?.language || 'zh_Hant';
             const pending = pendingCredentials.get(userId);
 
             if (!pending || pending.expiresAt < Date.now()) {
                 pendingCredentials.delete(userId);
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 操作逾時')
-                    .setDescription('綁定選擇已逾時，請重新執行 `/bind` 指令。')
+                    .setTitle(t(lang, 'bind_expired_title'))
+                    .setDescription(t(lang, 'bind_expired_desc'))
                     .setTimestamp();
                 return interaction.update({ embeds: [embed], components: [] });
             }
@@ -185,8 +197,8 @@ module.exports = {
             if (lastUnderscore === -1) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 無效的選擇')
-                    .setDescription('無法解析選取的角色資料，請重新執行 `/bind` 指令。')
+                    .setTitle(t(lang, 'bind_invalid_title'))
+                    .setDescription(t(lang, 'bind_invalid_desc'))
                     .setTimestamp();
                 return interaction.update({ embeds: [embed], components: [] });
             }
@@ -196,8 +208,8 @@ module.exports = {
             if (!roleId || serverId === 'unknown') {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 無效的選擇')
-                    .setDescription('無法解析伺服器 ID，請重新執行 `/bind` 指令。')
+                    .setTitle(t(lang, 'bind_invalid_title'))
+                    .setDescription(t(lang, 'bind_invalid_server_desc'))
                     .setTimestamp();
                 return interaction.update({ embeds: [embed], components: [] });
             }
@@ -213,16 +225,16 @@ module.exports = {
 
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('✅ 綁定成功')
-                    .setDescription(`RoleID: \`${roleId}\`\nServer ID: \`${serverId}\`\n\n您可以繼續使用 \`/schedule\` 設定每日自動簽到時間。`)
+                    .setTitle(t(lang, 'bind_success_title'))
+                    .setDescription(t(lang, 'bind_success_desc')(roleId, serverId))
                     .setTimestamp();
                 await interaction.update({ embeds: [embed], components: [] });
             } catch (error) {
                 console.error(error);
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 綁定失敗')
-                    .setDescription('資料庫發生錯誤，請稍後再試。')
+                    .setTitle(t(lang, 'bind_fail_title'))
+                    .setDescription(t(lang, 'db_error'))
                     .setTimestamp();
                 await interaction.update({ embeds: [embed], components: [] });
             }
