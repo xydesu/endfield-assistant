@@ -4,6 +4,7 @@ const zlib = require('zlib');
 const User = require('../models/User');
 const { decrypt } = require('./encryption');
 const { PLATFORM, VNAME, USER_AGENT } = require('./constants');
+const { t, getSkLanguage } = require('./i18n');
 
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -87,6 +88,7 @@ async function refreshSignToken(user) {
 }
 
 async function request(method, endpoint, user, data = null, signToken = '') {
+    const skLang = getSkLanguage(user.language || 'zh_tw');
     return new Promise((resolve, reject) => {
         let url;
         try {
@@ -116,7 +118,7 @@ async function request(method, endpoint, user, data = null, signToken = '') {
             'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Referer': 'https://game.skport.com/',
             'Content-Type': 'application/json',
-            'sk-language': 'zh_Hant',
+            'sk-language': skLang,
             'sk-game-role': `3_${user.uid}_${user.serverId}`,
             'cred': decrypt(user.cred),
             'platform': PLATFORM,
@@ -196,6 +198,7 @@ async function request(method, endpoint, user, data = null, signToken = '') {
 }
 
 async function signIn(user) {
+    const lang = user.language || 'zh_tw';
     try {
         let token = '';
         try {
@@ -236,16 +239,16 @@ async function signIn(user) {
                     });
                 }
             }
-            return { success: true, message: '簽到成功！', awards, tomorrowAwards };
+            return { success: true, message: t(lang, 'attendance_success'), awards, tomorrowAwards };
 
         } else if (result.code === 10001) {
             // Already signed in
             const today = new Date().toISOString().split('T')[0];
             await user.update({ lastSignDate: today });
-            return { success: true, message: '今日已簽到 (重複執行)' };
+            return { success: true, message: t(lang, 'attendance_already') };
         } else {
             const resultStr = JSON.stringify(result).substring(0, 1000);
-            return { success: false, message: `簽到失敗: ${resultStr}` };
+            return { success: false, message: t(lang, 'attendance_fail')(resultStr) };
         }
 
     } catch (error) {
@@ -256,11 +259,11 @@ async function signIn(user) {
             errorMsg = JSON.stringify(error);
         }
         console.error(`[signIn] uid=${user.uid}`, error);
-        return { success: false, message: `發生錯誤: ${errorMsg.substring(0, 1000)}` };
+        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 1000)) };
     }
 }
 
-function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordUser = null) {
+function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordUser = null, lang = 'zh_tw') {
     const fullTitle = discordUser ? `${title} | @${discordUser.username}` : title;
     const embed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
@@ -269,22 +272,23 @@ function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordU
 
     if (result.awards && result.awards.length > 0) {
         const awardsText = result.awards.map(a => `• ${a.name} x${a.count}`).join('\n');
-        embed.addFields({ name: '🎁 今日獎勵', value: awardsText, inline: false });
+        embed.addFields({ name: t(lang, 'attendance_today'), value: awardsText, inline: false });
         const firstIcon = result.awards.find(a => a.icon)?.icon;
         if (firstIcon) embed.setThumbnail(firstIcon);
     } else {
-        embed.setDescription(result.message ?? '簽到成功！');
+        embed.setDescription(result.message ?? t(lang, 'attendance_success'));
     }
 
     if (result.tomorrowAwards && result.tomorrowAwards.length > 0) {
         const tomorrowText = result.tomorrowAwards.map(a => `• ${a.name} x${a.count}`).join('\n');
-        embed.addFields({ name: '📅 明日獎勵', value: tomorrowText, inline: false });
+        embed.addFields({ name: t(lang, 'attendance_tomorrow'), value: tomorrowText, inline: false });
     }
 
     return embed;
 }
 
 async function getCardDetail(user) {
+    const lang = user.language || 'zh_tw';
     try {
         let token = '';
         try {
@@ -299,7 +303,7 @@ async function getCardDetail(user) {
         if (result.code === 0 && result.data && result.data.detail) {
             return { success: true, detail: result.data.detail };
         } else {
-            return { success: false, message: `API 回傳錯誤: ${result.message ?? JSON.stringify(result).substring(0, 200)}` };
+            return { success: false, message: t(lang, 'attendance_api_error')(result.message ?? JSON.stringify(result).substring(0, 200)) };
         }
     } catch (error) {
         let errorMsg = error.message;
@@ -309,7 +313,7 @@ async function getCardDetail(user) {
             errorMsg = JSON.stringify(error);
         }
         console.error(`[getCardDetail] uid=${user.uid}`, error);
-        return { success: false, message: `發生錯誤: ${errorMsg.substring(0, 500)}` };
+        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 500)) };
     }
 }
 

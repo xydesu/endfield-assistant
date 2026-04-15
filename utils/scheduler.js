@@ -3,12 +3,14 @@ const { EmbedBuilder } = require('discord.js');
 const User = require('../models/User');
 const { signIn, buildAttendanceEmbed, getCardDetail } = require('./attendance');
 const { EMBED_COLOR } = require('./constants');
+const { t } = require('./i18n');
 
 const jobs = new Map();
 
 async function runSignIn(userId, client) {
     const user = await User.findByPk(userId);
     if (!user) return;
+    const lang = user.language || 'zh_tw';
 
     console.log(`[Scheduler] Running auto sign-in for ${user.discordId}`);
     const result = await signIn(user);
@@ -48,7 +50,7 @@ async function runSignIn(userId, client) {
                         await guild.members.fetch(userId);
                         const channel = guild.channels.cache.get(serverConfig.notifyChannelId);
                         if (channel) {
-                            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, '📅 自動簽到報告', result, discordUser);
+                            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, t(lang, 'scheduler_auto_report'), result, discordUser, lang);
 
                             const content = (!result.success || user.isTag) ? `<@${userId}>` : '';
                             await channel.send({ content: content, embeds: [embed] });
@@ -108,6 +110,7 @@ async function initScheduler(client) {
 }
 
 async function sendStaminaNotification(user, curStamina, maxStamina, client) {
+    const lang = user.language || 'zh_tw';
     try {
         const Server = require('../models/Server');
         const guilds = client.guilds.cache;
@@ -131,8 +134,8 @@ async function sendStaminaNotification(user, curStamina, maxStamina, client) {
                         if (channel) {
                             const embed = new EmbedBuilder()
                                 .setColor(EMBED_COLOR)
-                                .setTitle('🔋 理智快滿提醒')
-                                .setDescription(`您的理智已達 **${curStamina} / ${maxStamina}**，請記得消耗理智！`)
+                                .setTitle(t(lang, 'scheduler_stamina_title'))
+                                .setDescription(t(lang, 'scheduler_stamina_desc')(curStamina, maxStamina))
                                 .setTimestamp();
                             const content = user.isStaminaTag ? `<@${user.discordId}>` : '';
                             await channel.send({ content, embeds: [embed] });
