@@ -27,9 +27,10 @@ module.exports = {
         const isStaminaTag = interaction.options.getBoolean('tag') ?? true;
         const discordId = interaction.user.id;
 
+        let lang = 'zh_tw';
         try {
             const user = await User.findByPk(discordId);
-            const lang = user?.language || 'zh_tw';
+            lang = user?.language || 'zh_tw';
 
             if (!user) {
                 const embed = new EmbedBuilder()
@@ -62,8 +63,8 @@ module.exports = {
             console.error(error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle(t('zh_tw', 'stamina_fail_title'))
-                .setDescription(t('zh_tw', 'db_error'))
+                .setTitle(t(lang, 'stamina_fail_title'))
+                .setDescription(t(lang, 'db_error'))
                 .setTimestamp();
             await interaction.reply({ embeds: [embed], ephemeral: true });
         }

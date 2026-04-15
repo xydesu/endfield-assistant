@@ -11,9 +11,10 @@ module.exports = {
     async execute(interaction) {
         const discordId = interaction.user.id;
 
+        let lang = 'zh_tw';
         try {
             const user = await User.findByPk(discordId);
-            const lang = user?.language || 'zh_tw';
+            lang = user?.language || 'zh_tw';
 
             if (!user) {
                 const embed = new EmbedBuilder()
@@ -37,8 +38,8 @@ module.exports = {
             console.error(error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle(t('zh_tw', 'unbind_fail_title'))
-                .setDescription(t('zh_tw', 'unbind_fail_desc'))
+                .setTitle(t(lang, 'unbind_fail_title'))
+                .setDescription(t(lang, 'unbind_fail_desc'))
                 .setTimestamp();
             await interaction.reply({ embeds: [embed], ephemeral: true });
         }

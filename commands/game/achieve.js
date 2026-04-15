@@ -163,10 +163,11 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: false });
 
+        let lang = 'zh_tw';
         try {
             const discordId = interaction.user.id;
             const user = await User.findByPk(discordId);
-            const lang = user?.language || 'zh_tw';
+            lang = user?.language || 'zh_tw';
 
             if (!user) {
                 const embed = new EmbedBuilder()
@@ -245,8 +246,8 @@ module.exports = {
             console.error('[achieve]', error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle(t('zh_tw', 'error_title'))
-                .setDescription(t('zh_tw', 'error_query'))
+                .setTitle(t(lang, 'error_title'))
+                .setDescription(t(lang, 'error_query'))
                 .setTimestamp();
             await interaction.editReply({ embeds: [embed] });
         }
