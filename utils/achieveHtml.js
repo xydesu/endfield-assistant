@@ -119,31 +119,25 @@ async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', ser
 
     const displayMedals = buildDisplayMedals(achieve);
 
-    // Dynamic medal/certify overrides (只改圖，不改幾何)
     let overrideCSS = '\n/* Dynamic medal overrides */\n';
     SLOT_CLASSES.forEach((cls, idx) => {
         const medal = displayMedals[idx];
         const iconUrl = getMedalIconUrl(medal);
 
-        // medal icon
         overrideCSS += `.${cls}::before { background-image: ${iconUrl ? `url("${escapeCssUrl(iconUrl)}")` : 'none'} !important; }\n`;
 
-        // certify badge
         if (hideCertify) {
             overrideCSS += `.${cls}::after { content: none !important; }\n`;
         } else {
             const hasCertify = !!medal?.achievementData?.canCertify;
             if (ORIGINAL_CERTIFY_SLOTS.has(cls)) {
-                if (!hasCertify) {
-                    overrideCSS += `.${cls}::after { content: none !important; }\n`;
-                }
+                if (!hasCertify) overrideCSS += `.${cls}::after { content: none !important; }\n`;
             } else if (hasCertify) {
                 overrideCSS += `.${cls}::after { ${CERTIFY_BADGE_CSS} }\n`;
             }
         }
     });
 
-    // top / bottom rows (bottom index fixed: +5)
     const topRow = SLOT_CLASSES.slice(0, 5)
         .map((cls, idx) => `<div class="sc-efhFTv ${cls} medal-slot-${idx}"></div>`)
         .join('');
@@ -167,11 +161,9 @@ body {
     background-color: #ececec;
     font-family: Arial, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
 }
-
 ${css}
 ${overrideCSS}
 
-/* ===== 外層 ===== */
 #capture-root {
     width: 39.09952vw;
     margin: 0 auto;
@@ -182,7 +174,6 @@ ${overrideCSS}
     margin: 0 auto;
 }
 
-/* ===== 卡片主體（穩定兩欄，不再改官方 class 幾何） ===== */
 .achieve-main {
     padding: 1.65876vw;
     min-height: 9.47867vw;
@@ -200,25 +191,23 @@ ${overrideCSS}
     overflow: hidden;
 }
 
-/* 左右欄容器 */
 .achieve-left,
 .achieve-right {
     min-width: 0;
     transform: none !important;
 }
 
-/* 左欄內容 */
 .achieve-left > .sc-dDEBgH {
     width: 100% !important;
     min-width: 0 !important;
     margin: 0 !important;
 }
 
-/* 右欄內容：強制靠左，清掉可能的靠右規則 */
 .achieve-right {
     justify-self: start !important;
     margin-left: 0 !important;
 }
+
 .achieve-right > .sc-kkeOlZ {
     width: 100% !important;
     min-width: 0 !important;
@@ -226,6 +215,7 @@ ${overrideCSS}
     transform: scale(0.94) !important;
     transform-origin: left top !important;
 }
+
 .achieve-right .sc-kYLqRS {
     width: 100% !important;
     margin: 0 !important;
@@ -233,14 +223,12 @@ ${overrideCSS}
     transform: none !important;
 }
 
-/* 防止舊規則把 badge 區整塊推右 */
 .sc-kkeOlZ,
 .sc-kYLqRS {
     margin-left: 0 !important;
     margin-right: 0 !important;
 }
 
-/* ===== Footer ===== */
 .achieve-footer {
     margin-top: 12px;
     padding: 0 20px;
@@ -281,6 +269,18 @@ ${overrideCSS}
                         <div class="sc-kzOYSC jQKmyQ">
                             <div class="sc-dGlnUf jvwawu"></div>
                             <div class="sc-fOmPLA lcwdse">${darkCount}</div>
+                        </div>
+                        <div class="sc-kzOYSC jQKmyQ">
+                            <div class="sc-dGlnUf hLiFxM"></div>
+                            <div class="sc-fOmPLA lcwdse">${silverCount}</div>
+                        </div>
+                        <div class="sc-kzOYSC jQKmyQ">
+                            <div class="sc-dGlnUf kwGPST"></div>
+                            <div class="sc-fOmPLA lcwdse">${goldCount}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="achieve-right">
                 <div class="sc-kkeOlZ gECvjk">
