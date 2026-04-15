@@ -108,7 +108,7 @@ function buildDisplayMedals(achieve) {
     return result;
 }
 
-async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_tw' } = {}) {
+async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_Hant' } = {}) {
     const css = await getAchieveCSS();
 
     const medals = achieve.achieveMedals || [];

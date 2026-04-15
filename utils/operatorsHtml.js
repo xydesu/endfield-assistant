@@ -22,7 +22,7 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
-async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_tw' } = {}) {
+async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_Hant' } = {}) {
     const professionIcons = await getProfessionIcons();
 
     const sorted = [...chars].sort((a, b) => {

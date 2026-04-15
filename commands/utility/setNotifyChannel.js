@@ -17,7 +17,7 @@ module.exports = {
 
     async execute(interaction) {
         const user = await User.findByPk(interaction.user.id);
-        const lang = user?.language || 'zh_tw';
+        const lang = user?.language || 'zh_Hant';
         const channel = interaction.options.getChannel('channel');
 
         try {

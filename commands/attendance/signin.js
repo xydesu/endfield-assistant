@@ -13,7 +13,7 @@ module.exports = {
 
         const discordId = interaction.user.id;
         const user = await User.findByPk(discordId);
-        const lang = user?.language || 'zh_tw';
+        const lang = user?.language || 'zh_Hant';
 
         if (!user) {
             const embed = new EmbedBuilder()

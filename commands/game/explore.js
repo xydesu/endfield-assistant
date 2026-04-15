@@ -13,11 +13,11 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: false });
 
-        let lang = 'zh_tw';
+        let lang = 'zh_Hant';
         try {
             const discordId = interaction.user.id;
             const user = await User.findByPk(discordId);
-            lang = user?.language || 'zh_tw';
+            lang = user?.language || 'zh_Hant';
 
             if (!user) {
                 const embed = new EmbedBuilder()

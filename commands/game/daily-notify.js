@@ -39,10 +39,10 @@ module.exports = {
         const isDailyTag = interaction.options.getBoolean('tag') ?? true;
         const discordId = interaction.user.id;
 
-        let lang = 'zh_tw';
+        let lang = 'zh_Hant';
         try {
             const user = await User.findByPk(discordId);
-            lang = user?.language || 'zh_tw';
+            lang = user?.language || 'zh_Hant';
 
             if (!user) {
                 const embed = new EmbedBuilder()

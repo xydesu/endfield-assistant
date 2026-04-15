@@ -1,38 +1,38 @@
-const zh_tw = require('../locales/zh_tw');
-const zh_cn = require('../locales/zh_cn');
+const zh_Hant = require('../locales/zh_Hant');
+const zh_Hans = require('../locales/zh_Hans');
 const ja = require('../locales/ja');
 const en = require('../locales/en');
 
-const locales = { zh_tw, zh_cn, ja, en };
+const locales = { zh_Hant, zh_Hans, ja, en };
 
-const SUPPORTED_LANGUAGES = ['zh_tw', 'zh_cn', 'ja', 'en'];
+const SUPPORTED_LANGUAGES = ['zh_Hant', 'zh_Hans', 'ja', 'en'];
 
 const LANGUAGE_LABELS = {
-    zh_tw: '繁體中文',
-    zh_cn: '简体中文',
+    zh_Hant: '繁體中文',
+    zh_Hans: '简体中文',
     ja: '日本語',
     en: 'English',
 };
 
 // Map bot language to API sk-language header value
 const SK_LANGUAGE_MAP = {
-    zh_tw: 'zh_Hant',
-    zh_cn: 'zh_Hans',
+    zh_Hant: 'zh_Hant',
+    zh_Hans: 'zh_Hans',
     ja: 'ja',
     en: 'en',
 };
 
 /**
  * Get a translation string for the given language and key.
- * Falls back to zh_tw if the key is missing in the requested locale.
+ * Falls back to zh_Hant if the key is missing in the requested locale.
  *
- * @param {string} lang  Language code (zh_tw | zh_cn | ja | en)
+ * @param {string} lang  Language code (zh_Hant | zh_Hans | ja | en)
  * @param {string} key   Locale string key
  * @returns {string|Function} The translated string or template function
  */
 function t(lang, key) {
-    const locale = locales[lang] || locales.zh_tw;
-    return locale[key] ?? locales.zh_tw[key] ?? key;
+    const locale = locales[lang] || locales.zh_Hant;
+    return locale[key] ?? locales.zh_Hant[key] ?? key;
 }
 
 /**

@@ -14,7 +14,7 @@ const AMERICAS_EUROPE_SERVER_ID = '3';
 async function runSignIn(userId, client) {
     const user = await User.findByPk(userId);
     if (!user) return;
-    const lang = user.language || 'zh_tw';
+    const lang = user.language || 'zh_Hant';
 
     console.log(`[Scheduler] Running auto sign-in for ${user.discordId}`);
     const result = await signIn(user);
@@ -121,7 +121,7 @@ async function checkAndSendDailyNotification(userId, client) {
 }
 
 async function sendDailyNotification(user, curActivation, maxActivation, client) {
-    const lang = user.language || 'zh_tw';
+    const lang = user.language || 'zh_Hant';
     try {
         const Server = require('../models/Server');
         const guilds = client.guilds.cache;
@@ -240,7 +240,7 @@ async function initScheduler(client) {
 }
 
 async function sendStaminaNotification(user, curStamina, maxStamina, client) {
-    const lang = user.language || 'zh_tw';
+    const lang = user.language || 'zh_Hant';
     try {
         const Server = require('../models/Server');
         const guilds = client.guilds.cache;

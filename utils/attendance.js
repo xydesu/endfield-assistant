@@ -88,7 +88,7 @@ async function refreshSignToken(user) {
 }
 
 async function request(method, endpoint, user, data = null, signToken = '') {
-    const skLang = getSkLanguage(user.language || 'zh_tw');
+    const skLang = getSkLanguage(user.language || 'zh_Hant');
     return new Promise((resolve, reject) => {
         let url;
         try {
@@ -198,7 +198,7 @@ async function request(method, endpoint, user, data = null, signToken = '') {
 }
 
 async function signIn(user) {
-    const lang = user.language || 'zh_tw';
+    const lang = user.language || 'zh_Hant';
     try {
         let token = '';
         try {
@@ -263,7 +263,7 @@ async function signIn(user) {
     }
 }
 
-function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordUser = null, lang = 'zh_tw') {
+function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordUser = null, lang = 'zh_Hant') {
     const fullTitle = discordUser ? `${title} | @${discordUser.username}` : title;
     const embed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
@@ -288,7 +288,7 @@ function buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, title, result, discordU
 }
 
 async function getCardDetail(user) {
-    const lang = user.language || 'zh_tw';
+    const lang = user.language || 'zh_Hant';
     try {
         let token = '';
         try {

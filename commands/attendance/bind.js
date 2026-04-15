@@ -28,7 +28,7 @@ module.exports = {
 
     async execute(interaction) {
         const user = await User.findByPk(interaction.user.id);
-        const lang = user?.language || 'zh_tw';
+        const lang = user?.language || 'zh_Hant';
 
         const embed = new EmbedBuilder()
             .setColor(EMBED_COLOR)
@@ -63,7 +63,7 @@ module.exports = {
         if (action === 'enter') {
             const [, , targetUserId] = interaction.customId.split(':');
             const user = await User.findByPk(interaction.user.id);
-            const lang = user?.language || 'zh_tw';
+            const lang = user?.language || 'zh_Hant';
 
             if (targetUserId && interaction.user.id !== targetUserId) {
                 const embed = new EmbedBuilder()
@@ -95,7 +95,7 @@ module.exports = {
             await interaction.deferReply({ ephemeral: true });
 
             const user = await User.findByPk(interaction.user.id);
-            const lang = user?.language || 'zh_tw';
+            const lang = user?.language || 'zh_Hant';
 
             const inputText = interaction.fields.getTextInputValue('credInput').trim();
 
@@ -178,7 +178,7 @@ module.exports = {
         if (action === 'select') {
             const userId = interaction.user.id;
             const user = await User.findByPk(userId);
-            const lang = user?.language || 'zh_tw';
+            const lang = user?.language || 'zh_Hant';
             const pending = pendingCredentials.get(userId);
 
             if (!pending || pending.expiresAt < Date.now()) {

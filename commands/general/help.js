@@ -11,7 +11,7 @@ module.exports = {
         .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
         const user = await User.findByPk(interaction.user.id);
-        const lang = user?.language || 'zh_tw';
+        const lang = user?.language || 'zh_Hant';
 
         const embed = new EmbedBuilder()
             .setColor(EMBED_COLOR)
