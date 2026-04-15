@@ -1,0 +1,163 @@
+module.exports = {
+    // ─── Common ───────────────────────────────────────────────────────────────
+    not_bound_title: '❌ 未バインド',
+    not_bound_desc: 'アカウントがバインドされていません。まず `/bind` コマンドでバインドしてください。',
+    not_bound_short: '未バインドです。まず `/bind` を使用してください。',
+    not_bound_bare: '未バインドです。',
+    query_failed_title: '❌ 照会失敗',
+    error_title: '❌ エラーが発生しました',
+    error_query: '照会中にエラーが発生しました。後でもう一度お試しください。',
+    db_error: 'データベースエラーが発生しました。後でもう一度お試しください。',
+    bot_name: 'エンドフィールド出席アシスタント',
+
+    // ─── help ─────────────────────────────────────────────────────────────────
+    help_title: '📖 コマンド一覧',
+    help_desc: '現在利用可能なコマンド一覧：',
+    help_general: '🔧 一般',
+    help_general_help: '`/help` このヘルプを表示',
+    help_general_invite: '`/invite` Botの招待リンクを取得',
+    help_general_language: '`/language` Botの言語を設定',
+    help_attendance: '📅 出席',
+    help_attendance_bind: '`/bind` Endfield アカウントをバインド',
+    help_attendance_unbind: '`/unbind` バインド解除',
+    help_attendance_signin: '`/signin` 手動でサインイン',
+    help_attendance_schedule: '`/schedule` 毎日の自動サインイン時刻を設定',
+    help_game: '🎮 ゲーム情報',
+    help_game_profile: '`/profile` プレイヤー情報を照会（レベル、理性、BP 等）',
+    help_game_explore: '`/explore` 各エリアの探索進捗を照会',
+    help_game_achieve: '`/achieve` 栄光の道の実績を照会',
+    help_game_operators: '`/operators` オペレーター一覧を照会',
+    help_game_stamina: '`/stamina-notify` 理性リマインダーを設定',
+    help_admin: '⚙️ 管理',
+    help_admin_notify: '`/set-notify-channel` サーバー通知チャンネルを設定（管理者のみ）',
+    help_footer: '問題がある場合はサーバー管理者にお問い合わせください',
+
+    // ─── invite ───────────────────────────────────────────────────────────────
+    invite_title: '🔗 Botを招待',
+    invite_desc: (url) => `以下のリンクをクリックしてBotをサーバーに追加、またはユーザーアプリとしてインストール！\n\n[➕ 招待する](${url})`,
+
+    // ─── set-notify-channel ───────────────────────────────────────────────────
+    notify_success_title: '✅ 設定完了',
+    notify_success_desc: (channel) => `自動サインイン通知チャンネルを ${channel} に設定しました。`,
+    notify_fail_title: '❌ 設定失敗',
+
+    // ─── language ─────────────────────────────────────────────────────────────
+    language_set_title: '✅ 言語を設定しました',
+    language_set_desc: (lang) => `言語を **${lang}** に設定しました。`,
+    language_fail_title: '❌ 設定失敗',
+    language_not_bound: 'アカウントがバインドされていません。まず `/bind` でバインドしてから言語を設定してください。',
+
+    // ─── profile ──────────────────────────────────────────────────────────────
+    profile_title: (name) => `👤 ${name} のプロフィール`,
+    profile_server: '🌐 サーバー',
+    profile_level: '📊 権限レベル',
+    profile_world_level: '🌍 探索レベル',
+    profile_char: '👥 オペレーター',
+    profile_weapon: '⚔️ 武器',
+    profile_doc: '📖 ファイル',
+    profile_stamina: '🔋 理性',
+    profile_stamina_full_in: (h, m) => `全回復まで：${h > 0 ? `${h}時間` : ''}${m}分`,
+    profile_stamina_full: '（回復済み）',
+    profile_stamina_max: '（最大）',
+    profile_bp: '🏆 バトルパス',
+    profile_daily: '📋 デイリー活躍度',
+    profile_weekly: '📋 ウィークリーミッション',
+    profile_achieve: '🏅 栄光の道',
+    profile_footer: (desc) => `メインストーリー進捗：${desc ?? '—'}`,
+
+    // ─── explore ──────────────────────────────────────────────────────────────
+    explore_title: (name, level) => `🗺️ ${name}（レベル ${level}）`,
+    explore_no_data: '現在探索データがありません。',
+    explore_no_data_title: '🗺️ 探索進捗',
+    explore_treasure: '宝箱',
+    explore_blackbox: 'ブラックボックス',
+    explore_puzzle: 'パズル',
+    explore_piece: '次元の欠片',
+    explore_equip: '装備チェスト',
+    explore_currency: (name) => `💰 ${name}通貨`,
+
+    // ─── achieve ──────────────────────────────────────────────────────────────
+    achieve_title: (name) => `🏅 ${name} の栄光の道`,
+    achieve_no_data_title: '❌ 実績データなし',
+    achieve_no_data_desc: '現在栄光の道の実績データがありません。',
+
+    // ─── operators ────────────────────────────────────────────────────────────
+    operators_title: (name) => `${name} のオペレーター一覧`,
+    operators_no_data_title: '❌ オペレーターデータなし',
+    operators_no_data_desc: '現在オペレーターデータがありません。',
+
+    // ─── stamina-notify ───────────────────────────────────────────────────────
+    stamina_title: '🔋 理性リマインダー設定',
+    stamina_enabled: (threshold, isTag) =>
+        `✅ 理性リマインダーを有効にしました。\n理性が最大値の **${threshold}%** に達すると、通知チャンネルでお知らせします。\n🔔 メンション (Tag): ${isTag ? 'オン' : 'オフ'}\n\n⚠️ 前提条件：\n• \`/set-notify-channel\` でサーバー通知チャンネルを設定してください。\n• \`/schedule\` で自動サインインを設定してください。`,
+    stamina_disabled: '🔕 理性リマインダーを無効にしました。',
+    stamina_fail_title: '❌ 設定失敗',
+
+    // ─── bind ─────────────────────────────────────────────────────────────────
+    bind_tutorial_title: 'Endfield 自動サインインバインドガイド',
+    bind_tutorial_desc: '以下の手順で認証情報を取得してバインドしてください：',
+    bind_step1: 'PCブラウザで [Hypergryphサイト](https://www.skport.com) を開き、ログインしてください。',
+    bind_step2: '`F12` を押して開発者ツールを開き、`Console` タブに切り替えてください。',
+    bind_step3: '以下のコマンドをコピーして Console に貼り付けて実行してください：',
+    bind_step4: '実行後、Console に `cred` の値が表示されます。それをコピーしてください。',
+    bind_step5: '下の「Cred を入力」ボタンをクリックして貼り付けて送信すると、Botが利用可能なキャラクターを照会します。',
+    bind_footer: '注意：認証情報を他人に漏らさないでください',
+    bind_enter_btn: 'Cred を入力',
+    bind_permission_title: '❌ 権限不足',
+    bind_permission_desc: 'コマンドの実行者のみがこのボタンを操作できます。',
+    bind_modal_title: 'アカウントをバインド',
+    bind_modal_label: 'Cred を入力してください',
+    bind_modal_placeholder: 'スクリプト出力の cred 値を貼り付け',
+    bind_input_error_title: '❌ 入力エラー',
+    bind_input_error_desc: 'cred を解析できませんでした。正しい内容をコピーしたか確認してください。',
+    bind_fetch_fail_desc: (msg) => `キャラクター情報を取得できませんでした：${msg}\nCred が有効か確認してください。`,
+    bind_no_roles_title: '❌ キャラクターが見つかりません',
+    bind_no_roles_desc: 'キャラクターデータが見つかりませんでした。ゲームアカウントにログインしているか確認してください。',
+    bind_select_title: '🎮 バインドするキャラクターを選択',
+    bind_select_desc: (count) => `**${count}** 個のキャラクターが見つかりました。下のメニューから自動サインインするキャラクターを選択してください。`,
+    bind_select_placeholder: 'バインドするキャラクターを選択...',
+    bind_role_level: (level) => `レベル: ${level}`,
+    bind_expired_title: '❌ タイムアウト',
+    bind_expired_desc: 'バインド選択がタイムアウトしました。`/bind` を再実行してください。',
+    bind_invalid_title: '❌ 無効な選択',
+    bind_invalid_desc: '選択されたキャラクターデータを解析できませんでした。`/bind` を再実行してください。',
+    bind_invalid_server_desc: 'サーバーIDを解析できませんでした。`/bind` を再実行してください。',
+    bind_success_title: '✅ バインド成功',
+    bind_success_desc: (roleId, serverId) => `RoleID: \`${roleId}\`\nServer ID: \`${serverId}\`\n\n\`/schedule\` で毎日の自動サインイン時刻を設定できます。`,
+    bind_fail_title: '❌ バインド失敗',
+
+    // ─── schedule ─────────────────────────────────────────────────────────────
+    schedule_format_title: '❌ フォーマットエラー',
+    schedule_format_desc: '時刻フォーマットが正しくありません。HH:mm 形式で入力してください（例：09:00 または 23:30）。',
+    schedule_success_title: '✅ 設定完了',
+    schedule_success_msg: (time) => `✅ 毎日の自動サインイン時刻を ${time} に設定しました`,
+    schedule_guild_note: '\n📍 通知はこのサーバーに送信されます（通知チャンネルが設定されている場合）。',
+    schedule_dm_note: '\n⚠️ 注意：DMでコマンドを使用しています。Botがサーバーに正しく通知を送信できない場合があります。サーバー内でこのコマンドを使用することをお勧めします。',
+    schedule_tag_note: (isTag) => `\n🔔 メンション (Tag): ${isTag ? 'オン' : 'オフ'}`,
+    schedule_fail_title: '❌ 設定失敗',
+    schedule_fail_desc: 'データベースエラーまたはスケジュール設定に失敗しました。',
+
+    // ─── signin ───────────────────────────────────────────────────────────────
+    signin_success: '✅ サインイン成功',
+    signin_fail_title: '❌ サインイン失敗',
+
+    // ─── unbind ───────────────────────────────────────────────────────────────
+    unbind_success_title: '✅ 解除成功',
+    unbind_success_desc: 'バインドを解除し、データを削除しました。',
+    unbind_fail_title: '❌ 解除失敗',
+    unbind_fail_desc: 'データベースエラーが発生しました。',
+
+    // ─── attendance embed ─────────────────────────────────────────────────────
+    attendance_today: '🎁 本日の報酬',
+    attendance_tomorrow: '📅 明日の報酬',
+    attendance_success: 'サインイン成功！',
+    attendance_already: '本日はすでにサインイン済みです（重複実行）',
+    attendance_fail: (detail) => `サインイン失敗: ${detail}`,
+    attendance_error: (detail) => `エラーが発生しました: ${detail}`,
+    attendance_api_error: (detail) => `APIエラー: ${detail}`,
+
+    // ─── scheduler ────────────────────────────────────────────────────────────
+    scheduler_auto_report: '📅 自動サインインレポート',
+    scheduler_stamina_title: '🔋 理性リマインダー',
+    scheduler_stamina_desc: (cur, max) => `理性が **${cur} / ${max}** に達しました。理性を消費してください！`,
+};

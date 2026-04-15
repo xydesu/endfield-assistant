@@ -1,0 +1,163 @@
+module.exports = {
+    // ─── Common ───────────────────────────────────────────────────────────────
+    not_bound_title: '❌ 尚未绑定',
+    not_bound_desc: '您尚未绑定账号，请先使用 `/bind` 指令进行绑定。',
+    not_bound_short: '尚未绑定账号，请先使用 `/bind`。',
+    not_bound_bare: '尚未绑定账号。',
+    query_failed_title: '❌ 查询失败',
+    error_title: '❌ 发生错误',
+    error_query: '查询时发生错误，请稍后再试。',
+    db_error: '数据库发生错误，请稍后再试。',
+    bot_name: '终末地签到小助手',
+
+    // ─── help ─────────────────────────────────────────────────────────────────
+    help_title: '📖 指令列表',
+    help_desc: '以下是目前所有可用的指令：',
+    help_general: '🔧 一般',
+    help_general_help: '`/help` 显示本说明',
+    help_general_invite: '`/invite` 获取机器人邀请链接',
+    help_general_language: '`/language` 设定机器人语言',
+    help_attendance: '📅 签到',
+    help_attendance_bind: '`/bind` 绑定 Endfield 账号',
+    help_attendance_unbind: '`/unbind` 解除绑定',
+    help_attendance_signin: '`/signin` 立即执行一次签到',
+    help_attendance_schedule: '`/schedule` 设定每日自动签到时间',
+    help_game: '🎮 游戏资讯',
+    help_game_profile: '`/profile` 查询玩家个人资料（等级、理智、BP 等）',
+    help_game_explore: '`/explore` 查询各区域探索进度（宝箱、谜题、暗箱等）',
+    help_game_achieve: '`/achieve` 查询光荣之路成就展示',
+    help_game_operators: '`/operators` 查询干员列表',
+    help_game_stamina: '`/stamina-notify` 设定理智快满提醒',
+    help_admin: '⚙️ 管理',
+    help_admin_notify: '`/set-notify-channel` 设定服务器通知频道（限管理员）',
+    help_footer: '如有问题请联络服务器管理员',
+
+    // ─── invite ───────────────────────────────────────────────────────────────
+    invite_title: '🔗 邀请机器人',
+    invite_desc: (url) => `点击下方链接将机器人加入你的服务器或安装为个人应用程序！\n\n[➕ 点我邀请](${url})`,
+
+    // ─── set-notify-channel ───────────────────────────────────────────────────
+    notify_success_title: '✅ 设定成功',
+    notify_success_desc: (channel) => `已将自动签到通知频道设定为 ${channel}。`,
+    notify_fail_title: '❌ 设定失败',
+
+    // ─── language ─────────────────────────────────────────────────────────────
+    language_set_title: '✅ 语言已设定',
+    language_set_desc: (lang) => `已将语言设定为 **${lang}**。`,
+    language_fail_title: '❌ 设定失败',
+    language_not_bound: '您尚未绑定账号，请先使用 `/bind` 指令进行绑定后再设定语言。',
+
+    // ─── profile ──────────────────────────────────────────────────────────────
+    profile_title: (name) => `👤 ${name} 的玩家资料`,
+    profile_server: '🌐 服务器',
+    profile_level: '📊 权限等阶',
+    profile_world_level: '🌍 探索等级',
+    profile_char: '👥 干员',
+    profile_weapon: '⚔️ 武器',
+    profile_doc: '📖 档案',
+    profile_stamina: '🔋 理智',
+    profile_stamina_full_in: (h, m) => `回满：${h > 0 ? `${h} 小时 ` : ''}${m} 分钟后`,
+    profile_stamina_full: '（已回满）',
+    profile_stamina_max: '（已满）',
+    profile_bp: '🏆 通行证',
+    profile_daily: '📋 活跃度',
+    profile_weekly: '📋 每周事务',
+    profile_achieve: '🏅 光荣之路',
+    profile_footer: (desc) => `主线进度：${desc ?? '—'}`,
+
+    // ─── explore ──────────────────────────────────────────────────────────────
+    explore_title: (name, level) => `🗺️ ${name}（等级 ${level}）`,
+    explore_no_data: '目前无探索资料。',
+    explore_no_data_title: '🗺️ 探索进度',
+    explore_treasure: '储藏箱',
+    explore_blackbox: '协议采录桩',
+    explore_puzzle: '醚质',
+    explore_piece: '维修灵感点',
+    explore_equip: '装备模板箱',
+    explore_currency: (name) => `💰 ${name}调度卷`,
+
+    // ─── achieve ──────────────────────────────────────────────────────────────
+    achieve_title: (name) => `🏅 ${name} 的光荣之路`,
+    achieve_no_data_title: '❌ 无成就资料',
+    achieve_no_data_desc: '目前无光荣之路成就资料。',
+
+    // ─── operators ────────────────────────────────────────────────────────────
+    operators_title: (name) => `${name} 的干员列表`,
+    operators_no_data_title: '❌ 无干员资料',
+    operators_no_data_desc: '目前无干员资料。',
+
+    // ─── stamina-notify ───────────────────────────────────────────────────────
+    stamina_title: '🔋 理智提醒设定',
+    stamina_enabled: (threshold, isTag) =>
+        `✅ 已开启理智提醒。\n当理智达到最大值的 **${threshold}%** 时，将于通知频道发送提醒。\n🔔 通知提及 (Tag): ${isTag ? '开启' : '关闭'}\n\n⚠️ 前置需求：\n• 请先使用 \`/set-notify-channel\` 设定服务器通知频道。\n• 请先使用 \`/schedule\` 设定自动签到，以确保通知范围正确。`,
+    stamina_disabled: '🔕 已关闭理智提醒。',
+    stamina_fail_title: '❌ 设定失败',
+
+    // ─── bind ─────────────────────────────────────────────────────────────────
+    bind_tutorial_title: 'Endfield 自动签到绑定教学',
+    bind_tutorial_desc: '请依照以下步骤获取您的凭证并进行绑定：',
+    bind_step1: '使用电脑浏览器开启任意 [鹰角网站](https://www.skport.com) 并登入账号。',
+    bind_step2: '按下 `F12` 开启开发者工具，切换至 `Console` 分页。',
+    bind_step3: '复制下方指令并贴上到 Console 中执行：',
+    bind_step4: '执行后 Console 将显示您的 `cred` 值，复制该值。',
+    bind_step5: '点击下方「输入 Cred」按钮贴上并送出，机器人会自动查询可用角色供您选择。',
+    bind_footer: '注意：请勿将凭证泄漏给他人',
+    bind_enter_btn: '输入 Cred',
+    bind_permission_title: '❌ 权限不足',
+    bind_permission_desc: '只有指令使用者可以操作此按钮。',
+    bind_modal_title: '绑定账号',
+    bind_modal_label: '请输入您的 Cred',
+    bind_modal_placeholder: '贴上脚本输出 cred 值',
+    bind_input_error_title: '❌ 输入错误',
+    bind_input_error_desc: '无法解析 cred，请确认您复制了正确的内容。',
+    bind_fetch_fail_desc: (msg) => `无法获取角色资讯：${msg}\n请确认您的 Cred 是否有效。`,
+    bind_no_roles_title: '❌ 查无角色',
+    bind_no_roles_desc: '未找到任何角色资料，请确认您已登入游戏账号。',
+    bind_select_title: '🎮 选择绑定角色',
+    bind_select_desc: (count) => `找到 **${count}** 个角色，请从下方选单选择要进行自动签到的角色。`,
+    bind_select_placeholder: '请选择要绑定的角色...',
+    bind_role_level: (level) => `等级: ${level}`,
+    bind_expired_title: '❌ 操作超时',
+    bind_expired_desc: '绑定选择已超时，请重新执行 `/bind` 指令。',
+    bind_invalid_title: '❌ 无效的选择',
+    bind_invalid_desc: '无法解析选取的角色资料，请重新执行 `/bind` 指令。',
+    bind_invalid_server_desc: '无法解析服务器 ID，请重新执行 `/bind` 指令。',
+    bind_success_title: '✅ 绑定成功',
+    bind_success_desc: (roleId, serverId) => `RoleID: \`${roleId}\`\nServer ID: \`${serverId}\`\n\n您可以继续使用 \`/schedule\` 设定每日自动签到时间。`,
+    bind_fail_title: '❌ 绑定失败',
+
+    // ─── schedule ─────────────────────────────────────────────────────────────
+    schedule_format_title: '❌ 格式错误',
+    schedule_format_desc: '时间格式错误，请使用 HH:mm (例如 09:00 或 23:30)。',
+    schedule_success_title: '✅ 设定成功',
+    schedule_success_msg: (time) => `✅ 已设定每日自动签到时间为：${time}`,
+    schedule_guild_note: '\n📍 通知将发送至本服务器 (若服务器已设定通知频道)。',
+    schedule_dm_note: '\n⚠️ 注意：您是在私讯中使用指令，机器人可能无法正确发送通知到服务器。建议在服务器中使用此指令。',
+    schedule_tag_note: (isTag) => `\n🔔 通知提及 (Tag): ${isTag ? '开启' : '关闭'}`,
+    schedule_fail_title: '❌ 设定失败',
+    schedule_fail_desc: '数据库发生错误或排程失败。',
+
+    // ─── signin ───────────────────────────────────────────────────────────────
+    signin_success: '✅ 签到成功',
+    signin_fail_title: '❌ 签到失败',
+
+    // ─── unbind ───────────────────────────────────────────────────────────────
+    unbind_success_title: '✅ 解除成功',
+    unbind_success_desc: '已解除绑定并删除您的资料。',
+    unbind_fail_title: '❌ 解除失败',
+    unbind_fail_desc: '数据库发生错误。',
+
+    // ─── attendance embed ─────────────────────────────────────────────────────
+    attendance_today: '🎁 今日奖励',
+    attendance_tomorrow: '📅 明日奖励',
+    attendance_success: '签到成功！',
+    attendance_already: '今日已签到 (重复执行)',
+    attendance_fail: (detail) => `签到失败: ${detail}`,
+    attendance_error: (detail) => `发生错误: ${detail}`,
+    attendance_api_error: (detail) => `API 返回错误: ${detail}`,
+
+    // ─── scheduler ────────────────────────────────────────────────────────────
+    scheduler_auto_report: '📅 自动签到报告',
+    scheduler_stamina_title: '🔋 理智快满提醒',
+    scheduler_stamina_desc: (cur, max) => `您的理智已达 **${cur} / ${max}**，请记得消耗理智！`,
+};
