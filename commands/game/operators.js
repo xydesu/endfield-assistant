@@ -57,7 +57,7 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            const html = await generateOperatorsHtml(chars, { uid: user.uid, serverId: user.serverId, botName: t(lang, 'bot_name') });
+            const html = await generateOperatorsHtml(chars, { uid: user.uid, serverId: user.serverId, botName: t(lang, 'bot_name'), lang });
 
             const viewportW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
             const rows = Math.ceil(chars.length / COLS);

@@ -1,5 +1,6 @@
 const https = require('https');
 const { URL } = require('url');
+const { t } = require('./i18n');
 
 const CSS_URL = 'https://gist.githubusercontent.com/xydesu/afe894a747f76f66eb4a1379ae711800/raw/3dc55df02c3ee9682c9c8b53a52ba8f510b83655/style.css';
 const CERTIFY_BADGE_URL = 'https://static.skport.com/skport-fe-static/skport-game-tools/images/certifyBg.135716.png';
@@ -111,7 +112,7 @@ function buildDisplayMedals(achieve) {
     return result;
 }
 
-async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', serverId = '', botName = '終末地簽到小助手' } = {}) {
+async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_tw' } = {}) {
     const css = await getAchieveCSS();
 
     const medals = achieve.achieveMedals || [];
@@ -193,7 +194,7 @@ ${overrideCSS}
 <div class="sc-cVbFvA bESBDX">
     <div class="sc-dDEBgH CQnpG">
         <div class="sc-bNfpWB bvNmjt">${totalCount}</div>
-        <div class="sc-dtXXuQ kzYAcF">總收集數</div>
+        <div class="sc-dtXXuQ kzYAcF">${t(lang, 'html_achieve_total')}</div>
         <div class="sc-drBwtj bYvpNg"></div>
         <div class="sc-eYudRy iIFAFq">
             <div class="sc-kzOYSC jQKmyQ">

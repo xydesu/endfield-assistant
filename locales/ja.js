@@ -160,4 +160,9 @@ module.exports = {
     scheduler_auto_report: '📅 自動サインインレポート',
     scheduler_stamina_title: '🔋 理性リマインダー',
     scheduler_stamina_desc: (cur, max) => `理性が **${cur} / ${max}** に達しました。理性を消費してください！`,
+
+    // ─── html image render ────────────────────────────────────────────────────
+    html_potential: '潜',
+    html_evolve: '精鋭化',
+    html_achieve_total: 'コレクション数',
 };

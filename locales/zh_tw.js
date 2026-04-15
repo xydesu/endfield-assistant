@@ -160,4 +160,9 @@ module.exports = {
     scheduler_auto_report: '📅 自動簽到報告',
     scheduler_stamina_title: '🔋 理智快滿提醒',
     scheduler_stamina_desc: (cur, max) => `您的理智已達 **${cur} / ${max}**，請記得消耗理智！`,
+
+    // ─── html image render ────────────────────────────────────────────────────
+    html_potential: '潛',
+    html_evolve: '菁英化',
+    html_achieve_total: '總收集數',
 };

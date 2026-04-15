@@ -160,4 +160,9 @@ module.exports = {
     scheduler_auto_report: '📅 Auto Sign-in Report',
     scheduler_stamina_title: '🔋 Stamina Reminder',
     scheduler_stamina_desc: (cur, max) => `Your stamina has reached **${cur} / ${max}**. Remember to use your stamina!`,
+
+    // ─── html image render ────────────────────────────────────────────────────
+    html_potential: 'Pot.',
+    html_evolve: 'Elite ',
+    html_achieve_total: 'Total',
 };
