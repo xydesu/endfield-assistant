@@ -200,7 +200,7 @@ module.exports = {
             const hasCertifyBadge = hasDisplayedCertify(achieve);
             // When compositing the certify badge we suppress the static ::after
             // pseudo-element so we can place the exact APNG frame ourselves.
-            const html = await generateAchieveHtml(achieve, { hideCertify: hasCertifyBadge });
+            const html = await generateAchieveHtml(achieve, { hideCertify: hasCertifyBadge, uid: user.uid, serverId: user.serverId, botName: '終末地簽到小助手' });
 
             let browser;
             try {
