@@ -23,11 +23,11 @@ module.exports = {
     help_attendance_signin: '`/signin` Sign in manually',
     help_attendance_schedule: '`/schedule` Set daily auto sign-in time',
     help_game: '🎮 Game Info',
-    help_game_profile: '`/profile` View player profile (level, stamina, BP, etc.)',
+    help_game_profile: '`/profile` View player profile (level, sanity, Protocol Pass, etc.)',
     help_game_explore: '`/explore` View exploration progress by area',
-    help_game_achieve: '`/achieve` View Glory Road achievements',
+    help_game_achieve: '`/achieve` View Path of Glory achievements',
     help_game_operators: '`/operators` View operator list',
-    help_game_stamina: '`/stamina-notify` Set stamina reminder',
+    help_game_stamina: '`/stamina-notify` Set sanity reminder',
     help_admin: '⚙️ Admin',
     help_admin_notify: '`/set-notify-channel` Set notification channel (admin only)',
     help_footer: 'Contact server admin if you have any questions',
@@ -54,15 +54,15 @@ module.exports = {
     profile_world_level: '🌍 Exploration Level',
     profile_char: '👥 Operators',
     profile_weapon: '⚔️ Weapons',
-    profile_doc: '📖 Documents',
-    profile_stamina: '🔋 Stamina',
+    profile_doc: '📖 Files',
+    profile_stamina: '🔋 Sanity',
     profile_stamina_full_in: (h, m) => `Full in: ${h > 0 ? `${h}h ` : ''}${m}m`,
     profile_stamina_full: '(Recovered)',
     profile_stamina_max: '(Full)',
-    profile_bp: '🏆 Battle Pass',
-    profile_daily: '📋 Daily Activity',
-    profile_weekly: '📋 Weekly Missions',
-    profile_achieve: '🏅 Glory Road',
+    profile_bp: '🏆 Protocol Pass',
+    profile_daily: '📋 Activity Points',
+    profile_weekly: '📋 Weekly Routine',
+    profile_achieve: '🏅 Path of Glory',
     profile_footer: (desc) => `Main Story: ${desc ?? '—'}`,
 
     // ─── explore ──────────────────────────────────────────────────────────────
@@ -77,9 +77,9 @@ module.exports = {
     explore_currency: (name) => `💰 ${name} Currency`,
 
     // ─── achieve ──────────────────────────────────────────────────────────────
-    achieve_title: (name) => `🏅 ${name}'s Glory Road`,
+    achieve_title: (name) => `🏅 ${name}'s Path of Glory`,
     achieve_no_data_title: '❌ No Achievement Data',
-    achieve_no_data_desc: 'No Glory Road achievement data available.',
+    achieve_no_data_desc: 'No Path of Glory achievement data available.',
 
     // ─── operators ────────────────────────────────────────────────────────────
     operators_title: (name) => `${name}'s Operator List`,
@@ -87,10 +87,10 @@ module.exports = {
     operators_no_data_desc: 'No operator data available.',
 
     // ─── stamina-notify ───────────────────────────────────────────────────────
-    stamina_title: '🔋 Stamina Reminder Settings',
+    stamina_title: '🔋 Sanity Reminder Settings',
     stamina_enabled: (threshold, isTag) =>
-        `✅ Stamina reminder enabled.\nYou will be notified when stamina reaches **${threshold}%** of max.\n🔔 Mention (Tag): ${isTag ? 'On' : 'Off'}\n\n⚠️ Prerequisites:\n• Use \`/set-notify-channel\` to set the notification channel.\n• Use \`/schedule\` to set up auto sign-in for correct notification scope.`,
-    stamina_disabled: '🔕 Stamina reminder disabled.',
+        `✅ Sanity reminder enabled.\nYou will be notified when sanity reaches **${threshold}%** of max.\n🔔 Mention (Tag): ${isTag ? 'On' : 'Off'}\n\n⚠️ Prerequisites:\n• Use \`/set-notify-channel\` to set the notification channel.\n• Use \`/schedule\` to set up auto sign-in for correct notification scope.`,
+    stamina_disabled: '🔕 Sanity reminder disabled.',
     stamina_fail_title: '❌ Setup Failed',
 
     // ─── bind ─────────────────────────────────────────────────────────────────
@@ -158,8 +158,8 @@ module.exports = {
 
     // ─── scheduler ────────────────────────────────────────────────────────────
     scheduler_auto_report: '📅 Auto Sign-in Report',
-    scheduler_stamina_title: '🔋 Stamina Reminder',
-    scheduler_stamina_desc: (cur, max) => `Your stamina has reached **${cur} / ${max}**. Remember to use your stamina!`,
+    scheduler_stamina_title: '🔋 Sanity Reminder',
+    scheduler_stamina_desc: (cur, max) => `Your sanity has reached **${cur} / ${max}**. Remember to use your sanity!`,
 
     // ─── daily-notify ─────────────────────────────────────────────────────────
     daily_notify_title: '📋 Daily Mission Reminder Settings',
@@ -173,6 +173,6 @@ module.exports = {
 
     // ─── html image render ────────────────────────────────────────────────────
     html_potential: 'Pot.',
-    html_evolve: 'Elite',
-    html_achieve_total: 'Total',
+    html_evolve: 'Promo',
+    html_achieve_total: 'Total Medals',
 };
