@@ -94,19 +94,15 @@ function getMedalIconUrl(medal) {
 function buildDisplayMedals(achieve) {
     const display = achieve.display || {};
     const medals = achieve.achieveMedals || [];
-    // result[slotIndex] where slotIndex 0-4 = top row (cols 0-4),
-    // slotIndex 5-9 = bottom row (cols 0-4)
     const result = new Array(10).fill(null);
+
     for (let i = 1; i <= 10; i++) {
         const medalId = display[String(i)];
         if (!medalId) continue;
         const medal = medals.find((m) => m.achievementData.id === medalId);
-        // API slot numbers use column-major order (上下再來左右):
-        // slot 1 = (row 0, col 0), slot 2 = (row 1, col 0),
-        // slot 3 = (row 0, col 1), slot 4 = (row 1, col 1), …
-        const col = Math.floor((i - 1) / 2);
-        const row = (i - 1) % 2;
-        result[row * 5 + col] = medal || null;
+
+        // 直接按 1-10 填入，不再進行行列換算
+        result[i - 1] = medal || null;
     }
     return result;
 }
@@ -122,18 +118,17 @@ async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', ser
 
     const displayMedals = buildDisplayMedals(achieve);
 
-    // Generate override CSS for each slot
+    // Dynamic medal/certify overrides (只改圖，不改幾何)
     let overrideCSS = '\n/* Dynamic medal overrides */\n';
     SLOT_CLASSES.forEach((cls, idx) => {
         const medal = displayMedals[idx];
         const iconUrl = getMedalIconUrl(medal);
 
-        // Override ::before image
+        // medal icon
         overrideCSS += `.${cls}::before { background-image: ${iconUrl ? `url("${escapeCssUrl(iconUrl)}")` : 'none'} !important; }\n`;
 
-        // Handle ::after (certify badge)
+        // certify badge
         if (hideCertify) {
-            // Hide all certify badges in the HTML; they will be added via APNG compositing later
             overrideCSS += `.${cls}::after { content: none !important; }\n`;
         } else {
             const hasCertify = !!medal?.achievementData?.canCertify;
@@ -147,11 +142,13 @@ async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', ser
         }
     });
 
+    // top / bottom rows (bottom index fixed: +5)
     const topRow = SLOT_CLASSES.slice(0, 5)
-        .map((cls) => `<div class="sc-efhFTv ${cls}"></div>`)
+        .map((cls, idx) => `<div class="sc-efhFTv ${cls} medal-slot-${idx}"></div>`)
         .join('');
+
     const bottomRow = SLOT_CLASSES.slice(5, 10)
-        .map((cls) => `<div class="sc-efhFTv ${cls}"></div>`)
+        .map((cls, idx) => `<div class="sc-efhFTv ${cls} medal-slot-${idx + 5}"></div>`)
         .join('');
 
     const safeUid = escapeHtml(uid || '');
@@ -161,65 +158,156 @@ async function generateAchieveHtml(achieve, { hideCertify = false, uid = '', ser
     return `<!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <style>
-body { margin: 0; padding: 0; background: transparent; }
+body {
+    margin: 0;
+    padding: 40px;
+    background-color: #ececec;
+    font-family: Arial, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+
 ${css}
 ${overrideCSS}
-.bESBDX { padding-bottom: 36px !important; }
+
+/* ===== 外層 ===== */
+#capture-root {
+    width: 39.09952vw;
+    margin: 0 auto;
+}
+
+.achieve-wrapper {
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* ===== 卡片主體（穩定兩欄，不再改官方 class 幾何） ===== */
+.achieve-main {
+    padding: 1.65876vw;
+    min-height: 9.47867vw;
+    box-sizing: border-box;
+
+    display: grid;
+    grid-template-columns: 36% 64%;
+    column-gap: 1.1vw;
+    align-items: start;
+
+    background-image: url("https://static.skport.com/skport-fe-static/skport-game-tools/images/medalCardBg.547da7.png");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border-radius: 1.2vw;
+    overflow: hidden;
+}
+
+/* 左右欄容器 */
+.achieve-left,
+.achieve-right {
+    min-width: 0;
+    transform: none !important;
+}
+
+/* 左欄內容 */
+.achieve-left > .sc-dDEBgH {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+}
+
+/* 右欄內容：強制靠左，清掉可能的靠右規則 */
+.achieve-right {
+    justify-self: start !important;
+    margin-left: 0 !important;
+}
+.achieve-right > .sc-kkeOlZ {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    transform: scale(0.94) !important;
+    transform-origin: left top !important;
+}
+.achieve-right .sc-kYLqRS {
+    width: 100% !important;
+    margin: 0 !important;
+    justify-content: flex-start !important;
+    transform: none !important;
+}
+
+/* 防止舊規則把 badge 區整塊推右 */
+.sc-kkeOlZ,
+.sc-kYLqRS {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* ===== Footer ===== */
 .achieve-footer {
-    margin-top: 8px;
-    padding: 0 8px;
+    margin-top: 12px;
+    padding: 0 20px;
+    box-sizing: border-box;
+
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 11px;
-    color: #888;
-    border-top: 1px solid rgba(255,255,255,0.15);
-    padding-top: 6px;
-    white-space: nowrap;
-    font-family: Arial, 'Noto Sans TC', sans-serif;
+
+    font-size: 12px;
+    line-height: 1.2;
+    color: #888 !important;
+    font-family: Arial, "Noto Sans TC", "Microsoft JhengHei", sans-serif !important;
 }
+
 .achieve-footer-left {
     display: flex;
-    gap: 10px;
+    align-items: center;
+    gap: 15px;
 }
+
 .achieve-footer-bot {
-    color: #aaa;
+    color: #888 !important;
+    font-family: inherit;
 }
 </style>
 </head>
 <body>
-<div class="sc-cVbFvA bESBDX">
-    <div class="sc-dDEBgH CQnpG">
-        <div class="sc-bNfpWB bvNmjt">${totalCount}</div>
-        <div class="sc-dtXXuQ kzYAcF">總收集數</div>
-        <div class="sc-drBwtj bYvpNg"></div>
-        <div class="sc-eYudRy iIFAFq">
-            <div class="sc-kzOYSC jQKmyQ">
-                <div class="sc-dGlnUf jvwawu"></div>
-                <div class="sc-fOmPLA lcwdse">${darkCount}</div>
+<div id="capture-root">
+    <div class="achieve-wrapper">
+        <div class="achieve-main">
+            <div class="achieve-left">
+                <div class="sc-dDEBgH CQnpG">
+                    <div class="sc-bNfpWB bvNmjt">${totalCount}</div>
+                    <div class="sc-dtXXuQ kzYAcF">總收集數</div>
+                    <div class="sc-drBwtj bYvpNg"></div>
+                    <div class="sc-eYudRy iIFAFq">
+                        <div class="sc-kzOYSC jQKmyQ">
+                            <div class="sc-dGlnUf jvwawu"></div>
+                            <div class="sc-fOmPLA lcwdse">${darkCount}</div>
+                        </div>
+                        <div class="sc-kzOYSC jQKmyQ">
+                            <div class="sc-dGlnUf hLiFxM"></div>
+                            <div class="sc-fOmPLA lcwdse">${silverCount}</div>
+                        </div>
+                        <div class="sc-kzOYSC jQKmyQ">
+                            <div class="sc-dGlnUf kwGPST"></div>
+                            <div class="sc-fOmPLA lcwdse">${goldCount}</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="sc-kzOYSC jQKmyQ">
-                <div class="sc-dGlnUf hLiFxM"></div>
-                <div class="sc-fOmPLA lcwdse">${silverCount}</div>
-            </div>
-            <div class="sc-kzOYSC jQKmyQ">
-                <div class="sc-dGlnUf kwGPST"></div>
-                <div class="sc-fOmPLA lcwdse">${goldCount}</div>
+
+            <div class="achieve-right">
+                <div class="sc-kkeOlZ gECvjk">
+                    <div class="sc-kYLqRS iGzefe">${topRow}</div>
+                    <div class="sc-kYLqRS bgFXsx">${bottomRow}</div>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="sc-kkeOlZ gECvjk">
-        <div class="sc-kYLqRS iGzefe">${topRow}</div>
-        <div class="sc-kYLqRS bgFXsx">${bottomRow}</div>
-    </div>
-    <div class="achieve-footer">
-        <div class="achieve-footer-left">
-            ${safeUid ? `<span>UID: ${safeUid}</span>` : ''}
-            ${safeServerName ? `<span>Server: ${safeServerName}</span>` : ''}
+
+        <div class="achieve-footer">
+            <div class="achieve-footer-left">
+                ${safeUid ? `<span>UID: ${safeUid}</span>` : ''}
+                ${safeServerName ? `<span>Server: ${safeServerName}</span>` : ''}
+            </div>
+            <span class="achieve-footer-bot">${safeBotName}</span>
         </div>
-        <span class="achieve-footer-bot">${safeBotName}</span>
     </div>
 </div>
 </body>
