@@ -67,7 +67,7 @@ async function generateOperatorsHtml(chars, { uid = '', serverId = '', botName =
 
   <div class="name">
     <span class="name-text">${name}</span>
-    ${evolvePhase > 0 ? `<div class="evolve-tag">${t(lang, 'html_evolve')}${evolvePhase}</div>` : ''}
+    ${evolvePhase > 0 ? `<div class="evolve-tag">${t(lang, 'html_evolve')} ${evolvePhase}</div>` : ''}
   </div>
 
   ${weaponName ? `

@@ -163,6 +163,6 @@ module.exports = {
 
     // ─── html image render ────────────────────────────────────────────────────
     html_potential: 'Pot.',
-    html_evolve: 'Elite ',
+    html_evolve: 'Elite',
     html_achieve_total: 'Total',
 };
