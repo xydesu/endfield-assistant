@@ -3,6 +3,7 @@ const puppeteer = require('puppeteer');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 const { generateOperatorsHtml, COLS, CARD_W, IMAGE_H, NAME_H, WEAPON_H, GAP, PADDING } = require('../../utils/operatorsHtml');
 
 const DEVICE_SCALE = 2;
@@ -13,7 +14,7 @@ const VIEWPORT_HEIGHT_BUFFER = 100;
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('operators')
-        .setDescription('查詢幹員列表')
+        .setDescription('查詢幹員列表 / View operator list')
         .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
         .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
@@ -22,12 +23,13 @@ module.exports = {
         try {
             const discordId = interaction.user.id;
             const user = await User.findByPk(discordId);
+            const lang = user?.language || 'zh_tw';
 
             if (!user) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 尚未綁定')
-                    .setDescription('您尚未綁定帳號，請先使用 `/bind` 指令進行綁定。')
+                    .setTitle(t(lang, 'not_bound_title'))
+                    .setDescription(t(lang, 'not_bound_desc'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -37,7 +39,7 @@ module.exports = {
             if (!result.success) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 查詢失敗')
+                    .setTitle(t(lang, 'query_failed_title'))
                     .setDescription(result.message)
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
@@ -48,13 +50,13 @@ module.exports = {
             if (!chars || chars.length === 0) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 無幹員資料')
-                    .setDescription('目前無幹員資料。')
+                    .setTitle(t(lang, 'operators_no_data_title'))
+                    .setDescription(t(lang, 'operators_no_data_desc'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            const html = await generateOperatorsHtml(chars, { uid: user.uid, serverId: user.serverId, botName: '終末地簽到小助手' });
+            const html = await generateOperatorsHtml(chars, { uid: user.uid, serverId: user.serverId, botName: t(lang, 'bot_name') });
 
             const viewportW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
             const rows = Math.ceil(chars.length / COLS);
@@ -78,7 +80,7 @@ module.exports = {
                 const attachment = new AttachmentBuilder(imageBuffer, { name: 'operators.png' });
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle(`${base?.name ?? interaction.user.username} 的幹員列表`)
+                    .setTitle(t(lang, 'operators_title')(base?.name ?? interaction.user.username))
                     .setImage('attachment://operators.png')
                     .setTimestamp();
                 await interaction.editReply({ embeds: [embed], files: [attachment] });
@@ -89,8 +91,8 @@ module.exports = {
             console.error('[operators]', error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('❌ 發生錯誤')
-                .setDescription('查詢時發生錯誤，請稍後再試。')
+                .setTitle(t('zh_tw', 'error_title'))
+                .setDescription(t('zh_tw', 'error_query'))
                 .setTimestamp();
             await interaction.editReply({ embeds: [embed] });
         }

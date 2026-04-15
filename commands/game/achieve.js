@@ -4,6 +4,7 @@ const UPNG = require('upng-js');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 const {
     generateAchieveHtml,
     hasDisplayedCertify,
@@ -156,7 +157,7 @@ function buildCertifyPng(cardBuf, certifyApngBuf, positions) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('achieve')
-        .setDescription('查詢光榮之路成就展示')
+        .setDescription('查詢光榮之路成就展示 / View Glory Road achievements')
         .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
         .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
@@ -165,12 +166,13 @@ module.exports = {
         try {
             const discordId = interaction.user.id;
             const user = await User.findByPk(discordId);
+            const lang = user?.language || 'zh_tw';
 
             if (!user) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 尚未綁定')
-                    .setDescription('您尚未綁定帳號，請先使用 `/bind` 指令進行綁定。')
+                    .setTitle(t(lang, 'not_bound_title'))
+                    .setDescription(t(lang, 'not_bound_desc'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -180,7 +182,7 @@ module.exports = {
             if (!result.success) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 查詢失敗')
+                    .setTitle(t(lang, 'query_failed_title'))
                     .setDescription(result.message)
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
@@ -191,8 +193,8 @@ module.exports = {
             if (!achieve) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle('❌ 無成就資料')
-                    .setDescription('目前無光榮之路成就資料。')
+                    .setTitle(t(lang, 'achieve_no_data_title'))
+                    .setDescription(t(lang, 'achieve_no_data_desc'))
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
@@ -200,7 +202,7 @@ module.exports = {
             const hasCertifyBadge = hasDisplayedCertify(achieve);
             // When compositing the certify badge we suppress the static ::after
             // pseudo-element so we can place the exact APNG frame ourselves.
-            const html = await generateAchieveHtml(achieve, { hideCertify: hasCertifyBadge, uid: user.uid, serverId: user.serverId, botName: '終末地簽到小助手' });
+            const html = await generateAchieveHtml(achieve, { hideCertify: hasCertifyBadge, uid: user.uid, serverId: user.serverId, botName: t(lang, 'bot_name') });
 
             let browser;
             try {
@@ -232,7 +234,7 @@ module.exports = {
                 const attachment = new AttachmentBuilder(imageBuffer, { name: 'achieve.png' });
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle(`🏅 ${base?.name ?? interaction.user.username} 的光榮之路`)
+                    .setTitle(t(lang, 'achieve_title')(base?.name ?? interaction.user.username))
                     .setImage('attachment://achieve.png')
                     .setTimestamp();
                 await interaction.editReply({ embeds: [embed], files: [attachment] });
@@ -243,8 +245,8 @@ module.exports = {
             console.error('[achieve]', error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle('❌ 發生錯誤')
-                .setDescription('查詢時發生錯誤，請稍後再試。')
+                .setTitle(t('zh_tw', 'error_title'))
+                .setDescription(t('zh_tw', 'error_query'))
                 .setTimestamp();
             await interaction.editReply({ embeds: [embed] });
         }

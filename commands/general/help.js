@@ -1,51 +1,57 @@
 const { SlashCommandBuilder, EmbedBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
+const User = require('../../models/User');
 const { EMBED_COLOR } = require('../../utils/constants');
+const { t } = require('../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
-        .setDescription('列出所有指令')
+        .setDescription('列出所有指令 / List all commands')
         .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
         .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
     async execute(interaction) {
+        const user = await User.findByPk(interaction.user.id);
+        const lang = user?.language || 'zh_tw';
+
         const embed = new EmbedBuilder()
             .setColor(EMBED_COLOR)
             .setAuthor({ name: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() })
-            .setTitle('📖 指令列表')
-            .setDescription('以下是目前所有可用的指令：')
+            .setTitle(t(lang, 'help_title'))
+            .setDescription(t(lang, 'help_desc'))
             .addFields(
                 {
-                    name: '🔧 一般',
+                    name: t(lang, 'help_general'),
                     value: [
-                        '`/help` 顯示本說明',
-                        '`/invite` 取得機器人邀請連結',
+                        t(lang, 'help_general_help'),
+                        t(lang, 'help_general_invite'),
+                        t(lang, 'help_general_language'),
                     ].join('\n'),
                 },
                 {
-                    name: '📅 簽到',
+                    name: t(lang, 'help_attendance'),
                     value: [
-                        '`/bind` 綁定 Endfield 帳號',
-                        '`/unbind` 解除綁定',
-                        '`/signin` 立即執行一次簽到',
-                        '`/schedule` 設定每日自動簽到時間',
+                        t(lang, 'help_attendance_bind'),
+                        t(lang, 'help_attendance_unbind'),
+                        t(lang, 'help_attendance_signin'),
+                        t(lang, 'help_attendance_schedule'),
                     ].join('\n'),
                 },
                 {
-                    name: '🎮 遊戲資訊',
+                    name: t(lang, 'help_game'),
                     value: [
-                        '`/profile` 查詢玩家個人資料（等級、理智、BP 等）',
-                        '`/explore` 查詢各區域探索進度（寶箱、謎題、暗箱等）',
-                        '`/achieve` 查詢光榮之路成就展示',
-                        '`/operators` 查詢幹員列表',
-                        '`/stamina-notify` 設定理智快滿提醒',
+                        t(lang, 'help_game_profile'),
+                        t(lang, 'help_game_explore'),
+                        t(lang, 'help_game_achieve'),
+                        t(lang, 'help_game_operators'),
+                        t(lang, 'help_game_stamina'),
                     ].join('\n'),
                 },
                 {
-                    name: '⚙️ 管理',
-                    value: '`/set-notify-channel` 設定伺服器通知頻道（限管理員）',
+                    name: t(lang, 'help_admin'),
+                    value: t(lang, 'help_admin_notify'),
                 }
             )
-            .setFooter({ text: '如有問題請聯絡伺服器管理員' })
+            .setFooter({ text: t(lang, 'help_footer') })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
