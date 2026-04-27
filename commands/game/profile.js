@@ -1,21 +1,39 @@
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
 const { createCanvas, registerFont, loadImage } = require('canvas');
 const path = require('path');
+const fs = require('fs');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
 
 // ==========================================
-// 初始化：註冊本地字體 (Noto Sans TC)
+// 初始化：動態註冊多語言字體 (TC, SC, JP)
 // ==========================================
+function registerLangFont(langCode, familyName) {
+    const weights = [
+        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
+        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
+        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' }
+    ];
+    
+    for (const { file, weight } of weights) {
+        const fontPath = path.resolve(__dirname, `../../assets/font/${file}`);
+        if (fs.existsSync(fontPath)) {
+            registerFont(fontPath, { family: familyName, weight });
+        } else {
+            console.warn(`[Canvas] ⚠️ 找不到字體文件: ${file}，對應語言可能出現亂碼或缺字。`);
+        }
+    }
+}
+
 try {
-    registerFont(path.resolve(__dirname, '../../assets/font/NotoSansTC-Regular.ttf'), { family: 'Noto Sans', weight: 'normal' });
-    registerFont(path.resolve(__dirname, '../../assets/font/NotoSansTC-Bold.ttf'), { family: 'Noto Sans', weight: 'bold' });
-    registerFont(path.resolve(__dirname, '../../assets/font/NotoSansTC-Black.ttf'), { family: 'Noto Sans', weight: '900' });
-    console.log('[Canvas] ✅ 成功載入 Noto Sans 字體');
+    registerLangFont('TC', 'Noto Sans TC');
+    registerLangFont('SC', 'Noto Sans SC');
+    registerLangFont('JP', 'Noto Sans JP');
+    console.log('[Canvas] ✅ 成功載入多語言 Noto Sans 字體');
 } catch (error) {
-    console.error('[Canvas] ⚠️ 無法載入字體，將降級使用系統預設字體！', error.message);
+    console.error('[Canvas] ⚠️ 載入字體時發生錯誤，將降級使用系統預設字體！', error.message);
 }
 
 // ==========================================
@@ -39,7 +57,18 @@ const colors = {
     bracketLight: '#B0B0B5'
 };
 
-// 輔助翻譯函數：如果 i18n 找不到對應 key，就回傳預設的繁體中文字串
+// 取得對應語言的字體系列
+function getFontFamily(lang) {
+    switch (lang) {
+        case 'zh_Hans': return 'Noto Sans SC';
+        case 'ja': return 'Noto Sans JP';
+        case 'zh_Hant':
+        case 'en':
+        default: return 'Noto Sans TC';
+    }
+}
+
+// 輔助翻譯函數：如果 i18n 找不到對應 key，就回傳預設的字串
 function getText(lang, key, fallback) {
     const translated = t(lang, key);
     return translated === key ? fallback : translated;
@@ -74,7 +103,8 @@ function drawTechBar(ctx, x, y, w, h, progress, max, color) {
     }
 }
 
-function drawText(ctx, text, x, y, size, color, align = 'left', weight = 'normal', font = 'Noto Sans') {
+function drawText(ctx, lang, text, x, y, size, color, align = 'left', weight = 'normal') {
+    const font = getFontFamily(lang);
     ctx.fillStyle = color;
     ctx.font = `${weight} ${size}px "${font}"`;
     ctx.textAlign = align;
@@ -82,31 +112,37 @@ function drawText(ctx, text, x, y, size, color, align = 'left', weight = 'normal
     ctx.fillText(text, x, y);
 }
 
-function drawDecoratedTitle(ctx, text, x, y, textSize, bracketSize, textColor, bracketColor) {
+function drawDecoratedTitle(ctx, lang, text, x, y, textSize, bracketSize, textColor, bracketColor) {
+    const font = getFontFamily(lang);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = `900 ${bracketSize}px "Noto Sans"`;
+    ctx.font = `900 ${bracketSize}px "${font}"`;
     ctx.fillStyle = bracketColor;
     ctx.fillText('[  ', x, y - 1);
     const leftWidth = ctx.measureText('[  ').width;
-    ctx.font = `bold ${textSize}px "Noto Sans"`;
+    ctx.font = `bold ${textSize}px "${font}"`;
     ctx.fillStyle = textColor;
     ctx.fillText(text, x + leftWidth, y);
     const textWidth = ctx.measureText(text).width;
-    ctx.font = `900 ${bracketSize}px "Noto Sans"`;
+    ctx.font = `900 ${bracketSize}px "${font}"`;
     ctx.fillStyle = bracketColor;
     ctx.fillText('  ]', x + leftWidth + textWidth - 2, y - 1);
 }
 
-function drawDataRow(ctx, label, value, x, y, w) {
-    drawText(ctx, label, x, y, 14, colors.textSub, 'left', 'bold');
-    drawText(ctx, value.toString(), x + w, y, 18, colors.textMain, 'right', 'bold');
+function drawDataRow(ctx, lang, label, value, x, y, w) {
+    const font = getFontFamily(lang);
+    drawText(ctx, lang, label, x, y, 14, colors.textSub, 'left', 'bold');
+    drawText(ctx, lang, value.toString(), x + w, y, 18, colors.textMain, 'right', 'bold');
     ctx.strokeStyle = colors.border;
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 4]);
     ctx.beginPath();
+    
+    ctx.font = `bold 14px "${font}"`;
     const labelWidth = ctx.measureText(label).width;
+    ctx.font = `bold 18px "${font}"`;
     const valWidth = ctx.measureText(value.toString()).width;
+    
     ctx.moveTo(x + labelWidth + 15, y);
     ctx.lineTo(x + w - valWidth - 15, y);
     ctx.stroke();
@@ -114,7 +150,7 @@ function drawDataRow(ctx, label, value, x, y, w) {
 }
 
 // ==========================================
-// 核心：生成個人資料圖片 (增加 lang 參數)
+// 核心：生成個人資料圖片
 // ==========================================
 async function generateProfileImage(detail, user, lang) {
     const width = 1000;
@@ -147,8 +183,8 @@ async function generateProfileImage(detail, user, lang) {
 
     // 2. 左側：Rank
     drawPolygon(ctx, [{ x: 40, y: 40 }, { x: 320, y: 40 }, { x: 320, y: 110 }, { x: 300, y: 130 }, { x: 40, y: 130 }], colors.yellow);
-    drawText(ctx, getText(lang, 'img_level', '權限等階'), 55, 65, 14, colors.black, 'left', '900');
-    drawText(ctx, `${base.level || 0}`, 50, 100, 48, colors.black, 'left', '900'); 
+    drawText(ctx, lang, getText(lang, 'img_level', '權限等階'), 55, 65, 14, colors.black, 'left', '900');
+    drawText(ctx, lang, `${base.level || 0}`, 50, 100, 48, colors.black, 'left', '900'); 
 
     ctx.save();
     ctx.beginPath(); ctx.rect(220, 40, 100, 90); ctx.clip();
@@ -172,7 +208,7 @@ async function generateProfileImage(detail, user, lang) {
         ctx.drawImage(avatarImg, avatarX + 4, avatarY + 4, avatarSize - 8, avatarSize - 8);
     } else {
         ctx.fillStyle = '#2c3038'; ctx.fillRect(avatarX + 4, avatarY + 4, avatarSize - 8, avatarSize - 8);
-        drawText(ctx, '?', avatarX + avatarSize / 2, avatarY + avatarSize / 2, 28, '#FFFFFF', 'center', '900');
+        drawText(ctx, lang, '?', avatarX + avatarSize / 2, avatarY + avatarSize / 2, 28, '#FFFFFF', 'center', '900');
     }
 
     let createDateStr = getText(lang, 'img_unknown', '未知');
@@ -184,19 +220,19 @@ async function generateProfileImage(detail, user, lang) {
         createDateStr = `${y}/${m}/${d}`;
     }
 
-    drawText(ctx, base.name || getText(lang, 'img_unknown_operator', '未知幹員'), 160, 180, 28, colors.textMain, 'left', 'bold');
-    drawText(ctx, `ID: ${user.uid || '—'}`, 160, 210, 12, colors.textSub);
-    drawText(ctx, `${base.serverName || 'Asia'} | ${getText(lang, 'img_explore_level', '探索等級')}: ${base.worldLevel || 1}`, 60, 270, 12, colors.textSub);
-    drawText(ctx, `${getText(lang, 'img_awaken_day', '甦醒日')}: ${createDateStr}`, 60, 290, 12, colors.textSub);
+    drawText(ctx, lang, base.name || getText(lang, 'img_unknown_operator', '未知幹員'), 160, 180, 28, colors.textMain, 'left', 'bold');
+    drawText(ctx, lang, `ID: ${user.uid || '—'}`, 160, 210, 12, colors.textSub);
+    drawText(ctx, lang, `${base.serverName || 'Asia'} | ${getText(lang, 'img_explore_level', '探索等級')}: ${base.worldLevel || 1}`, 60, 270, 12, colors.textSub);
+    drawText(ctx, lang, `${getText(lang, 'img_awaken_day', '甦醒日')}: ${createDateStr}`, 60, 290, 12, colors.textSub);
 
     // 4. 左側：理智 Sanity Core
     drawPolygon(ctx, [{ x: 40, y: 360 }, { x: 320, y: 360 }, { x: 320, y: 560 }, { x: 280, y: 560 }, { x: 40, y: 560 }], colors.panelBg, colors.border, 2);
-    drawDecoratedTitle(ctx, getText(lang, 'img_realtime_info', '即時資訊'), 60, 390, 13, 22, colors.textMain, colors.bracketLight);
+    drawDecoratedTitle(ctx, lang, getText(lang, 'img_realtime_info', '即時資訊'), 60, 390, 13, 22, colors.textMain, colors.bracketLight);
 
     const curStamina = parseInt(dungeon.curStamina) || 0;
     const maxStamina = parseInt(dungeon.maxStamina) || 0;
-    drawText(ctx, `${curStamina}`, 60, 440, 64, colors.textMain, 'left', 'bold');
-    drawText(ctx, `/ ${maxStamina}`, 180, 450, 18, colors.textSub);
+    drawText(ctx, lang, `${curStamina}`, 60, 440, 64, colors.textMain, 'left', 'bold');
+    drawText(ctx, lang, `/ ${maxStamina}`, 180, 450, 18, colors.textSub);
 
     let recoveryText = getText(lang, 'img_stamina_maxed', '已達上限');
     if (curStamina < maxStamina && dungeon.maxTs) {
@@ -207,11 +243,11 @@ async function generateProfileImage(detail, user, lang) {
             recoveryText = `${getText(lang, 'img_recovery_time', '恢復時間')} : ${h}h ${m}m`;
         }
     }
-    drawText(ctx, recoveryText, 60, 510, 12, colors.textSub);
+    drawText(ctx, lang, recoveryText, 60, 510, 12, colors.textSub);
     drawTechBar(ctx, 60, 530, 220, 8, curStamina, maxStamina, colors.yellow);
 
     // 5. 中右側數據庫模組
-    drawText(ctx, '// ENDFIELD INDUSTRIES', 360, 60, 18, colors.textMain, 'left', '900');
+    drawText(ctx, lang, '// ENDFIELD INDUSTRIES', 360, 60, 18, colors.textMain, 'left', '900');
     drawPolygon(ctx, [{ x: 360, y: 80 }, { x: 960, y: 80 }], null, colors.border, 2);
 
     const dataBoxY = 92;
@@ -222,22 +258,22 @@ async function generateProfileImage(detail, user, lang) {
     const leftX = 380, rightX = 680, listYStart = 145, listGap = 40;
     const controlCenterLevel = spaceShip?.rooms?.[0]?.level ?? '—';
 
-    drawDecoratedTitle(ctx, getText(lang, 'img_operator_weapon', '幹員與武裝'), leftX, 106, 12, 18, colors.textMain, '#C0C0C5');
-    drawDataRow(ctx, getText(lang, 'img_operator', '幹員'), base.charNum || 0, leftX, listYStart, 250);
-    drawDataRow(ctx, getText(lang, 'img_weapon', '武器'), base.weaponNum || 0, leftX, listYStart + listGap, 250);
-    drawDataRow(ctx, getText(lang, 'img_control_center', '總控中樞'), controlCenterLevel, leftX, listYStart + listGap * 2, 250);
-    drawDataRow(ctx, getText(lang, 'img_storage', '儲藏箱'), totalTrchestCount, leftX, listYStart + listGap * 3, 250); 
+    drawDecoratedTitle(ctx, lang, getText(lang, 'img_operator_weapon', '幹員與武裝'), leftX, 106, 12, 18, colors.textMain, '#C0C0C5');
+    drawDataRow(ctx, lang, getText(lang, 'img_operator', '幹員'), base.charNum || 0, leftX, listYStart, 250);
+    drawDataRow(ctx, lang, getText(lang, 'img_weapon', '武器'), base.weaponNum || 0, leftX, listYStart + listGap, 250);
+    drawDataRow(ctx, lang, getText(lang, 'img_control_center', '總控中樞'), controlCenterLevel, leftX, listYStart + listGap * 2, 250);
+    drawDataRow(ctx, lang, getText(lang, 'img_storage', '儲藏箱'), totalTrchestCount, leftX, listYStart + listGap * 3, 250); 
 
-    drawDecoratedTitle(ctx, getText(lang, 'img_explore_record', '探索與紀錄'), rightX, 106, 12, 18, colors.textMain, '#C0C0C5');
-    drawDataRow(ctx, getText(lang, 'img_explore_level', '探索等級'), base.worldLevel || 1, rightX, listYStart, 250);
-    drawDataRow(ctx, getText(lang, 'img_files', '檔案'), base.docNum || 0, rightX, listYStart + listGap, 250);
-    drawDataRow(ctx, getText(lang, 'img_achieve', '光榮之路'), achieve ? achieve.count : 0, rightX, listYStart + listGap * 2, 250);
-    drawDataRow(ctx, getText(lang, 'img_puzzle', '謎質'), totalPuzzleCount, rightX, listYStart + listGap * 3, 250); 
+    drawDecoratedTitle(ctx, lang, getText(lang, 'img_explore_record', '探索與紀錄'), rightX, 106, 12, 18, colors.textMain, '#C0C0C5');
+    drawDataRow(ctx, lang, getText(lang, 'img_explore_level', '探索等級'), base.worldLevel || 1, rightX, listYStart, 250);
+    drawDataRow(ctx, lang, getText(lang, 'img_files', '檔案'), base.docNum || 0, rightX, listYStart + listGap, 250);
+    drawDataRow(ctx, lang, getText(lang, 'img_achieve', '光榮之路'), achieve ? achieve.count : 0, rightX, listYStart + listGap * 2, 250);
+    drawDataRow(ctx, lang, getText(lang, 'img_puzzle', '謎質'), totalPuzzleCount, rightX, listYStart + listGap * 3, 250); 
 
     // 6. 右下側：系統任務
     const taskBoxY = 360;
     drawPolygon(ctx, [{ x: 360, y: taskBoxY }, { x: 960, y: taskBoxY }, { x: 960, y: 560 }, { x: 360, y: 560 }], colors.panelBg, colors.border, 2);
-    drawDecoratedTitle(ctx, getText(lang, 'img_system_mission', '系統任務'), 380, taskBoxY + 30, 14, 24, colors.textMain, colors.bracketLight);
+    drawDecoratedTitle(ctx, lang, getText(lang, 'img_system_mission', '系統任務'), 380, taskBoxY + 30, 14, 24, colors.textMain, colors.bracketLight);
 
     const dailyAct = dailyMission ? dailyMission.dailyActivation : 0;
     const dailyMax = dailyMission ? dailyMission.maxDailyActivation : 100;
@@ -254,14 +290,14 @@ async function generateProfileImage(detail, user, lang) {
 
     tasks.forEach((task, index) => {
         const yPos = taskBoxY + 70 + (index * 45);
-        drawText(ctx, task.label, 380, yPos, 14, colors.textMain, 'left', 'bold');
-        drawText(ctx, `${task.progress} / ${task.max}`, 930, yPos, 14, colors.textMain, 'right', 'bold');
+        drawText(ctx, lang, task.label, 380, yPos, 14, colors.textMain, 'left', 'bold');
+        drawText(ctx, lang, `${task.progress} / ${task.max}`, 930, yPos, 14, colors.textMain, 'right', 'bold');
         drawTechBar(ctx, 600, yPos - 6, 250, 12, task.progress, task.max, task.color);
     });
 
     // 7. 水印
     ctx.save();
-    ctx.font = `bold 12px "Noto Sans"`;
+    ctx.font = `bold 12px "${getFontFamily(lang)}"`;
     ctx.fillStyle = 'rgba(79, 79, 82, 0.4)';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
