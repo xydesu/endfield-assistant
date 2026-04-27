@@ -10,7 +10,6 @@ const { t } = require('../../utils/i18n');
 // 初始化：註冊本地字體 (Noto Sans TC)
 // ==========================================
 try {
-    // 假設字體放在專案根目錄
     registerFont(path.resolve(__dirname, '../../assets/font/NotoSansTC-Regular.ttf'), { family: 'Noto Sans', weight: 'normal' });
     registerFont(path.resolve(__dirname, '../../assets/font/NotoSansTC-Bold.ttf'), { family: 'Noto Sans', weight: 'bold' });
     registerFont(path.resolve(__dirname, '../../assets/font/NotoSansTC-Black.ttf'), { family: 'Noto Sans', weight: '900' });
@@ -40,6 +39,12 @@ const colors = {
     bracketLight: '#B0B0B5'
 };
 
+// 輔助翻譯函數：如果 i18n 找不到對應 key，就回傳預設的繁體中文字串
+function getText(lang, key, fallback) {
+    const translated = t(lang, key);
+    return translated === key ? fallback : translated;
+}
+
 function drawPolygon(ctx, points, fill, stroke = null, lineWidth = 1) {
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
@@ -58,7 +63,6 @@ function drawTechBar(ctx, x, y, w, h, progress, max, color) {
         { x: x + w - slant, y: y + h }, { x: x - slant, y: y + h }
     ], colors.progress_bg);
 
-    // 防呆：避免 max 為 0 導致無限大
     const safeMax = max > 0 ? max : 1;
     const fillWidth = (progress / safeMax) * w;
 
@@ -110,9 +114,9 @@ function drawDataRow(ctx, label, value, x, y, w) {
 }
 
 // ==========================================
-// 核心：生成個人資料圖片
+// 核心：生成個人資料圖片 (增加 lang 參數)
 // ==========================================
-async function generateProfileImage(detail, user) {
+async function generateProfileImage(detail, user, lang) {
     const width = 1000;
     const height = 600;
     const canvas = createCanvas(width, height);
@@ -120,7 +124,6 @@ async function generateProfileImage(detail, user) {
 
     const { base, bpSystem, dungeon, dailyMission, weeklyMission, achieve, domain, spaceShip } = detail;
 
-    // 計算儲藏箱 (trchestCount) 與 謎質 (puzzleCount) 加總
     let totalTrchestCount = 0;
     let totalPuzzleCount = 0;
     if (domain && Array.isArray(domain)) {
@@ -144,8 +147,8 @@ async function generateProfileImage(detail, user) {
 
     // 2. 左側：Rank
     drawPolygon(ctx, [{ x: 40, y: 40 }, { x: 320, y: 40 }, { x: 320, y: 110 }, { x: 300, y: 130 }, { x: 40, y: 130 }], colors.yellow);
-    drawText(ctx, '權限等階', 55, 65, 14, colors.black, 'left', '900');
-    drawText(ctx, `${base.level || 0}`, 50, 100, 48, colors.black, 'left', '900'); // 動態綁定等級
+    drawText(ctx, getText(lang, 'img_level', '權限等階'), 55, 65, 14, colors.black, 'left', '900');
+    drawText(ctx, `${base.level || 0}`, 50, 100, 48, colors.black, 'left', '900'); 
 
     ctx.save();
     ctx.beginPath(); ctx.rect(220, 40, 100, 90); ctx.clip();
@@ -156,14 +159,13 @@ async function generateProfileImage(detail, user) {
     // 3. 左側：玩家資訊
     drawPolygon(ctx, [{ x: 40, y: 140 }, { x: 320, y: 140 }, { x: 320, y: 340 }, { x: 40, y: 340 }], colors.panelBg, colors.border, 2);
 
-    // 載入頭像
     const avatarX = 60, avatarY = 160, avatarSize = 80;
     ctx.strokeStyle = colors.textSub; ctx.lineWidth = 2; ctx.strokeRect(avatarX, avatarY, avatarSize, avatarSize);
 
     let avatarImg;
     try {
-        if (base.avatarUrl) avatarImg = await loadImage(base.avatarUrl); // 嘗試使用 API 傳回的頭像
-        else avatarImg = await loadImage(path.resolve(__dirname, '../../avatar.png')); // 備用圖
+        if (base.avatarUrl) avatarImg = await loadImage(base.avatarUrl); 
+        else avatarImg = await loadImage(path.resolve(__dirname, '../../avatar.png')); 
     } catch (e) { console.error('頭像載入失敗', e); }
 
     if (avatarImg) {
@@ -173,7 +175,7 @@ async function generateProfileImage(detail, user) {
         drawText(ctx, '?', avatarX + avatarSize / 2, avatarY + avatarSize / 2, 28, '#FFFFFF', 'center', '900');
     }
 
-    let createDateStr = '未知';
+    let createDateStr = getText(lang, 'img_unknown', '未知');
     if (base.createTime) {
         const date = new Date(parseInt(base.createTime) * 1000);
         const y = date.getFullYear();
@@ -182,33 +184,31 @@ async function generateProfileImage(detail, user) {
         createDateStr = `${y}/${m}/${d}`;
     }
 
-    drawText(ctx, base.name || '未知幹員', 160, 180, 28, colors.textMain, 'left', 'bold');
+    drawText(ctx, base.name || getText(lang, 'img_unknown_operator', '未知幹員'), 160, 180, 28, colors.textMain, 'left', 'bold');
     drawText(ctx, `ID: ${user.uid || '—'}`, 160, 210, 12, colors.textSub);
-    drawText(ctx, `${base.serverName || 'Asia'} | 探索等級: ${base.worldLevel || 1}`, 60, 270, 12, colors.textSub);
-    drawText(ctx, `甦醒日: ${createDateStr}`, 60, 290, 12, colors.textSub);
+    drawText(ctx, `${base.serverName || 'Asia'} | ${getText(lang, 'img_explore_level', '探索等級')}: ${base.worldLevel || 1}`, 60, 270, 12, colors.textSub);
+    drawText(ctx, `${getText(lang, 'img_awaken_day', '甦醒日')}: ${createDateStr}`, 60, 290, 12, colors.textSub);
 
     // 4. 左側：理智 Sanity Core
     drawPolygon(ctx, [{ x: 40, y: 360 }, { x: 320, y: 360 }, { x: 320, y: 560 }, { x: 280, y: 560 }, { x: 40, y: 560 }], colors.panelBg, colors.border, 2);
-    drawDecoratedTitle(ctx, '即時資訊', 60, 390, 13, 22, colors.textMain, colors.bracketLight);
+    drawDecoratedTitle(ctx, getText(lang, 'img_realtime_info', '即時資訊'), 60, 390, 13, 22, colors.textMain, colors.bracketLight);
 
     const curStamina = parseInt(dungeon.curStamina) || 0;
     const maxStamina = parseInt(dungeon.maxStamina) || 0;
     drawText(ctx, `${curStamina}`, 60, 440, 64, colors.textMain, 'left', 'bold');
     drawText(ctx, `/ ${maxStamina}`, 180, 450, 18, colors.textSub);
 
-    // 恢復時間計算
-    let recoveryText = '已達上限';
+    let recoveryText = getText(lang, 'img_stamina_maxed', '已達上限');
     if (curStamina < maxStamina && dungeon.maxTs) {
         const secondsLeft = parseInt(dungeon.maxTs) - Math.floor(Date.now() / 1000);
         if (secondsLeft > 0) {
             const h = Math.floor(secondsLeft / 3600);
             const m = Math.floor((secondsLeft % 3600) / 60);
-            recoveryText = `恢復時間 : ${h}h ${m}m`;
+            recoveryText = `${getText(lang, 'img_recovery_time', '恢復時間')} : ${h}h ${m}m`;
         }
     }
     drawText(ctx, recoveryText, 60, 510, 12, colors.textSub);
     drawTechBar(ctx, 60, 530, 220, 8, curStamina, maxStamina, colors.yellow);
-
 
     // 5. 中右側數據庫模組
     drawText(ctx, '// ENDFIELD INDUSTRIES', 360, 60, 18, colors.textMain, 'left', '900');
@@ -220,26 +220,24 @@ async function generateProfileImage(detail, user) {
     drawPolygon(ctx, [{ x: 660, y: dataBoxY }, { x: 660, y: 120 }], null, colors.border, 1);
 
     const leftX = 380, rightX = 680, listYStart = 145, listGap = 40;
-
     const controlCenterLevel = spaceShip?.rooms?.[0]?.level ?? '—';
 
-    drawDecoratedTitle(ctx, '幹員與武裝', leftX, 106, 12, 18, colors.textMain, '#C0C0C5');
-    drawDataRow(ctx, '幹員', base.charNum || 0, leftX, listYStart, 250);
-    drawDataRow(ctx, '武器', base.weaponNum || 0, leftX, listYStart + listGap, 250);
-    drawDataRow(ctx, '總控中樞', controlCenterLevel, leftX, listYStart + listGap * 2, 250);
-    drawDataRow(ctx, '儲藏箱', totalTrchestCount, leftX, listYStart + listGap * 3, 250); // 動態加總
+    drawDecoratedTitle(ctx, getText(lang, 'img_operator_weapon', '幹員與武裝'), leftX, 106, 12, 18, colors.textMain, '#C0C0C5');
+    drawDataRow(ctx, getText(lang, 'img_operator', '幹員'), base.charNum || 0, leftX, listYStart, 250);
+    drawDataRow(ctx, getText(lang, 'img_weapon', '武器'), base.weaponNum || 0, leftX, listYStart + listGap, 250);
+    drawDataRow(ctx, getText(lang, 'img_control_center', '總控中樞'), controlCenterLevel, leftX, listYStart + listGap * 2, 250);
+    drawDataRow(ctx, getText(lang, 'img_storage', '儲藏箱'), totalTrchestCount, leftX, listYStart + listGap * 3, 250); 
 
-    drawDecoratedTitle(ctx, '探索與紀錄', rightX, 106, 12, 18, colors.textMain, '#C0C0C5');
-    drawDataRow(ctx, '探索等級', base.worldLevel || 1, rightX, listYStart, 250);
-    drawDataRow(ctx, '檔案', base.docNum || 0, rightX, listYStart + listGap, 250);
-    drawDataRow(ctx, '光榮之路', achieve ? achieve.count : 0, rightX, listYStart + listGap * 2, 250);
-    drawDataRow(ctx, '謎質', totalPuzzleCount, rightX, listYStart + listGap * 3, 250); // 替換為謎質並動態加總
-
+    drawDecoratedTitle(ctx, getText(lang, 'img_explore_record', '探索與紀錄'), rightX, 106, 12, 18, colors.textMain, '#C0C0C5');
+    drawDataRow(ctx, getText(lang, 'img_explore_level', '探索等級'), base.worldLevel || 1, rightX, listYStart, 250);
+    drawDataRow(ctx, getText(lang, 'img_files', '檔案'), base.docNum || 0, rightX, listYStart + listGap, 250);
+    drawDataRow(ctx, getText(lang, 'img_achieve', '光榮之路'), achieve ? achieve.count : 0, rightX, listYStart + listGap * 2, 250);
+    drawDataRow(ctx, getText(lang, 'img_puzzle', '謎質'), totalPuzzleCount, rightX, listYStart + listGap * 3, 250); 
 
     // 6. 右下側：系統任務
     const taskBoxY = 360;
     drawPolygon(ctx, [{ x: 360, y: taskBoxY }, { x: 960, y: taskBoxY }, { x: 960, y: 560 }, { x: 360, y: 560 }], colors.panelBg, colors.border, 2);
-    drawDecoratedTitle(ctx, '系統任務', 380, taskBoxY + 30, 14, 24, colors.textMain, colors.bracketLight);
+    drawDecoratedTitle(ctx, getText(lang, 'img_system_mission', '系統任務'), 380, taskBoxY + 30, 14, 24, colors.textMain, colors.bracketLight);
 
     const dailyAct = dailyMission ? dailyMission.dailyActivation : 0;
     const dailyMax = dailyMission ? dailyMission.maxDailyActivation : 100;
@@ -249,9 +247,9 @@ async function generateProfileImage(detail, user) {
     const bpMax = bpSystem ? bpSystem.maxLevel : 60;
 
     const tasks = [
-        { label: '活躍度', progress: dailyAct, max: dailyMax, color: colors.yellow },
-        { label: '每周事務', progress: weeklyScore, max: weeklyTotal, color: colors.green },
-        { label: '通行證', progress: bpCur, max: bpMax, color: colors.pass_accent }
+        { label: getText(lang, 'img_activity', '活躍度'), progress: dailyAct, max: dailyMax, color: colors.yellow },
+        { label: getText(lang, 'img_weekly', '每周事務'), progress: weeklyScore, max: weeklyTotal, color: colors.green },
+        { label: getText(lang, 'img_bp', '通行證'), progress: bpCur, max: bpMax, color: colors.pass_accent }
     ];
 
     tasks.forEach((task, index) => {
@@ -267,7 +265,7 @@ async function generateProfileImage(detail, user) {
     ctx.fillStyle = 'rgba(79, 79, 82, 0.4)';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('終末地簽到小助手', width - 20, height - 10);
+    ctx.fillText(getText(lang, 'bot_name', '終末地簽到小助手'), width - 20, height - 10);
     ctx.restore();
 
     return canvas.toBuffer('image/png');
@@ -305,7 +303,6 @@ module.exports = {
             // 請求官方資料
             const result = await getCardDetail(user);
 
-
             // 查詢失敗處理
             if (!result.success) {
                 const embed = new EmbedBuilder()
@@ -316,21 +313,26 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            // 1. 產生 Canvas 圖片 Buffer (假設函數名稱為 generateProfileImage)
-            const imageBuffer = await generateProfileImage(result.detail, user);
+            // 1. 產生 Canvas 圖片 Buffer，傳入 lang 讓繪圖支援多語言
+            const imageBuffer = await generateProfileImage(result.detail, user, lang);
 
-            // 2. 建立 Discord 附件，並設定檔名
+            // 2. 建立 Discord 附件
             const attachment = new AttachmentBuilder(imageBuffer, { name: 'endfield_profile.png' });
 
-            // 3. 建立 Embed 並將圖片設置為該附件
+            // 處理標題多語言 (若語言檔中有宣告則使用，否則退回預設)
+            const authorName = typeof t(lang, 'profile_title') === 'function' 
+                ? t(lang, 'profile_title')(result.detail.base.name) 
+                : `${result.detail.base.name} 的數據報告`;
+
+            // 3. 建立 Embed
             const embed = new EmbedBuilder()
                 .setColor(0xF4D216) // 終末地黃色
                 .setAuthor({
-                    name: `${result.detail.base.name} 的數據報告`,
+                    name: authorName,
                     iconURL: interaction.user.displayAvatarURL()
                 })
-                .setImage('attachment://endfield_profile.png') // 這裡的名稱必須與附件名稱一致
-                .setFooter({ text: '終末地簽到小助手', iconURL: 'https://example.com/logo.png' })
+                .setImage('attachment://endfield_profile.png') 
+                .setFooter({ text: t(lang, 'bot_name'), iconURL: 'https://example.com/logo.png' })
                 .setTimestamp();
 
             // 4. 同時發送 Embed 和 Files 附件
