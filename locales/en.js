@@ -186,7 +186,7 @@ module.exports = {
     img_level: 'Auth Level',
     img_unknown_operator: 'Unknown Operator',
     img_unknown: 'Unknown',
-    img_explore_level: 'Explore Lv.',
+    img_explore_level: 'Explore Level',
     img_awaken_day: 'Awakened',
     img_realtime_info: 'Real-time Info',
     img_stamina_maxed: 'Maxed Out',
