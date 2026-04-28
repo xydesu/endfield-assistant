@@ -87,6 +87,26 @@ GUILD_ID=your_guild_id_here
 # 32-byte hex key for AES-256-CBC credential encryption
 # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ENCRYPTION_KEY=your_64_character_hex_key_here
+
+# Database engine (default: sqlite)
+# Supported: sqlite, mysql, mariadb, postgres, mssql, mongodb
+DB_DIALECT=sqlite
+
+# For sqlite only (optional)
+SQLITE_STORAGE=./database/database.sqlite
+
+# For mysql/mariadb/postgres/mssql:
+# Option A: full URI
+# DB_URI=postgres://user:password@127.0.0.1:5432/endfield_assistant
+# Option B: split fields
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_NAME=endfield_assistant
+# DB_USER=your_user
+# DB_PASSWORD=your_password
+
+# For mongodb:
+# MONGODB_URI=mongodb://127.0.0.1:27017/endfield_assistant
 ```
 
 > **Security note:** Never commit your `.env` file. Keep your `ENCRYPTION_KEY` secret and back it up — losing it will prevent existing credentials from being decrypted.
@@ -105,7 +125,7 @@ If `GUILD_ID` is set, the commands are registered to that guild (instant). Witho
 npm start
 ```
 
-The bot will sync the SQLite database on first run and restore all scheduled sign-in jobs automatically.
+The bot will initialize the configured database on first run and restore all scheduled sign-in jobs automatically.
 
 ---
 
@@ -129,7 +149,7 @@ endfield-assistant/
 │   ├── general/           # help
 │   └── utility/           # invite, set-notify-channel
 ├── database/
-│   └── db.js              # Sequelize / SQLite connection
+│   └── db.js              # Database connector (SQLite default, MySQL/Postgres/MongoDB optional)
 ├── events/
 │   ├── interactionCreate.js
 │   └── ready.js
@@ -162,7 +182,11 @@ endfield-assistant/
 | `node-schedule` | Cron-like job scheduler |
 | `puppeteer` | Headless browser for image card generation |
 | `sequelize` | ORM for database access |
+| `mongoose` | MongoDB ODM |
+| `mysql2` | MySQL/MariaDB driver for Sequelize |
+| `pg` / `pg-hstore` | PostgreSQL driver for Sequelize |
 | `sqlite3` | SQLite database driver |
+| `tedious` | MSSQL driver for Sequelize |
 | `upng-js` | PNG image processing |
 
 ---
