@@ -192,7 +192,6 @@ function cancelDailyNotifyUser(userId) {
 
 async function resetDailyNotified(serverId) {
     try {
-        const { Op } = require('sequelize');
         await User.update(
             { dailyNotified: false },
             { where: { dailyNotify: true, serverId, dailyNotified: true } }

@@ -87,6 +87,26 @@ GUILD_ID=your_guild_id_here
 # 32 位元組的十六進位金鑰，用於 AES-256-CBC 憑證加密
 # 產生方式：node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ENCRYPTION_KEY=your_64_character_hex_key_here
+
+# 資料庫引擎（預設：sqlite）
+# 支援：sqlite, mysql, mariadb, postgres, mssql, mongodb
+DB_DIALECT=sqlite
+
+# 僅 sqlite 使用（可選）
+SQLITE_STORAGE=./database/database.sqlite
+
+# mysql/mariadb/postgres/mssql：
+# 方式 A：完整連線字串
+# DB_URI=postgres://user:password@127.0.0.1:5432/endfield_assistant
+# 方式 B：分開設定
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_NAME=endfield_assistant
+# DB_USER=your_user
+# DB_PASSWORD=your_password
+
+# mongodb：
+# MONGODB_URI=mongodb://127.0.0.1:27017/endfield_assistant
 ```
 
 > **安全性提醒：** 請勿將 `.env` 檔案提交至版本控制。請妥善保管你的 `ENCRYPTION_KEY`——若遺失，將無法解密已儲存的憑證。
