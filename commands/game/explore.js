@@ -233,13 +233,15 @@ function getExploreCurrencyLabel(lang, domainName) {
 
 function clampIndex(index, length) {
     if (length <= 0) return 0;
-    if (index < 0) return length - 1;
-    if (index >= length) return 0;
+    if (index < 0) return 0; // 改為：小於 0 時停留在第一頁
+    if (index >= length) return length - 1; // 改為：超過長度時停留在最後一頁
     return index;
 }
 
 function buildExploreComponents(domains, currentIndex, lang) {
     const disableSwitch = domains.length <= 1;
+    
+    // 下拉選單維持原樣
     const options = domains.map((domain, index) => ({
         label: (domain?.name || `Domain ${index + 1}`).substring(0, 100),
         description: `${getText(lang, 'img_explore_level', '探索等級')} ${Number.parseInt(domain?.level, 10) || 0}`.substring(0, 100),
@@ -253,17 +255,34 @@ function buildExploreComponents(domains, currentIndex, lang) {
         .setDisabled(disableSwitch)
         .addOptions(options);
 
+    // --- 新增的按鈕動態邏輯 ---
+    const isFirstPage = currentIndex === 0;
+    const isLastPage = currentIndex === domains.length - 1;
+
+    // 取得前後區域的名稱，若無則給予預設文字 (例如：已經是第一頁時，上一頁名稱給預設值，反正會被 Disable)
+    const prevDomainName = !isFirstPage && domains[currentIndex - 1]?.name 
+        ? domains[currentIndex - 1].name 
+        : getText(lang, 'btn_prev', '上一頁'); // 假設你的 i18n 有這個 key，沒有的話可以直接寫死文字
+        
+    const nextDomainName = !isLastPage && domains[currentIndex + 1]?.name 
+        ? domains[currentIndex + 1].name 
+        : getText(lang, 'btn_next', '下一頁');
+
     const switchButtons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('explore:prevDomain')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('⬅️')
-            .setDisabled(disableSwitch),
+            // Discord 限制按鈕 Label 最長 80 字元
+            .setLabel(prevDomainName.substring(0, 80)) 
+            .setDisabled(isFirstPage), // 沒有上一頁時禁用
+            
         new ButtonBuilder()
             .setCustomId('explore:nextDomain')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('➡️')
-            .setDisabled(disableSwitch)
+            .setLabel(nextDomainName.substring(0, 80))
+            .setDisabled(isLastPage) // 沒有下一頁時禁用
     );
 
     return [
@@ -274,7 +293,19 @@ function buildExploreComponents(domains, currentIndex, lang) {
 
 async function buildExplorePayload(domains, index, lang) {
     const currentIndex = clampIndex(index, domains.length);
-    const card = await generateExploreImage(domains[currentIndex], lang);
+    const targetDomain = domains[currentIndex];
+    
+    let card;
+    // 💡 檢查該區域物件是否已經有繪製好的快取
+    if (targetDomain.cachedCard) {
+        card = targetDomain.cachedCard;
+    } else {
+        // 快取未命中，呼叫 Canvas 繪圖
+        card = await generateExploreImage(targetDomain, lang);
+        // 將繪製結果（包含 Buffer、名稱、等級）寫入該區域物件中
+        targetDomain.cachedCard = card;
+    }
+
     const fileName = 'endfield_explore.png';
     const attachment = new AttachmentBuilder(card.buffer, { name: fileName });
     const embed = new EmbedBuilder()
@@ -283,6 +314,7 @@ async function buildExplorePayload(domains, index, lang) {
         .setImage(`attachment://${fileName}`)
         .setFooter({ text: t(lang, 'bot_name') })
         .setTimestamp();
+
     return {
         currentIndex,
         embed,
@@ -300,10 +332,14 @@ function setExploreState(messageId, state) {
 
     const existing = exploreViewState.get(messageId);
     if (existing?.timeoutId) clearTimeout(existing.timeoutId);
+    if (existing?.controlsTimeoutId) clearTimeout(existing.controlsTimeoutId); // 💡 關鍵：補上這一行，重置按鈕倒數
+
     const timeoutId = setTimeout(() => {
         exploreViewState.delete(messageId);
     }, EXPLORE_VIEW_TTL_MS);
+    
     if (typeof timeoutId.unref === 'function') timeoutId.unref();
+    
     exploreViewState.set(messageId, { ...state, timeoutId, expiresAt: Date.now() + EXPLORE_VIEW_TTL_MS });
 }
 
