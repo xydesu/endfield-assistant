@@ -1,4 +1,14 @@
-const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
+const {
+    SlashCommandBuilder,
+    EmbedBuilder,
+    AttachmentBuilder,
+    ApplicationIntegrationType,
+    InteractionContextType,
+    ActionRowBuilder,
+    StringSelectMenuBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+} = require('discord.js');
 const { createCanvas, registerFont } = require('canvas');
 const path = require('path');
 const fs = require('fs');
@@ -6,6 +16,9 @@ const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
+
+const exploreViewState = new Map();
+const EXPLORE_VIEW_TTL_MS = 10 * 60 * 1000;
 
 function registerLangFont(langCode, familyName) {
     const weights = [
@@ -215,6 +228,75 @@ function getExploreCurrencyLabel(lang, domainName) {
     return `${domainName} ${getText(lang, 'explore_currency', '調度卷')}`;
 }
 
+function clampIndex(index, length) {
+    if (length <= 0) return 0;
+    if (index < 0) return length - 1;
+    if (index >= length) return 0;
+    return index;
+}
+
+function buildExploreComponents(domains, currentIndex, lang) {
+    const disableSwitch = domains.length <= 1;
+    const options = domains.map((domain, index) => ({
+        label: (domain?.name || `Domain ${index + 1}`).substring(0, 100),
+        description: `${getText(lang, 'img_explore_level', '探索等級')} ${Number.parseInt(domain?.level, 10) || 0}`.substring(0, 100),
+        value: `${index}`,
+        default: index === currentIndex,
+    }));
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('explore:selectDomain')
+        .setPlaceholder(getText(lang, 'img_subzone', '分區'))
+        .setDisabled(disableSwitch)
+        .addOptions(options);
+
+    const switchButtons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('explore:prevDomain')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('⬅️')
+            .setDisabled(disableSwitch),
+        new ButtonBuilder()
+            .setCustomId('explore:nextDomain')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('➡️')
+            .setDisabled(disableSwitch)
+    );
+
+    return [
+        new ActionRowBuilder().addComponents(selectMenu),
+        switchButtons,
+    ];
+}
+
+async function buildExplorePayload(domains, index, lang) {
+    const currentIndex = clampIndex(index, domains.length);
+    const card = await generateExploreImage(domains[currentIndex], lang);
+    const fileName = 'endfield_explore.png';
+    const attachment = new AttachmentBuilder(card.buffer, { name: fileName });
+    const embed = new EmbedBuilder()
+        .setColor(0xF4D216)
+        .setTitle(getExploreEmbedTitle(lang, card.domainName, card.domainLevel))
+        .setImage(`attachment://${fileName}`)
+        .setFooter({ text: t(lang, 'bot_name') })
+        .setTimestamp();
+    return {
+        currentIndex,
+        embed,
+        attachment,
+        components: buildExploreComponents(domains, currentIndex, lang),
+    };
+}
+
+function setExploreState(messageId, state) {
+    const existing = exploreViewState.get(messageId);
+    if (existing?.timeoutId) clearTimeout(existing.timeoutId);
+    const timeoutId = setTimeout(() => {
+        exploreViewState.delete(messageId);
+    }, EXPLORE_VIEW_TTL_MS);
+    exploreViewState.set(messageId, { ...state, timeoutId, expiresAt: Date.now() + EXPLORE_VIEW_TTL_MS });
+}
+
 async function generateExploreImage(domain, lang) {
     const width = 1000;
     const height = 620;
@@ -411,23 +493,19 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            const domainCards = await Promise.all(
-                domains.slice(0, 10).map((domain) => generateExploreImage(domain, lang))
-            );
-
-            const files = domainCards.map((card, index) =>
-                new AttachmentBuilder(card.buffer, { name: `endfield_explore_${index + 1}.png` })
-            );
-            const embeds = domainCards.map((card, index) =>
-                new EmbedBuilder()
-                    .setColor(0xF4D216)
-                    .setTitle(getExploreEmbedTitle(lang, card.domainName, card.domainLevel))
-                    .setImage(`attachment://endfield_explore_${index + 1}.png`)
-                    .setFooter({ text: t(lang, 'bot_name') })
-                    .setTimestamp()
-            );
-
-            await interaction.editReply({ embeds, files });
+            const limitedDomains = domains.slice(0, 25);
+            const payload = await buildExplorePayload(limitedDomains, 0, lang);
+            const message = await interaction.editReply({
+                embeds: [payload.embed],
+                files: [payload.attachment],
+                components: payload.components,
+            });
+            setExploreState(message.id, {
+                userId: interaction.user.id,
+                lang,
+                domains: limitedDomains,
+                currentIndex: payload.currentIndex,
+            });
         } catch (error) {
             console.error('[explore]', error);
             const embed = new EmbedBuilder()
@@ -437,5 +515,57 @@ module.exports = {
                 .setTimestamp();
             await interaction.editReply({ embeds: [embed] });
         }
+    },
+    async handleButton(interaction, action) {
+        const state = exploreViewState.get(interaction.message.id);
+        if (!state || state.expiresAt < Date.now()) {
+            exploreViewState.delete(interaction.message.id);
+            return interaction.reply({ content: 'This explore panel has expired. Please run /explore again.', ephemeral: true });
+        }
+        if (interaction.user.id !== state.userId) {
+            return interaction.reply({ content: 'Only the command user can switch this explore panel.', ephemeral: true });
+        }
+
+        const delta = action === 'prevDomain' ? -1 : action === 'nextDomain' ? 1 : 0;
+        if (delta === 0) return;
+        const nextIndex = clampIndex(state.currentIndex + delta, state.domains.length);
+        const payload = await buildExplorePayload(state.domains, nextIndex, state.lang);
+        setExploreState(interaction.message.id, {
+            ...state,
+            currentIndex: payload.currentIndex,
+        });
+        await interaction.update({
+            embeds: [payload.embed],
+            files: [payload.attachment],
+            components: payload.components,
+        });
+    },
+    async handleSelectMenu(interaction, action) {
+        if (action !== 'selectDomain') return;
+
+        const state = exploreViewState.get(interaction.message.id);
+        if (!state || state.expiresAt < Date.now()) {
+            exploreViewState.delete(interaction.message.id);
+            return interaction.reply({ content: 'This explore panel has expired. Please run /explore again.', ephemeral: true });
+        }
+        if (interaction.user.id !== state.userId) {
+            return interaction.reply({ content: 'Only the command user can switch this explore panel.', ephemeral: true });
+        }
+
+        const selected = Number.parseInt(interaction.values?.[0], 10);
+        if (!Number.isInteger(selected)) {
+            return interaction.reply({ content: 'Invalid domain option.', ephemeral: true });
+        }
+
+        const payload = await buildExplorePayload(state.domains, selected, state.lang);
+        setExploreState(interaction.message.id, {
+            ...state,
+            currentIndex: payload.currentIndex,
+        });
+        await interaction.update({
+            embeds: [payload.embed],
+            files: [payload.attachment],
+            components: payload.components,
+        });
     },
 };
