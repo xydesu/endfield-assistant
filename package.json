@@ -12,6 +12,7 @@
     "author": "",
     "license": "MIT",
     "dependencies": {
+        "canvas": "^3.2.3",
         "discord.js": "^14.25.1",
         "dotenv": "^17.2.3",
         "mongoose": "^8.19.2",

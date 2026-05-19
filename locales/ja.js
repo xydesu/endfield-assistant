@@ -74,7 +74,7 @@ module.exports = {
     explore_puzzle: 'オーリレン',
     explore_piece: '修理部品スポット',
     explore_equip: '装備チェスト',
-    explore_currency: (name) => `💰 ${name}通貨`,
+    explore_currency: (name) => `${name}通貨`,
 
     // ─── achieve ──────────────────────────────────────────────────────────────
     achieve_title: (name) => `🏅 ${name} の栄光の道`,

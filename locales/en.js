@@ -74,7 +74,7 @@ module.exports = {
     explore_puzzle: 'Aurylenes',
     explore_piece: 'Repair Logics',
     explore_equip: 'Equipment Chests',
-    explore_currency: (name) => `💰 ${name} Currency`,
+    explore_currency: (name) => `${name} Currency`,
 
     // ─── achieve ──────────────────────────────────────────────────────────────
     achieve_title: (name) => `🏅 ${name}'s Path of Glory`,

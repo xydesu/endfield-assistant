@@ -74,7 +74,7 @@ module.exports = {
     explore_puzzle: '醚质',
     explore_piece: '维修灵感点',
     explore_equip: '装备模板箱',
-    explore_currency: (name) => `💰 ${name}调度卷`,
+    explore_currency: (name) => `${name}调度卷`,
 
     // ─── achieve ──────────────────────────────────────────────────────────────
     achieve_title: (name) => `🏅 ${name} 的光荣之路`,
