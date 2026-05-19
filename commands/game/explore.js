@@ -19,6 +19,8 @@ const { t } = require('../../utils/i18n');
 
 const exploreViewState = new Map();
 const EXPLORE_VIEW_TTL_MS = 10 * 60 * 1000;
+const MAX_DOMAIN_OPTIONS = 25; // Discord String Select Menu max options
+const MAX_ACTIVE_EXPLORE_VIEWS = 500;
 
 function registerLangFont(langCode, familyName) {
     const weights = [
@@ -289,11 +291,28 @@ async function buildExplorePayload(domains, index, lang) {
 }
 
 function setExploreState(messageId, state) {
+    const now = Date.now();
+    for (const [id, data] of exploreViewState) {
+        if (data.expiresAt < now) {
+            if (data.timeoutId) clearTimeout(data.timeoutId);
+            exploreViewState.delete(id);
+        }
+    }
+
+    while (exploreViewState.size >= MAX_ACTIVE_EXPLORE_VIEWS) {
+        const oldestKey = exploreViewState.keys().next().value;
+        if (!oldestKey) break;
+        const oldest = exploreViewState.get(oldestKey);
+        if (oldest?.timeoutId) clearTimeout(oldest.timeoutId);
+        exploreViewState.delete(oldestKey);
+    }
+
     const existing = exploreViewState.get(messageId);
     if (existing?.timeoutId) clearTimeout(existing.timeoutId);
     const timeoutId = setTimeout(() => {
         exploreViewState.delete(messageId);
     }, EXPLORE_VIEW_TTL_MS);
+    if (typeof timeoutId.unref === 'function') timeoutId.unref();
     exploreViewState.set(messageId, { ...state, timeoutId, expiresAt: Date.now() + EXPLORE_VIEW_TTL_MS });
 }
 
@@ -493,7 +512,7 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            const limitedDomains = domains.slice(0, 25);
+            const limitedDomains = domains.slice(0, MAX_DOMAIN_OPTIONS);
             const payload = await buildExplorePayload(limitedDomains, 0, lang);
             const message = await interaction.editReply({
                 embeds: [payload.embed],
