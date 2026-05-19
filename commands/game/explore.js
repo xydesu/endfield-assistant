@@ -19,7 +19,7 @@ function registerLangFont(langCode, familyName) {
         if (fs.existsSync(fontPath)) {
             registerFont(fontPath, { family: familyName, weight });
         } else {
-            console.warn(`[Canvas] ⚠️ 字體文件缺失: ${file}`);
+            console.warn(`[Canvas] ⚠️ Missing font file: ${file}`);
         }
     }
 }
@@ -29,7 +29,7 @@ try {
     registerLangFont('SC', 'Noto Sans SC');
     registerLangFont('JP', 'Noto Sans JP');
 } catch (error) {
-    console.error('[Canvas] ⚠️ explore 載入字體失敗', error.message);
+    console.error('[Canvas] ⚠️ Failed to load explore fonts', error.message);
 }
 
 const colors = {
