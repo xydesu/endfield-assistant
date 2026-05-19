@@ -277,8 +277,8 @@ async function generateExploreImage(detail, lang) {
     ctx.fillText(curStr, rightEdgeX - maxStrWidth, 265);
 
     drawTechBar(ctx, 60, 280, 240, 10, currency.count, currency.total, colors.yellow);
-    drawText(ctx, lang, `${getText(lang, 'img_recovery_time', '更新時間')}: ${updateTime}`, 60, 315, 12, colors.textSub);
-    drawText(ctx, lang, `// ${getText(lang, 'img_explore_record', '區域綜合資訊')}`, 360, 60, 24, colors.textMain, 'left', '900');
+    drawText(ctx, lang, `${getText(lang, 'img_update_time', 'Updated')}: ${updateTime}`, 60, 315, 12, colors.textSub);
+    drawText(ctx, lang, `// ${getText(lang, 'img_explore_overview', 'Regional Overview')}`, 360, 60, 24, colors.textMain, 'left', '900');
 
     const tableX = 360;
     const tableY = 85;
