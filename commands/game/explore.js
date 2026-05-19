@@ -19,6 +19,7 @@ const { t } = require('../../utils/i18n');
 
 const exploreViewState = new Map();
 const EXPLORE_VIEW_TTL_MS = 10 * 60 * 1000;
+const EXPLORE_COMPONENT_LIFETIME_MS = 10 * 1000;
 const MAX_DOMAIN_OPTIONS = 25; // Discord String Select Menu max options
 const MAX_CACHED_EXPLORE_VIEWS = 500;
 
@@ -294,9 +295,7 @@ function setExploreState(messageId, state) {
     while (exploreViewState.size >= MAX_CACHED_EXPLORE_VIEWS) {
         const oldestKey = exploreViewState.keys().next().value;
         if (!oldestKey) break;
-        const oldest = exploreViewState.get(oldestKey);
-        if (oldest?.timeoutId) clearTimeout(oldest.timeoutId);
-        exploreViewState.delete(oldestKey);
+        clearExploreState(oldestKey);
     }
 
     const existing = exploreViewState.get(messageId);
@@ -306,6 +305,14 @@ function setExploreState(messageId, state) {
     }, EXPLORE_VIEW_TTL_MS);
     if (typeof timeoutId.unref === 'function') timeoutId.unref();
     exploreViewState.set(messageId, { ...state, timeoutId, expiresAt: Date.now() + EXPLORE_VIEW_TTL_MS });
+}
+
+function clearExploreState(messageId) {
+    const existing = exploreViewState.get(messageId);
+    if (!existing) return;
+    if (existing.timeoutId) clearTimeout(existing.timeoutId);
+    if (existing.controlsTimeoutId) clearTimeout(existing.controlsTimeoutId);
+    exploreViewState.delete(messageId);
 }
 
 function resolveInteractionLang(interaction, stateLang) {
@@ -529,11 +536,21 @@ module.exports = {
                 files: [payload.attachment],
                 components: payload.components,
             });
+            const controlsTimeoutId = setTimeout(async () => {
+                clearExploreState(message.id);
+                try {
+                    await message.edit({ components: [] });
+                } catch (removeError) {
+                    console.warn('[explore] Failed to remove expired controls', removeError?.message || removeError);
+                }
+            }, EXPLORE_COMPONENT_LIFETIME_MS);
+            if (typeof controlsTimeoutId.unref === 'function') controlsTimeoutId.unref();
             setExploreState(message.id, {
                 userId: interaction.user.id,
                 lang,
                 domains: limitedDomains,
                 currentIndex: payload.currentIndex,
+                controlsTimeoutId,
             });
         } catch (error) {
             console.error('[explore]', error);
@@ -549,7 +566,7 @@ module.exports = {
         const state = exploreViewState.get(interaction.message.id);
         const lang = resolveInteractionLang(interaction, state?.lang);
         if (!state || state.expiresAt < Date.now()) {
-            exploreViewState.delete(interaction.message.id);
+            clearExploreState(interaction.message.id);
             return interaction.reply({
                 content: getExploreInteractionText(lang, 'explore_panel_expired'),
                 ephemeral: true
@@ -582,7 +599,7 @@ module.exports = {
         const state = exploreViewState.get(interaction.message.id);
         const lang = resolveInteractionLang(interaction, state?.lang);
         if (!state || state.expiresAt < Date.now()) {
-            exploreViewState.delete(interaction.message.id);
+            clearExploreState(interaction.message.id);
             return interaction.reply({
                 content: getExploreInteractionText(lang, 'explore_panel_expired'),
                 ephemeral: true
