@@ -1,8 +1,356 @@
-const { SlashCommandBuilder, EmbedBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
+const { createCanvas, registerFont } = require('canvas');
+const path = require('path');
+const fs = require('fs');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
+
+function registerLangFont(langCode, familyName) {
+    const weights = [
+        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
+        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
+        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' }
+    ];
+
+    for (const { file, weight } of weights) {
+        const fontPath = path.resolve(__dirname, `../../assets/font/${file}`);
+        if (fs.existsSync(fontPath)) {
+            registerFont(fontPath, { family: familyName, weight });
+        } else {
+            console.warn(`[Canvas] ⚠️ 字體文件缺失: ${file}`);
+        }
+    }
+}
+
+try {
+    registerLangFont('TC', 'Noto Sans TC');
+    registerLangFont('SC', 'Noto Sans SC');
+    registerLangFont('JP', 'Noto Sans JP');
+} catch (error) {
+    console.error('[Canvas] ⚠️ explore 載入字體失敗', error.message);
+}
+
+const colors = {
+    bg: '#FFFFFF',
+    grid: '#E5E5E8',
+    panelBg: '#F1F1F4',
+    border: '#D5D5D8',
+    yellow: '#F4D216',
+    headerBg: '#E8E8E8',
+    black: '#000000',
+    badgeBg: '#11131A',
+    textMain: '#101012',
+    textSub: '#4F4F52',
+    textLight: '#B0B0B5',
+    progressBg: '#DADADA'
+};
+
+function getFontFamily(lang) {
+    switch (lang) {
+        case 'zh_Hans': return 'Noto Sans SC';
+        case 'ja': return 'Noto Sans JP';
+        case 'zh_Hant':
+        case 'en':
+        default: return 'Noto Sans TC';
+    }
+}
+
+function getText(lang, key, fallback) {
+    const translated = t(lang, key);
+    return translated === key ? fallback : translated;
+}
+
+function drawPolygon(ctx, points, fill, stroke = null, lineWidth = 1) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.closePath();
+    if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+    }
+    if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+    }
+}
+
+function drawText(ctx, lang, text, x, y, size, color, align = 'left', weight = 'normal', italic = false) {
+    const fontStyle = italic ? 'italic ' : '';
+    const family = getFontFamily(lang);
+    ctx.fillStyle = color;
+    ctx.font = `${fontStyle}${weight} ${size}px "${family}"`;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+}
+
+function drawTechBar(ctx, x, y, w, h, progress, max, color) {
+    const slant = 10;
+    drawPolygon(ctx, [
+        { x, y }, { x: x + w, y },
+        { x: x + w - slant, y: y + h }, { x: x - slant, y: y + h }
+    ], colors.progressBg);
+
+    const safeMax = max > 0 ? max : 1;
+    const fillWidth = Math.max(0, Math.min(w, (progress / safeMax) * w));
+    if (fillWidth > 0) {
+        drawPolygon(ctx, [
+            { x, y }, { x: x + fillWidth, y },
+            { x: x + fillWidth - slant, y: y + h }, { x: x - slant, y: y + h }
+        ], color);
+    }
+}
+
+function drawBadge(ctx, lang, text, x, y) {
+    const family = getFontFamily(lang);
+    ctx.textBaseline = 'middle';
+    ctx.font = `bold 13px "${family}"`;
+    ctx.textAlign = 'center';
+
+    if (text === '-') {
+        ctx.fillStyle = colors.textLight;
+        ctx.fillText('-', x, y);
+        return;
+    }
+
+    if (!text.includes('/')) {
+        ctx.fillStyle = colors.textMain;
+        ctx.fillText(text, x, y);
+        return;
+    }
+
+    const parts = text.split('/');
+    const current = parts[0].trim();
+    const max = parts[1].trim();
+
+    if (current === max) {
+        const bw = 70;
+        const bh = 22;
+        const slant = 8;
+        drawPolygon(ctx, [
+            { x: x - bw / 2 + slant, y: y - bh / 2 },
+            { x: x + bw / 2, y: y - bh / 2 },
+            { x: x + bw / 2 - slant, y: y + bh / 2 },
+            { x: x - bw / 2, y: y + bh / 2 }
+        ], colors.badgeBg);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(text, x, y);
+    } else {
+        const maxStr = ` / ${max}`;
+        const curWidth = ctx.measureText(current).width;
+        const maxWidth = ctx.measureText(maxStr).width;
+        const totalWidth = curWidth + maxWidth;
+        const startX = x - totalWidth / 2;
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = colors.textMain;
+        ctx.fillText(current, startX, y);
+
+        ctx.fillStyle = colors.textLight;
+        ctx.fillText(maxStr, startX + curWidth, y);
+    }
+}
+
+function formatProgress(data) {
+    if (!data || data.total == null || data.total <= 0) return '-';
+    const count = Number.parseInt(data.count, 10) || 0;
+    const total = Number.parseInt(data.total, 10) || 0;
+    return `${count}/${total}`;
+}
+
+function formatDomainCurrency(domain) {
+    const count = Number.parseInt(domain?.moneyMgr?.count, 10) || 0;
+    const total = Number.parseInt(domain?.moneyMgr?.total, 10) || 0;
+    return {
+        count,
+        total,
+        countText: count.toLocaleString(),
+        totalText: total.toLocaleString(),
+    };
+}
+
+function safeDomainRows(domain) {
+    const levels = Array.isArray(domain?.levels) ? domain.levels : [];
+    return levels.slice(0, 6).map((lv) => ({
+        name: lv?.name || '-',
+        data: [
+            formatProgress(lv?.trchestCount),
+            formatProgress(lv?.blackboxCount),
+            formatProgress(lv?.puzzleCount),
+            formatProgress(lv?.pieceCount),
+        ],
+    }));
+}
+
+function getExploreEmbedTitle(lang, domainName, domainLevel) {
+    const titleTemplate = t(lang, 'explore_title');
+    if (typeof titleTemplate === 'function') {
+        return titleTemplate(domainName, domainLevel);
+    }
+    return `${domainName} (${domainLevel})`;
+}
+
+function getExploreCurrencyLabel(lang, domainName) {
+    const labelTemplate = t(lang, 'explore_currency');
+    if (typeof labelTemplate === 'function') {
+        return labelTemplate(domainName);
+    }
+    return `${domainName} ${getText(lang, 'explore_currency', '調度卷')}`;
+}
+
+async function generateExploreImage(detail, lang) {
+    const width = 1000;
+    const height = 620;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    const domains = Array.isArray(detail?.domain) ? detail.domain : [];
+    const domain = domains[0] || {};
+    const domainName = domain.name || '-';
+    const domainLevel = Number.parseInt(domain.level, 10) || 0;
+    const currency = formatDomainCurrency(domain);
+    const rows = safeDomainRows(domain);
+    const updatedAt = new Date();
+    const updateTime = updatedAt.toLocaleString(lang === 'ja' ? 'ja-JP' : lang === 'en' ? 'en-US' : 'zh-TW', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+
+    ctx.fillStyle = colors.bg;
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = colors.grid;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < height; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(width, i);
+        ctx.stroke();
+    }
+    for (let i = 0; i < width; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, height);
+        ctx.stroke();
+    }
+
+    drawPolygon(ctx, [{ x: 40, y: 40 }, { x: 320, y: 40 }, { x: 320, y: 110 }, { x: 300, y: 130 }, { x: 40, y: 130 }], colors.yellow);
+    drawText(ctx, lang, getText(lang, 'img_explore_level', '探索等級'), 55, 65, 14, colors.black, 'left', '900');
+    drawText(ctx, lang, `${domainLevel}`, 50, 100, 48, colors.black, 'left', '900');
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(220, 40, 100, 90);
+    ctx.clip();
+    ctx.strokeStyle = colors.black;
+    ctx.lineWidth = 6;
+    for (let i = 200; i < 350; i += 15) {
+        ctx.beginPath();
+        ctx.moveTo(i, 40);
+        ctx.lineTo(i - 40, 130);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    drawPolygon(ctx, [{ x: 40, y: 145 }, { x: 320, y: 145 }, { x: 320, y: 345 }, { x: 40, y: 345 }], colors.panelBg, colors.border, 2);
+
+    drawText(ctx, lang, domainName, 63, 180, 28, colors.textMain, 'left', 'bold');
+    drawText(ctx, lang, getExploreCurrencyLabel(lang, domainName), 63, 240, 13, colors.textMain, 'left', 'bold');
+
+    const family = getFontFamily(lang);
+    ctx.font = `bold 16px "${family}"`;
+    const maxStr = ` / ${currency.totalText}`;
+    const curStr = currency.countText;
+    const rightEdgeX = 295;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = colors.textLight;
+    ctx.fillText(maxStr, rightEdgeX, 265);
+    const maxStrWidth = ctx.measureText(maxStr).width;
+    ctx.fillStyle = colors.textMain;
+    ctx.fillText(curStr, rightEdgeX - maxStrWidth, 265);
+
+    drawTechBar(ctx, 60, 280, 240, 10, currency.count, currency.total, colors.yellow);
+    drawText(ctx, lang, `${getText(lang, 'img_recovery_time', '更新時間')}: ${updateTime}`, 60, 315, 12, colors.textSub);
+    drawText(ctx, lang, `// ${getText(lang, 'img_explore_record', '區域綜合資訊')}`, 360, 60, 24, colors.textMain, 'left', '900');
+
+    const tableX = 360;
+    const tableY = 85;
+    const tableW = 600;
+    const tableH = 495;
+    drawPolygon(ctx, [
+        { x: tableX, y: tableY }, { x: tableX + tableW, y: tableY },
+        { x: tableX + tableW, y: tableY + tableH }, { x: tableX, y: tableY + tableH }
+    ], colors.panelBg, colors.border, 2);
+
+    const headerHeight = 45;
+    drawPolygon(ctx, [
+        { x: tableX, y: tableY }, { x: tableX + tableW, y: tableY },
+        { x: tableX + tableW, y: tableY + headerHeight }, { x: tableX, y: tableY + headerHeight }
+    ], colors.headerBg);
+
+    ctx.beginPath();
+    ctx.moveTo(tableX, tableY + headerHeight);
+    ctx.lineTo(tableX + tableW, tableY + headerHeight);
+    ctx.strokeStyle = colors.border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    const colX = [tableX + 40, tableX + 200, tableX + 315, tableX + 430, tableX + 540];
+    const headers = [
+        getText(lang, 'img_subzone', '分區'),
+        getText(lang, 'explore_treasure', '儲藏箱'),
+        getText(lang, 'explore_blackbox', '協議採錄樁'),
+        getText(lang, 'explore_puzzle', '謎質'),
+        getText(lang, 'explore_piece', '維修靈感點'),
+    ];
+    drawText(ctx, lang, headers[0], colX[0], tableY + 23, 14, colors.textMain, 'left', 'bold');
+    for (let i = 1; i < headers.length; i++) {
+        drawText(ctx, lang, headers[i], colX[i], tableY + 23, 14, colors.textMain, 'center', 'bold');
+    }
+
+    const paddedRows = [...rows];
+    while (paddedRows.length < 6) {
+        paddedRows.push({ name: '-', data: ['-', '-', '-', '-'] });
+    }
+    const rowHeight = 75;
+    paddedRows.forEach((row, index) => {
+        const rowCenterY = tableY + headerHeight + 37.5 + (index * rowHeight);
+        drawText(ctx, lang, row.name, colX[0], rowCenterY, 14, colors.textMain, 'left', 'bold');
+        row.data.forEach((val, i) => drawBadge(ctx, lang, val, colX[i + 1], rowCenterY));
+
+        if (index < paddedRows.length - 1) {
+            ctx.setLineDash([2, 4]);
+            ctx.beginPath();
+            ctx.moveTo(tableX + 30, rowCenterY + (rowHeight / 2));
+            ctx.lineTo(tableX + tableW - 30, rowCenterY + (rowHeight / 2));
+            ctx.strokeStyle = colors.border;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    });
+
+    ctx.save();
+    ctx.font = `bold 12px "${family}"`;
+    ctx.fillStyle = 'rgba(79, 79, 82, 0.4)';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(getText(lang, 'bot_name', '終末地簽到小助手'), width - 20, height - 10);
+    ctx.restore();
+
+    return {
+        buffer: canvas.toBuffer('image/png'),
+        domainName,
+        domainLevel,
+    };
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -50,45 +398,16 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            // Build one embed per domain
-            const embeds = domains.map((domain) => {
-                const levels = domain.levels ?? [];
-                const levelLines = levels.map((lv) => {
-                    const treasureChest = lv.trchestCount;
-                    const blackbox = lv.blackboxCount;
-                    const puzzle = lv.puzzleCount;
-                    const piece = lv.pieceCount;
-                    const equipChest = lv.equipTrchestCount;
-                    const parts = [];
-                    if (treasureChest.total > 0) parts.push(`${t(lang, 'explore_treasure')}:${treasureChest.count}/${treasureChest.total}`);
-                    if (blackbox.total > 0) parts.push(`${t(lang, 'explore_blackbox')}:${blackbox.count}/${blackbox.total}`);
-                    if (puzzle.total > 0) parts.push(`${t(lang, 'explore_puzzle')}:${puzzle.count}/${puzzle.total}`);
-                    if (piece.total > 0) parts.push(`${t(lang, 'explore_piece')}:${piece.count}/${piece.total}`);
-                    if (equipChest.total > 0) parts.push(`${t(lang, 'explore_equip')}:${equipChest.count}/${equipChest.total}`);
-                    const summary = parts.length > 0 ? parts.join(' ') : '—';
-                    return `**${lv.name}**\n${summary}`;
-                });
+            const { buffer, domainName, domainLevel } = await generateExploreImage(result.detail, lang);
+            const attachment = new AttachmentBuilder(buffer, { name: 'endfield_explore.png' });
+            const embed = new EmbedBuilder()
+                .setColor(0xF4D216)
+                .setTitle(getExploreEmbedTitle(lang, domainName, domainLevel))
+                .setImage('attachment://endfield_explore.png')
+                .setFooter({ text: t(lang, 'bot_name') })
+                .setTimestamp();
 
-                const embed = new EmbedBuilder()
-                    .setColor(EMBED_COLOR)
-                    .setTitle(t(lang, 'explore_title')(domain.name, domain.level))
-                    .setDescription(levelLines.join('\n\n') || '—')
-                    .setTimestamp();
-
-                const moneyMgr = domain.moneyMgr;
-                if (moneyMgr) {
-                    embed.addFields({
-                        name: t(lang, 'explore_currency')(domain.name),
-                        value: `${parseInt(moneyMgr.count).toLocaleString()} / ${parseInt(moneyMgr.total).toLocaleString()}`,
-                        inline: false,
-                    });
-                }
-
-                return embed;
-            });
-
-            // Discord allows up to 10 embeds per message
-            await interaction.editReply({ embeds: embeds.slice(0, 10) });
+            await interaction.editReply({ embeds: [embed], files: [attachment] });
         } catch (error) {
             console.error('[explore]', error);
             const embed = new EmbedBuilder()
