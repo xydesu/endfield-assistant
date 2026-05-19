@@ -351,6 +351,33 @@ function clearExploreState(messageId) {
     exploreViewState.delete(messageId);
 }
 
+// 新增：專門用來啟動或重置按鈕消失計時器的函式
+function refreshControlsTimer(message) {
+    const state = exploreViewState.get(message.id);
+    if (!state) return;
+
+    // 1. 砍掉舊的計時器（如果有的話）
+    if (state.controlsTimeoutId) {
+        clearTimeout(state.controlsTimeoutId);
+    }
+
+    // 2. 建立新的計時器 (這裡預設用你定義好的 EXPLORE_COMPONENT_LIFETIME_MS)
+    const newTimeoutId = setTimeout(async () => {
+        try {
+            // 時間到，把這則訊息的按鈕清空
+            await message.edit({ components: [] });
+            clearExploreState(message.id); // 順便清理記憶體狀態
+        } catch (removeError) {
+            console.warn('[explore] 移除過期按鈕失敗', removeError?.message || removeError);
+        }
+    }, EXPLORE_COMPONENT_LIFETIME_MS);
+
+    if (typeof newTimeoutId.unref === 'function') newTimeoutId.unref();
+
+    // 3. 把新計時器存回 state 中
+    state.controlsTimeoutId = newTimeoutId;
+}
+
 function resolveInteractionLang(interaction, stateLang) {
     if (stateLang) return stateLang;
     const locale = interaction?.locale || '';
@@ -572,7 +599,7 @@ module.exports = {
                 files: [payload.attachment],
                 components: payload.components,
             });
-            const controlsTimeoutId = setTimeout(async () => {
+            /*const controlsTimeoutId = setTimeout(async () => {
                 clearExploreState(message.id);
                 try {
                     await message.edit({ components: [] });
@@ -580,14 +607,15 @@ module.exports = {
                     console.warn('[explore] Failed to remove expired controls', removeError?.message || removeError);
                 }
             }, EXPLORE_COMPONENT_LIFETIME_MS);
-            if (typeof controlsTimeoutId.unref === 'function') controlsTimeoutId.unref();
+            if (typeof controlsTimeoutId.unref === 'function') controlsTimeoutId.unref();*/
             setExploreState(message.id, {
                 userId: interaction.user.id,
                 lang,
                 domains: limitedDomains,
                 currentIndex: payload.currentIndex,
-                controlsTimeoutId,
+                //controlsTimeoutId,
             });
+            refreshControlsTimer(message);
         } catch (error) {
             console.error('[explore]', error);
             const embed = new EmbedBuilder()
@@ -628,6 +656,9 @@ module.exports = {
             files: [payload.attachment],
             components: payload.components,
         });
+        
+        // 💡 新增這行：每次切換頁面後，重置按鈕的倒數計時！
+        refreshControlsTimer(interaction.message);
     },
     async handleSelectMenu(interaction, action) {
         if (action !== 'selectDomain') return;
@@ -666,5 +697,8 @@ module.exports = {
             files: [payload.attachment],
             components: payload.components,
         });
+        
+        // 💡 新增這行：每次切換頁面後，重置按鈕的倒數計時！
+        refreshControlsTimer(interaction.message);
     },
 };
