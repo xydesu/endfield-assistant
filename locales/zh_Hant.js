@@ -74,7 +74,7 @@ module.exports = {
     explore_puzzle: '醚質',
     explore_piece: '維修靈感點',
     explore_equip: '裝備模板箱',
-    explore_currency: (name) => `💰 ${name}調度卷`,
+    explore_currency: (name) => `${name}調度卷`,
 
     // ─── achieve ──────────────────────────────────────────────────────────────
     achieve_title: (name) => `🏅 ${name} 的光榮之路`,
@@ -191,12 +191,14 @@ module.exports = {
     img_realtime_info: '即時資訊',
     img_stamina_maxed: '已達上限',
     img_recovery_time: '恢復時間',
+    img_update_time: '更新時間',
     img_operator_weapon: '幹員與武裝',
     img_operator: '幹員',
     img_weapon: '武器',
     img_control_center: '總控中樞',
     img_storage: '儲藏箱',
     img_explore_record: '探索與紀錄',
+    img_explore_overview: '區域綜合資訊',
     img_files: '檔案',
     img_achieve: '光榮之路',
     img_puzzle: '謎質',
