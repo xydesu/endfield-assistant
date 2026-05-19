@@ -20,7 +20,7 @@ const { t } = require('../../utils/i18n');
 const exploreViewState = new Map();
 const EXPLORE_VIEW_TTL_MS = 10 * 60 * 1000;
 const MAX_DOMAIN_OPTIONS = 25; // Discord String Select Menu max options
-const MAX_ACTIVE_EXPLORE_VIEWS = 500;
+const MAX_CACHED_EXPLORE_VIEWS = 500;
 
 function registerLangFont(langCode, familyName) {
     const weights = [
@@ -291,15 +291,7 @@ async function buildExplorePayload(domains, index, lang) {
 }
 
 function setExploreState(messageId, state) {
-    const now = Date.now();
-    for (const [id, data] of exploreViewState) {
-        if (data.expiresAt < now) {
-            if (data.timeoutId) clearTimeout(data.timeoutId);
-            exploreViewState.delete(id);
-        }
-    }
-
-    while (exploreViewState.size >= MAX_ACTIVE_EXPLORE_VIEWS) {
+    while (exploreViewState.size >= MAX_CACHED_EXPLORE_VIEWS) {
         const oldestKey = exploreViewState.keys().next().value;
         if (!oldestKey) break;
         const oldest = exploreViewState.get(oldestKey);
@@ -314,6 +306,24 @@ function setExploreState(messageId, state) {
     }, EXPLORE_VIEW_TTL_MS);
     if (typeof timeoutId.unref === 'function') timeoutId.unref();
     exploreViewState.set(messageId, { ...state, timeoutId, expiresAt: Date.now() + EXPLORE_VIEW_TTL_MS });
+}
+
+function resolveInteractionLang(interaction, stateLang) {
+    if (stateLang) return stateLang;
+    const locale = interaction?.locale || '';
+    if (locale.startsWith('ja')) return 'ja';
+    if (locale.startsWith('zh-CN')) return 'zh_Hans';
+    if (locale.startsWith('zh-TW') || locale.startsWith('zh-HK')) return 'zh_Hant';
+    return 'en';
+}
+
+function getExploreInteractionText(lang, key) {
+    const fallbackByKey = {
+        explore_panel_expired: 'This explore panel has expired. Please run /explore again.',
+        explore_panel_owner_only: 'Only the command user can switch this explore panel.',
+        explore_panel_invalid_option: 'Invalid domain option.',
+    };
+    return getText(lang, key, fallbackByKey[key] || 'Unknown error.');
 }
 
 async function generateExploreImage(domain, lang) {
@@ -537,12 +547,19 @@ module.exports = {
     },
     async handleButton(interaction, action) {
         const state = exploreViewState.get(interaction.message.id);
+        const lang = resolveInteractionLang(interaction, state?.lang);
         if (!state || state.expiresAt < Date.now()) {
             exploreViewState.delete(interaction.message.id);
-            return interaction.reply({ content: 'This explore panel has expired. Please run /explore again.', ephemeral: true });
+            return interaction.reply({
+                content: getExploreInteractionText(lang, 'explore_panel_expired'),
+                ephemeral: true
+            });
         }
         if (interaction.user.id !== state.userId) {
-            return interaction.reply({ content: 'Only the command user can switch this explore panel.', ephemeral: true });
+            return interaction.reply({
+                content: getExploreInteractionText(lang, 'explore_panel_owner_only'),
+                ephemeral: true
+            });
         }
 
         const delta = action === 'prevDomain' ? -1 : action === 'nextDomain' ? 1 : 0;
@@ -563,17 +580,27 @@ module.exports = {
         if (action !== 'selectDomain') return;
 
         const state = exploreViewState.get(interaction.message.id);
+        const lang = resolveInteractionLang(interaction, state?.lang);
         if (!state || state.expiresAt < Date.now()) {
             exploreViewState.delete(interaction.message.id);
-            return interaction.reply({ content: 'This explore panel has expired. Please run /explore again.', ephemeral: true });
+            return interaction.reply({
+                content: getExploreInteractionText(lang, 'explore_panel_expired'),
+                ephemeral: true
+            });
         }
         if (interaction.user.id !== state.userId) {
-            return interaction.reply({ content: 'Only the command user can switch this explore panel.', ephemeral: true });
+            return interaction.reply({
+                content: getExploreInteractionText(lang, 'explore_panel_owner_only'),
+                ephemeral: true
+            });
         }
 
         const selected = Number.parseInt(interaction.values?.[0], 10);
         if (!Number.isInteger(selected)) {
-            return interaction.reply({ content: 'Invalid domain option.', ephemeral: true });
+            return interaction.reply({
+                content: getExploreInteractionText(lang, 'explore_panel_invalid_option'),
+                ephemeral: true
+            });
         }
 
         const payload = await buildExplorePayload(state.domains, selected, state.lang);
