@@ -176,7 +176,16 @@ function formatDomainCurrency(domain) {
     };
 }
 
-function safeDomainRows(domain) {
+function hasProgressData(data) {
+    return Boolean(data && data.total != null && Number.parseInt(data.total, 10) > 0);
+}
+
+function shouldShowEquipColumn(domain) {
+    const levels = Array.isArray(domain?.levels) ? domain.levels : [];
+    return levels.some((lv) => hasProgressData(lv?.equipTrchestCount));
+}
+
+function safeDomainRows(domain, showEquipColumn = false) {
     const levels = Array.isArray(domain?.levels) ? domain.levels : [];
     return levels.slice(0, 6).map((lv) => ({
         name: lv?.name || '-',
@@ -185,7 +194,8 @@ function safeDomainRows(domain) {
             formatProgress(lv?.blackboxCount),
             formatProgress(lv?.puzzleCount),
             formatProgress(lv?.pieceCount),
-        ],
+            ...(showEquipColumn ? [formatProgress(lv?.equipTrchestCount)] : []),
+        ]
     }));
 }
 
@@ -205,18 +215,17 @@ function getExploreCurrencyLabel(lang, domainName) {
     return `${domainName} ${getText(lang, 'explore_currency', '調度卷')}`;
 }
 
-async function generateExploreImage(detail, lang) {
+async function generateExploreImage(domain, lang) {
     const width = 1000;
     const height = 620;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    const domains = Array.isArray(detail?.domain) ? detail.domain : [];
-    const domain = domains[0] || {};
     const domainName = domain.name || '-';
     const domainLevel = Number.parseInt(domain.level, 10) || 0;
     const currency = formatDomainCurrency(domain);
-    const rows = safeDomainRows(domain);
+    const showEquipColumn = shouldShowEquipColumn(domain);
+    const rows = safeDomainRows(domain, showEquipColumn);
     const updatedAt = new Date();
     const updateTime = updatedAt.toLocaleString(lang === 'ja' ? 'ja-JP' : lang === 'en' ? 'en-US' : 'zh-TW', {
         hour: '2-digit',
@@ -302,22 +311,26 @@ async function generateExploreImage(detail, lang) {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    const colX = [tableX + 40, tableX + 200, tableX + 315, tableX + 430, tableX + 540];
+    const colX = showEquipColumn
+        ? [tableX + 30, tableX + 135, tableX + 235, tableX + 335, tableX + 435, tableX + 535]
+        : [tableX + 40, tableX + 200, tableX + 315, tableX + 430, tableX + 540];
     const headers = [
         getText(lang, 'img_subzone', '分區'),
         getText(lang, 'explore_treasure', '儲藏箱'),
         getText(lang, 'explore_blackbox', '協議採錄樁'),
         getText(lang, 'explore_puzzle', '謎質'),
         getText(lang, 'explore_piece', '維修靈感點'),
+        ...(showEquipColumn ? [getText(lang, 'explore_equip', '裝備模板箱')] : []),
     ];
-    drawText(ctx, lang, headers[0], colX[0], tableY + 23, 14, colors.textMain, 'left', 'bold');
+    const headerFontSize = showEquipColumn ? 13 : 14;
+    drawText(ctx, lang, headers[0], colX[0], tableY + 23, headerFontSize, colors.textMain, 'left', 'bold');
     for (let i = 1; i < headers.length; i++) {
-        drawText(ctx, lang, headers[i], colX[i], tableY + 23, 14, colors.textMain, 'center', 'bold');
+        drawText(ctx, lang, headers[i], colX[i], tableY + 23, headerFontSize, colors.textMain, 'center', 'bold');
     }
 
     const paddedRows = [...rows];
     while (paddedRows.length < 6) {
-        paddedRows.push({ name: '-', data: ['-', '-', '-', '-'] });
+        paddedRows.push({ name: '-', data: Array(headers.length - 1).fill('-') });
     }
     const rowHeight = 75;
     paddedRows.forEach((row, index) => {
@@ -328,8 +341,8 @@ async function generateExploreImage(detail, lang) {
         if (index < paddedRows.length - 1) {
             ctx.setLineDash([2, 4]);
             ctx.beginPath();
-            ctx.moveTo(tableX + 30, rowCenterY + (rowHeight / 2));
-            ctx.lineTo(tableX + tableW - 30, rowCenterY + (rowHeight / 2));
+            ctx.moveTo(tableX + (showEquipColumn ? 20 : 30), rowCenterY + (rowHeight / 2));
+            ctx.lineTo(tableX + tableW - (showEquipColumn ? 20 : 30), rowCenterY + (rowHeight / 2));
             ctx.strokeStyle = colors.border;
             ctx.lineWidth = 1;
             ctx.stroke();
@@ -398,16 +411,23 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            const { buffer, domainName, domainLevel } = await generateExploreImage(result.detail, lang);
-            const attachment = new AttachmentBuilder(buffer, { name: 'endfield_explore.png' });
-            const embed = new EmbedBuilder()
-                .setColor(0xF4D216)
-                .setTitle(getExploreEmbedTitle(lang, domainName, domainLevel))
-                .setImage('attachment://endfield_explore.png')
-                .setFooter({ text: t(lang, 'bot_name') })
-                .setTimestamp();
+            const domainCards = await Promise.all(
+                domains.slice(0, 10).map((domain) => generateExploreImage(domain, lang))
+            );
 
-            await interaction.editReply({ embeds: [embed], files: [attachment] });
+            const files = domainCards.map((card, index) =>
+                new AttachmentBuilder(card.buffer, { name: `endfield_explore_${index + 1}.png` })
+            );
+            const embeds = domainCards.map((card, index) =>
+                new EmbedBuilder()
+                    .setColor(0xF4D216)
+                    .setTitle(getExploreEmbedTitle(lang, card.domainName, card.domainLevel))
+                    .setImage(`attachment://endfield_explore_${index + 1}.png`)
+                    .setFooter({ text: t(lang, 'bot_name') })
+                    .setTimestamp()
+            );
+
+            await interaction.editReply({ embeds, files });
         } catch (error) {
             console.error('[explore]', error);
             const embed = new EmbedBuilder()
