@@ -16,12 +16,14 @@ module.exports = {
     help_general: '🔧 一般',
     help_general_help: '`/help` 顯示本說明',
     help_general_invite: '`/invite` 取得機器人邀請連結',
+    help_general_support: '`/support` 取得支援伺服器連結',
     help_general_language: '`/language` 設定機器人語言',
     help_attendance: '📅 簽到',
     help_attendance_bind: '`/bind` 綁定 Endfield 帳號',
     help_attendance_unbind: '`/unbind` 解除綁定',
     help_attendance_signin: '`/signin` 立即執行一次簽到',
     help_attendance_schedule: '`/schedule` 設定每日自動簽到時間',
+    help_attendance_switch_server: '`/switch-server` 切換至同帳號下的其他伺服器/角色',
     help_game: '🎮 遊戲資訊',
     help_game_profile: '`/profile` 查詢玩家個人資料（等級、理智、BP 等）',
     help_game_explore: '`/explore` 查詢各區域探索進度（寶箱、謎題、暗箱等）',
@@ -35,6 +37,10 @@ module.exports = {
     // ─── invite ───────────────────────────────────────────────────────────────
     invite_title: '🔗 邀請機器人',
     invite_desc: (url) => `點擊下方連結將機器人加入你的伺服器或安裝為個人應用程式！\n\n[➕ 點我邀請](${url})`,
+
+    // ─── support ──────────────────────────────────────────────────────────────
+    support_title: '💬 支援伺服器',
+    support_desc: (url) => `點擊下方連結加入我們的 Discord 支援伺服器！\n\n[💬 點我加入](${url})`,
 
     // ─── set-notify-channel ───────────────────────────────────────────────────
     notify_success_title: '✅ 設定成功',
@@ -75,6 +81,29 @@ module.exports = {
     explore_piece: '維修靈感點',
     explore_equip: '裝備模板箱',
     explore_currency: (name) => `${name}調度卷`,
+
+    // ─── monument ─────────────────────────────────────────────────────────────
+    monument_title: (name) => `🗿 ${name} 的影拓豐碑進度`,
+    monument_no_data_title: '🗿 影拓豐碑進度',
+    monument_no_data: '目前無影拓豐碑數據。',
+    monument_normal: '普通',
+    monument_agony: '苦難',
+    monument_normal_btn: '切換至普通難度',
+    monument_agony_btn: '切換至苦難難度',
+    monument_best_record: '最佳通關紀錄',
+    monument_pass_time: '通關時間',
+    monument_lineup: '通關陣容',
+    monument_status: '狀態',
+    monument_plated: '蝕刻章已鍍層',
+    monument_not_plated: '蝕刻章未鍍層',
+    monument_panel_expired: '此影拓豐碑面板已過期，請重新執行 /monument。',
+    monument_panel_owner_only: '只有指令使用者可以操作此面板。',
+    monument_panel_invalid_option: '無效的系列選項。',
+    img_monument_overview: '影拓豐碑總覽',
+    img_monument_difficulty: '難度',
+    img_monument_pass: '已通關',
+    img_monument_not_pass: '未通關',
+    help_game_monument: '`/monument` 查詢影拓豐碑通關進度（普通與苦難難度）',
 
     // ─── achieve ──────────────────────────────────────────────────────────────
     achieve_title: (name) => `🏅 ${name} 的光榮之路`,
@@ -131,6 +160,15 @@ module.exports = {
     bind_success_title: '✅ 綁定成功',
     bind_success_desc: (roleId, serverId) => `RoleID: \`${roleId}\`\nServer ID: \`${serverId}\`\n\n您可以繼續使用 \`/schedule\` 設定每日自動簽到時間。`,
     bind_fail_title: '❌ 綁定失敗',
+
+    // ─── switch-server ───────────────────────────────────────────────────────
+    switch_server_no_other_roles_title: '❌ 無法切換',
+    switch_server_no_other_roles_desc: '您的帳號下只有一個角色，無需切換。',
+    switch_server_select_title: '🎮 切換伺服器/角色',
+    switch_server_select_desc: (count) => `找到 **${count}** 個角色，請從下方選單選擇要切換的角色。`,
+    switch_server_select_placeholder: '請選擇要切換的角色...',
+    switch_server_success_title: '✅ 切換成功',
+    switch_server_success_desc: (roleId, serverId) => `已成功切換角色！\nRoleID: \`${roleId}\`\nServer ID: \`${serverId}\``,
 
     // ─── schedule ─────────────────────────────────────────────────────────────
     schedule_format_title: '❌ 格式錯誤',
@@ -206,4 +244,13 @@ module.exports = {
     img_activity: '活躍度',
     img_weekly: '每周事務',
     img_bp: '通行證',
+
+    // ─── guildCreate ──────────────────────────────────────────────────────────
+    welcome_title: '👋 感謝邀請終末地簽到小助手！',
+    welcome_desc: '我是一個專為《明日方舟：終末地》設計的自動簽到與遊戲資訊助手。我可以協助您的伺服器成員每天自動完成簽到，並提供即時的遊戲資料查詢服務。',
+    welcome_steps_title: '🚀 快速上手指南',
+    welcome_steps_desc: '成員們可以透過以下步驟快速開始使用機器人：\n1️⃣ 使用 `/bind` 綁定您的鷹角網絡帳號憑證。\n2️⃣ 使用 `/schedule` 設定每日自動簽到時間與偏好。\n3️⃣ 使用 `/help` 查看所有可用指令的清單。',
+    welcome_admin_title: '⚙️ 管理員設定提示',
+    welcome_admin_desc: '若要接收伺服器成員的每日簽到結果與提醒，管理員可以使用 `/set-notify-channel` 指令來設定專用的通知頻道。',
+    welcome_links_title: '🔗 實用連結',
 };

@@ -16,12 +16,14 @@ module.exports = {
     help_general: '🔧 General',
     help_general_help: '`/help` Show this help message',
     help_general_invite: '`/invite` Get the bot invite link',
+    help_general_support: '`/support` Get support server link',
     help_general_language: '`/language` Set bot language',
     help_attendance: '📅 Attendance',
     help_attendance_bind: '`/bind` Bind your Endfield account',
     help_attendance_unbind: '`/unbind` Unbind your account',
     help_attendance_signin: '`/signin` Sign in manually',
     help_attendance_schedule: '`/schedule` Set daily auto sign-in time',
+    help_attendance_switch_server: '`/switch-server` Switch to another server/role under the same account',
     help_game: '🎮 Game Info',
     help_game_profile: '`/profile` View player profile (level, sanity, Protocol Pass, etc.)',
     help_game_explore: '`/explore` View exploration progress by area',
@@ -35,6 +37,10 @@ module.exports = {
     // ─── invite ───────────────────────────────────────────────────────────────
     invite_title: '🔗 Invite Bot',
     invite_desc: (url) => `Click the link below to add the bot to your server or install as a user app!\n\n[➕ Invite Me](${url})`,
+
+    // ─── support ──────────────────────────────────────────────────────────────
+    support_title: '💬 Support Server',
+    support_desc: (url) => `Click the link below to join our Discord support server!\n\n[💬 Join Server](${url})`,
 
     // ─── set-notify-channel ───────────────────────────────────────────────────
     notify_success_title: '✅ Setup Successful',
@@ -75,6 +81,29 @@ module.exports = {
     explore_piece: 'Repair Logics',
     explore_equip: 'Equipment Chests',
     explore_currency: (name) => `${name} Currency`,
+
+    // ─── monument ─────────────────────────────────────────────────────────────
+    monument_title: (name) => `🗿 ${name}'s Umbral Monument Progress`,
+    monument_no_data_title: '🗿 Umbral Monument Progress',
+    monument_no_data: 'No Umbral Monument data available.',
+    monument_normal: 'Normal',
+    monument_agony: 'Agony',
+    monument_normal_btn: 'Switch to Normal',
+    monument_agony_btn: 'Switch to Agony',
+    monument_best_record: 'Best Record',
+    monument_pass_time: 'Clear Time',
+    monument_lineup: 'Lineup',
+    monument_status: 'Status',
+    monument_plated: 'Medal Plated',
+    monument_not_plated: 'Medal Unplated',
+    monument_panel_expired: 'This Umbral Monument panel has expired. Please run /monument again.',
+    monument_panel_owner_only: 'Only the command user can operate this panel.',
+    monument_panel_invalid_option: 'Invalid series option.',
+    img_monument_overview: 'Umbral Monument Overview',
+    img_monument_difficulty: 'Difficulty',
+    img_monument_pass: 'PASS',
+    img_monument_not_pass: 'PENDING',
+    help_game_monument: '`/monument` View Umbral Monument progress (Normal & Agony)',
 
     // ─── achieve ──────────────────────────────────────────────────────────────
     achieve_title: (name) => `🏅 ${name}'s Path of Glory`,
@@ -131,6 +160,15 @@ module.exports = {
     bind_success_title: '✅ Binding Successful',
     bind_success_desc: (roleId, serverId) => `RoleID: \`${roleId}\`\nServer ID: \`${serverId}\`\n\nYou can now use \`/schedule\` to set your daily auto sign-in time.`,
     bind_fail_title: '❌ Binding Failed',
+
+    // ─── switch-server ───────────────────────────────────────────────────────
+    switch_server_no_other_roles_title: '❌ Cannot Switch',
+    switch_server_no_other_roles_desc: 'There is only one character under your account, no switch needed.',
+    switch_server_select_title: '🎮 Switch Server/Role',
+    switch_server_select_desc: (count) => `Found **${count}** character(s). Please select a character to switch to from the menu below.`,
+    switch_server_select_placeholder: 'Select a character to switch to...',
+    switch_server_success_title: '✅ Switch Successful',
+    switch_server_success_desc: (roleId, serverId) => `Successfully switched character!\nRoleID: \`${roleId}\`\nServer ID: \`${serverId}\``,
 
     // ─── schedule ─────────────────────────────────────────────────────────────
     schedule_format_title: '❌ Format Error',
@@ -206,4 +244,13 @@ module.exports = {
     img_activity: 'Activity',
     img_weekly: 'Weekly Routine',
     img_bp: 'Protocol Pass',
+
+    // ─── guildCreate ──────────────────────────────────────────────────────────
+    welcome_title: '👋 Thank you for inviting Endfield Check-in Assistant!',
+    welcome_desc: 'I am an automated assistant designed for Arknights: Endfield. I can help members of your server automatically complete daily sign-ins and query real-time game data.',
+    welcome_steps_title: '🚀 Getting Started',
+    welcome_steps_desc: 'Members can quickly start using the bot with these steps:\n1️⃣ Use `/bind` to link your Hypergryph account credentials.\n2️⃣ Use `/schedule` to set your daily auto sign-in time and preferences.\n3️⃣ Use `/help` to view a list of all available commands.',
+    welcome_admin_title: '⚙️ Server Admin Tips',
+    welcome_admin_desc: 'To receive daily sign-in reports and reminders, administrators can use the `/set-notify-channel` command to configure a dedicated notification channel.',
+    welcome_links_title: '🔗 Useful Links',
 };

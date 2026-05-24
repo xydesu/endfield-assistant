@@ -16,12 +16,14 @@ module.exports = {
     help_general: '🔧 一般',
     help_general_help: '`/help` このヘルプを表示',
     help_general_invite: '`/invite` Botの招待リンクを取得',
+    help_general_support: '`/support` サポートサーバーのリンクを取得',
     help_general_language: '`/language` Botの言語を設定',
     help_attendance: '📅 出席',
     help_attendance_bind: '`/bind` Endfield アカウントをバインド',
     help_attendance_unbind: '`/unbind` バインド解除',
     help_attendance_signin: '`/signin` 手動でサインイン',
     help_attendance_schedule: '`/schedule` 毎日の自動サインイン時刻を設定',
+    help_attendance_switch_server: '`/switch-server` 同じアカウントの別のサーバー/キャラクターに切り替えます',
     help_game: '🎮 ゲーム情報',
     help_game_profile: '`/profile` プレイヤー情報を照会（レベル、理性、BP 等）',
     help_game_explore: '`/explore` 各エリアの探索進捗を照会',
@@ -35,6 +37,10 @@ module.exports = {
     // ─── invite ───────────────────────────────────────────────────────────────
     invite_title: '🔗 Botを招待',
     invite_desc: (url) => `以下のリンクをクリックしてBotをサーバーに追加、またはユーザーアプリとしてインストール！\n\n[➕ 招待する](${url})`,
+
+    // ─── support ──────────────────────────────────────────────────────────────
+    support_title: '💬 サポートサーバー',
+    support_desc: (url) => `以下のリンクをクリックして、公式 Discord サポートサーバーに参加してください！\n\n[💬 参加する](${url})`,
 
     // ─── set-notify-channel ───────────────────────────────────────────────────
     notify_success_title: '✅ 設定完了',
@@ -75,6 +81,29 @@ module.exports = {
     explore_piece: '修理部品スポット',
     explore_equip: '装備チェスト',
     explore_currency: (name) => `${name}通貨`,
+
+    // ─── monument ─────────────────────────────────────────────────────────────
+    monument_title: (name) => `🗿 ${name} の影拓の碑進捗`,
+    monument_no_data_title: '🗿 影拓の碑進捗',
+    monument_no_data: '現在影拓の碑データがありません。',
+    monument_normal: '通常',
+    monument_agony: '苦難',
+    monument_normal_btn: '通常難易度に切替',
+    monument_agony_btn: '苦難難易度に切替',
+    monument_best_record: 'ベストクリア記録',
+    monument_pass_time: 'クリア時間',
+    monument_lineup: 'クリア編成',
+    monument_status: 'ステータス',
+    monument_plated: '勲章加工済み',
+    monument_not_plated: '勲章未加工',
+    monument_panel_expired: 'この影拓の碑パネルは期限切れです。もう一度 /monument を実行してください。',
+    monument_panel_owner_only: 'コマンドを実行したユーザーのみがこのパネルを操作できます。',
+    monument_panel_invalid_option: '無効なシリーズ選択です。',
+    img_monument_overview: '影拓の碑概要',
+    img_monument_difficulty: '難易度',
+    img_monument_pass: 'クリア',
+    img_monument_not_pass: '未クリア',
+    help_game_monument: '`/monument` 影拓の碑のクリア進捗を照會（通常と苦難難易度）',
 
     // ─── achieve ──────────────────────────────────────────────────────────────
     achieve_title: (name) => `🏅 ${name} の栄光の道`,
@@ -131,6 +160,15 @@ module.exports = {
     bind_success_title: '✅ バインド成功',
     bind_success_desc: (roleId, serverId) => `RoleID: \`${roleId}\`\nServer ID: \`${serverId}\`\n\n\`/schedule\` で毎日の自動サインイン時刻を設定できます。`,
     bind_fail_title: '❌ バインド失敗',
+
+    // ─── switch-server ───────────────────────────────────────────────────────
+    switch_server_no_other_roles_title: '❌ 切り替え不可',
+    switch_server_no_other_roles_desc: 'アカウントにキャラクターが1つしかないため、切り替える必要はありません。',
+    switch_server_select_title: '🎮 サーバー/キャラクターの切り替え',
+    switch_server_select_desc: (count) => `**${count}** 個のキャラクターが見つかりました。下のメニューから切り替えるキャラクターを選択してください。`,
+    switch_server_select_placeholder: '切り替えるキャラクターを選択してください...',
+    switch_server_success_title: '✅ 切り替え成功',
+    switch_server_success_desc: (roleId, serverId) => `キャラクターの切り替えに成功しました！\nRoleID: \`${roleId}\`\nServer ID: \`${serverId}\``,
 
     // ─── schedule ─────────────────────────────────────────────────────────────
     schedule_format_title: '❌ フォーマットエラー',
@@ -206,4 +244,13 @@ module.exports = {
     img_activity: 'アクティブ度',
     img_weekly: '週間事務',
     img_bp: 'パス',
+
+    // ─── guildCreate ──────────────────────────────────────────────────────────
+    welcome_title: '👋 終末地ログイン小助手をご招待いただきありがとうございます！',
+    welcome_desc: '私は『アークナイツ：エンドフィールド』専用の自動ログインおよびゲーム情報アシスタントです。サーバーメンバーのデイリー自動ログインをサポートし、リアルタイムのゲームデータ照会サービスを提供します。',
+    welcome_steps_title: '🚀 クイックスタートガイド',
+    welcome_steps_desc: 'メンバーは以下の手順で簡単にボットの使用を開始できます：\n1️⃣ `/bind` を使用して、Hypergryphアカウントの認証情報を連携します。\n2️⃣ `/schedule` を使用して、毎日の自動ログイン時間と設定を行います。\n3️⃣ `/help` を使用して、利用可能なすべてのコマンドリストを表示します。',
+    welcome_admin_title: '⚙️ 管理者設定のヒント',
+    welcome_admin_desc: 'サーバーメンバーのデイリーログイン結果や通知を受け取るには、管理者が `/set-notify-channel` コマンドを使用して専用の通知チャンネルを設定できます。',
+    welcome_links_title: '🔗 関連リンク',
 };

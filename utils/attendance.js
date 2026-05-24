@@ -317,6 +317,36 @@ async function getCardDetail(user) {
     }
 }
 
+async function getIndieHardDetail(user) {
+    const lang = user.language || 'zh_Hant';
+    try {
+        let token = '';
+        try {
+            token = await refreshSignToken(user);
+        } catch (e) {
+            console.error(`[${user.uid}] Token refresh failed for indie-hard detail: ${e.message}`);
+        }
+
+        const result = await request('GET', '/api/v1/game/endfield/card/indie-hard', user,
+            { roleId: user.uid, serverId: user.serverId }, token);
+
+        if (result.code === 0 && result.data && result.data.indieHard) {
+            return { success: true, indieHard: result.data.indieHard };
+        } else {
+            return { success: false, message: t(lang, 'attendance_api_error')(result.message ?? JSON.stringify(result).substring(0, 200)) };
+        }
+    } catch (error) {
+        let errorMsg = error.message;
+        if (!errorMsg && error.body) {
+            errorMsg = `Status ${error.statusCode}: ${error.body}`;
+        } else if (!errorMsg) {
+            errorMsg = JSON.stringify(error);
+        }
+        console.error(`[getIndieHardDetail] uid=${user.uid}`, error);
+        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 500)) };
+    }
+}
+
 async function getBindingList(rawCred) {
     // Step 1: Refresh token using raw (unencrypted) cred
     const token = await new Promise((resolve, reject) => {
@@ -439,4 +469,4 @@ async function getBindingList(rawCred) {
     });
 }
 
-module.exports = { signIn, buildAttendanceEmbed, getCardDetail, getBindingList };
+module.exports = { signIn, buildAttendanceEmbed, getCardDetail, getIndieHardDetail, getBindingList };
