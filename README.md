@@ -22,6 +22,9 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 - **Achievement showcase** – display your 光榮之路 achievement card with `/achieve`
 - **Operator list** – view your full operator roster as a generated image card with `/operators`
 - **Stamina notifications** – receive an alert in the notify channel when stamina reaches a set threshold with `/stamina-notify`
+- **Umbral Monument** – view your Umbral Monument clearance progress (normal & agony difficulty) as a beautiful image card with `/monument`
+- **Server switching** – switch between multiple characters/servers linked to the same account with `/switch-server`
+- **Support link** – get the bot's official Discord support server link with `/support`
 
 ---
 
@@ -39,7 +42,10 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 | `/explore` | View per-area exploration progress | Everyone |
 | `/achieve` | View achievement showcase (光榮之路) | Everyone |
 | `/operators` | View your operator roster | Everyone |
+| `/monument` | View Umbral Monument clearance progress | Everyone |
+| `/switch-server` | Switch server or role for bound accounts | Everyone |
 | `/stamina-notify <enable> [threshold] [tag]` | Configure stamina-full notification | Everyone |
+| `/support` | Get the bot support server invite link | Everyone |
 | `/set-notify-channel [channel]` | Set the guild notification channel | Administrator |
 
 ---
