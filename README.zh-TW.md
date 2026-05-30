@@ -10,6 +10,14 @@
 
 ---
 
+## Showcase
+
+| 個人資料 | 幹員列表 | 影拓豐碑 |
+| :---: | :---: | :---: |
+| ![個人資料](./docs/profile.png) | ![幹員列表](./docs/operators.png) | ![影拓豐碑](./docs/monument.png) |
+
+---
+
 ## 功能
 
 - **帳號綁定** – 透過互動式表單安全地將你的 Endfield 憑證連結至你的 Discord 帳號（憑證以 AES-256-CBC 加密儲存）

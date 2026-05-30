@@ -10,6 +10,14 @@ A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in 
 
 ---
 
+## Showcase
+
+| Profile | Operators | Monument |
+| :---: | :---: | :---: |
+| ![Profile](./docs/profile.png) | ![Operators](./docs/operators.png) | ![Monument](./docs/monument.png) |
+
+---
+
 ## Features
 
 - **Account binding** – securely link your Endfield credentials to your Discord account via an interactive modal (credentials are encrypted at rest using AES-256-CBC)
