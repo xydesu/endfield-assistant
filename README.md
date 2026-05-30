@@ -6,7 +6,7 @@
 
 A Discord bot for automating daily sign-ins on the [Arknights: Endfield sign-in portal](https://game.skport.com/endfield/sign-in).
 
-> 📖 **[View the introduction page (繁體中文 / English)](https://xydesu.github.io/endfield-assistant/)** for a full overview of features and usage.
+> 📖 **[查看介紹頁面（繁體中文 / English）](https://xydesu.github.io/endfield-assistant/)** 以取得完整的功能說明與使用方式。
 
 ---
 
