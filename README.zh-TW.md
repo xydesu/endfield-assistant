@@ -1,12 +1,9 @@
 # Endfield Assistant
 
 [![加入 Discord](https://img.shields.io/badge/加入%20Discord-Endfield%20Assistant-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1466362435782049817)
-[![介紹頁面](https://img.shields.io/badge/介紹頁面-繁中%20%2F%20EN-c8a85a?style=for-the-badge)](https://xydesu.github.io/endfield-assistant/)
 [![English README](https://img.shields.io/badge/README-English-blue?style=for-the-badge)](./README.md)
 
 一個用於自動化 [明日方舟：終末地簽到入口](https://game.skport.com/endfield/sign-in) 每日簽到的 Discord 機器人。
-
-> 📖 **[前往介紹網頁（繁體中文 / English）](https://xydesu.github.io/endfield-assistant/)** 以瀏覽更直觀的圖文介紹與說明。
 
 ---
 
