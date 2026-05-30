@@ -6,7 +6,7 @@
 
 一個用於自動化 [明日方舟：終末地簽到入口](https://game.skport.com/endfield/sign-in) 每日簽到的 Discord 機器人。
 
-> 📖 **[查看介紹頁面（繁體中文 / English）](https://xydesu.github.io/endfield-assistant/)** 以取得完整的功能說明與使用方式。
+> 📖 **[前往介紹網頁（繁體中文 / English）](https://xydesu.github.io/endfield-assistant/)** 以瀏覽更直觀的圖文介紹與說明。
 
 ---
 
