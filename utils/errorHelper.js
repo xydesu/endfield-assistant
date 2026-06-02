@@ -11,7 +11,8 @@ const { t } = require('./i18n');
  */
 function replyWithError(interaction, error, lang = 'zh_Hant') {
     console.error(error);
-    const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+    const isDev = process.env.NODE_ENV === 'development';
+    const isMessageComponent = typeof interaction.isMessageComponent === 'function' && interaction.isMessageComponent();
 
     let description = typeof t(lang, 'error_query') === 'function' ? t(lang, 'error_query')() : t(lang, 'error_query');
     if (isDev && error && error.stack) {
@@ -25,11 +26,21 @@ function replyWithError(interaction, error, lang = 'zh_Hant') {
         .setDescription(description)
         .setTimestamp();
 
+    const payload = {
+        embeds: [embed],
+        files: [],
+        ...(isMessageComponent ? { components: [] } : {}),
+    };
+
     if (interaction.replied || interaction.deferred) {
-        return interaction.editReply({ embeds: [embed], files: [] }).catch(console.error);
-    } else {
-        return interaction.reply({ embeds: [embed], ephemeral: true }).catch(console.error);
+        return interaction.editReply(payload).catch(console.error);
     }
+
+    if (isMessageComponent) {
+        return interaction.update(payload).catch(console.error);
+    }
+
+    return interaction.reply({ ...payload, ephemeral: true }).catch(console.error);
 }
 
 module.exports = { replyWithError };

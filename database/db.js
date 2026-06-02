@@ -10,7 +10,7 @@ let sequelize = null;
 let mongoose = null;
 let mongoConnectionPromise = null;
 
-const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+const isDev = process.env.NODE_ENV === 'development';
 const dbLogging = isDev ? console.log : false;
 
 if (isMongo) {
