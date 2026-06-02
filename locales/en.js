@@ -52,6 +52,7 @@ module.exports = {
     language_set_desc: (lang) => `Language has been set to **${lang}**.`,
     language_fail_title: '❌ Setup Failed',
     language_not_bound: 'You have not bound your account yet. Please use `/bind` first, then set your language.',
+    language_cn_forced: 'Language for China Mainland Server accounts is locked to Simplified Chinese and cannot be changed.',
 
     // ─── profile ──────────────────────────────────────────────────────────────
     profile_title: (name) => `👤 ${name}'s Profile`,
@@ -131,7 +132,7 @@ module.exports = {
     bind_script_label: 'Script',
     bind_step4_label: 'Step 4',
     bind_step5_label: 'Step 5',
-    bind_step1: 'Open the [Hypergryph website](https://www.skport.com) in a desktop browser and log in.',
+    bind_step1: 'Open the [Hypergryph China Server Website](https://www.skland.com) (China Server) or [Hypergryph Global Server Website](https://www.skport.com) (Global Server) in a desktop browser and log in.',
     bind_step2: 'Press `F12` to open Developer Tools and switch to the `Console` tab.',
     bind_step3: 'Copy and paste the following command into the Console:',
     bind_step4: 'After execution, the Console will display your `cred` value. Copy it.',

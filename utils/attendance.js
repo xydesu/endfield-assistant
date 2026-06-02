@@ -15,9 +15,9 @@ function sanitizeHeaders(headers) {
     return out;
 }
 
-function computeSign(path, body, timestamp, token) {
+function computeSign(path, body, timestamp, token, platform = PLATFORM, vName = VNAME) {
     // headerObj key names must match the server's expected sign format exactly
-    const headerObj = { platform: PLATFORM, timestamp: timestamp, dId: '', vName: VNAME };
+    const headerObj = { platform: platform, timestamp: timestamp, dId: '', vName: vName };
     const headersJson = JSON.stringify(headerObj);
     const signString = path + body + timestamp + headersJson;
     const hmacHex = crypto.createHmac('sha256', token).update(signString, 'utf8').digest('hex');
@@ -26,7 +26,10 @@ function computeSign(path, body, timestamp, token) {
 
 async function refreshSignToken(user) {
     return new Promise((resolve, reject) => {
-        const url = new URL('/web/v1/auth/refresh', 'https://zonai.skport.com');
+        // 官服 (serverId 1 或 57) 使用 skland.com，其餘國際服使用 skport.com
+        const isCn = user.serverId === '1' || user.serverId === '57';
+        const domain = isCn ? 'skland.com' : 'skport.com';
+        const url = new URL('/web/v1/auth/refresh', `https://zonai.${domain}`);
         const options = {
             hostname: url.hostname,
             path: url.pathname,
@@ -35,10 +38,10 @@ async function refreshSignToken(user) {
                 'User-Agent': USER_AGENT,
                 'Accept': 'application/json, text/plain, */*',
                 'cred': decrypt(user.cred),
-                'platform': PLATFORM,
-                'vName': VNAME,
-                'Origin': 'https://game.skport.com',
-                'Referer': 'https://game.skport.com/'
+                'platform': isCn ? '' : PLATFORM,
+                'vName': isCn ? '' : VNAME,
+                'Origin': `https://game.${domain}`,
+                'Referer': `https://game.${domain}/`
             }
         };
 
@@ -90,12 +93,15 @@ async function refreshSignToken(user) {
 async function request(method, endpoint, user, data = null, signToken = '') {
     const skLang = getSkLanguage(user.language || 'zh_Hant');
     return new Promise((resolve, reject) => {
+        // 官服 (serverId 1 或 57) 使用 skland.com，其餘國際服使用 skport.com
+        const isCnServer = user.serverId === '1' || user.serverId === '57';
+        const domain = isCnServer ? 'skland.com' : 'skport.com';
         let url;
         try {
             if (endpoint.startsWith('http')) {
                 url = new URL(endpoint);
             } else {
-                url = new URL(endpoint, 'https://zonai.skport.com');
+                url = new URL(endpoint, `https://zonai.${domain}`);
             }
         } catch (e) {
             return reject(e);
@@ -111,21 +117,24 @@ async function request(method, endpoint, user, data = null, signToken = '') {
         // for POST requests it uses the JSON body — matching the website's sign algorithm.
         const signBody = (method === 'GET') ? (url.search ? url.search.slice(1) : '') : bodyStr;
 
+        const signPlat = isCnServer ? '' : PLATFORM;
+        const signVName = isCnServer ? '' : VNAME;
+
         const headers = {
             'User-Agent': USER_AGENT,
             'Accept': '*/*',
             'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Referer': 'https://game.skport.com/',
+            'Referer': `https://game.${domain}/`,
             'Content-Type': 'application/json',
             'sk-language': skLang,
-            'sk-game-role': `3_${user.uid}_${user.serverId}`,
+            'sk-game-role': `${PLATFORM}_${user.uid}_${user.serverId}`,
             'cred': decrypt(user.cred),
-            'platform': PLATFORM,
-            'vName': VNAME,
+            'platform': isCnServer ? '' : PLATFORM,
+            'vName': isCnServer ? '' : VNAME,
             'timestamp': timestamp,
-            'sign': computeSign(url.pathname, signBody, timestamp, signToken),
-            'Origin': 'https://game.skport.com',
+            'sign': computeSign(url.pathname, signBody, timestamp, signToken, signPlat, signVName),
+            'Origin': `https://game.${domain}`,
             'Connection': 'keep-alive',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
@@ -347,10 +356,11 @@ async function getIndieHardDetail(user) {
     }
 }
 
-async function getBindingList(rawCred) {
+async function fetchRolesFromPlatform(rawCred, domain) {
+    const isCn = domain === 'skland.com';
     // Step 1: Refresh token using raw (unencrypted) cred
     const token = await new Promise((resolve, reject) => {
-        const url = new URL('/web/v1/auth/refresh', 'https://zonai.skport.com');
+        const url = new URL('/web/v1/auth/refresh', `https://zonai.${domain}`);
         const options = {
             hostname: url.hostname,
             path: url.pathname,
@@ -359,10 +369,10 @@ async function getBindingList(rawCred) {
                 'User-Agent': USER_AGENT,
                 'Accept': 'application/json, text/plain, */*',
                 'cred': rawCred,
-                'platform': PLATFORM,
-                'vName': VNAME,
-                'Origin': 'https://game.skport.com',
-                'Referer': 'https://game.skport.com/'
+                'platform': isCn ? '' : PLATFORM,
+                'vName': isCn ? '' : VNAME,
+                'Origin': `https://game.${domain}`,
+                'Referer': `https://game.${domain}/`
             }
         };
         const req = https.request(options, (res) => {
@@ -400,10 +410,12 @@ async function getBindingList(rawCred) {
     // Step 2: Call binding endpoint
     const path = '/api/v1/game/player/binding';
     const timestamp = Math.floor(Date.now() / 1000).toString();
-    const sign = computeSign(path, '', timestamp, token);
+    const signPlat = isCn ? '' : PLATFORM;
+    const signVName = isCn ? '' : VNAME;
+    const sign = computeSign(path, '', timestamp, token, signPlat, signVName);
 
     return new Promise((resolve, reject) => {
-        const url = new URL(path, 'https://zonai.skport.com');
+        const url = new URL(path, `https://zonai.${domain}`);
         const options = {
             hostname: url.hostname,
             path: url.pathname,
@@ -414,12 +426,12 @@ async function getBindingList(rawCred) {
                 'Content-Type': 'application/json',
                 'sk-language': 'zh_Hant',
                 'cred': rawCred,
-                'platform': PLATFORM,
-                'vName': VNAME,
+                'platform': isCn ? '' : PLATFORM,
+                'vName': isCn ? '' : VNAME,
                 'timestamp': timestamp,
                 'sign': sign,
-                'Origin': 'https://game.skport.com',
-                'Referer': 'https://game.skport.com/'
+                'Origin': `https://game.${domain}`,
+                'Referer': `https://game.${domain}/`
             }
         };
         const req = https.request(options, (res) => {
@@ -440,6 +452,8 @@ async function getBindingList(rawCred) {
                         if (json.code === 0 && json.data && json.data.list) {
                             const roles = [];
                             json.data.list.forEach(game => {
+                                // 只拉取終末地角色，防止明日方舟等角色混入
+                                if (game.appCode !== 'endfield') return;
                                 game.bindingList.forEach(binding => {
                                     (binding.roles || []).forEach(role => {
                                         roles.push({
@@ -467,6 +481,27 @@ async function getBindingList(rawCred) {
         req.on('close', () => clearTimeout(timer));
         req.end();
     });
+}
+
+async function getBindingList(rawCred) {
+    const domains = ['skport.com', 'skland.com'];
+    const results = await Promise.allSettled(domains.map(domain => fetchRolesFromPlatform(rawCred, domain)));
+
+    const allRoles = [];
+    const errors = [];
+    results.forEach((res, idx) => {
+        if (res.status === 'fulfilled') {
+            allRoles.push(...res.value);
+        } else {
+            errors.push(`${domains[idx]}: ${res.reason.message || res.reason}`);
+        }
+    });
+
+    if (allRoles.length === 0) {
+        throw new Error(`Failed to fetch binding list: ${errors.join(' | ')}`);
+    }
+
+    return allRoles;
 }
 
 module.exports = { signIn, buildAttendanceEmbed, getCardDetail, getIndieHardDetail, getBindingList };

@@ -10,6 +10,9 @@ let sequelize = null;
 let mongoose = null;
 let mongoConnectionPromise = null;
 
+const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+const dbLogging = isDev ? console.log : false;
+
 if (isMongo) {
     dialect = 'mongodb';
     const mongoUri = process.env.MONGODB_URI || process.env.DB_URI || 'mongodb://127.0.0.1:27017/endfield_assistant';
@@ -31,18 +34,18 @@ if (isMongo) {
     if (dialect === 'sqlite') {
         sequelize = new Sequelize({
             dialect,
-            logging: false,
+            logging: dbLogging,
             storage: process.env.SQLITE_STORAGE || path.join(__dirname, 'database.sqlite'),
         });
     } else if (process.env.DB_URI) {
         sequelize = new Sequelize(process.env.DB_URI, {
             dialect,
-            logging: false,
+            logging: dbLogging,
         });
     } else {
         sequelize = new Sequelize({
             dialect,
-            logging: false,
+            logging: dbLogging,
             host: process.env.DB_HOST || '127.0.0.1',
             port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : undefined,
             database: process.env.DB_NAME || 'endfield_assistant',

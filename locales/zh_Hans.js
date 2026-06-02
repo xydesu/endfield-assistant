@@ -52,6 +52,7 @@ module.exports = {
     language_set_desc: (lang) => `已将语言设定为 **${lang}**。`,
     language_fail_title: '❌ 设定失败',
     language_not_bound: '您尚未绑定账号，请先使用 `/bind` 指令进行绑定后再设定语言。',
+    language_cn_forced: '官服账号的语言已被强制锁定为简体中文，无法更改。',
 
     // ─── profile ──────────────────────────────────────────────────────────────
     profile_title: (name) => `👤 ${name} 的玩家资料`,
@@ -131,7 +132,7 @@ module.exports = {
     bind_script_label: '指令',
     bind_step4_label: '步骤 4',
     bind_step5_label: '步骤 5',
-    bind_step1: '使用电脑浏览器开启任意 [鹰角网站](https://www.skport.com) 并登入账号。',
+    bind_step1: '使用电脑浏览器开启任意 [鹰角官服网站](https://www.skland.com)（官服）或 [鹰角国际服网站](https://www.skport.com)（国际服）并登入账号。',
     bind_step2: '按下 `F12` 开启开发者工具，切换至 `Console` 分页。',
     bind_step3: '复制下方指令并贴上到 Console 中执行：',
     bind_step4: '执行后 Console 将显示您的 `cred` 值，复制该值。',

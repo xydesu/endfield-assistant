@@ -7,6 +7,12 @@ const { t } = require('../../utils/i18n');
 
 // 映射伺服器展示名稱至數值 ID，作為 API 請求的參數
 const SERVER_NAME_TO_ID = {
+    'china mainland': '1',
+    'official': '1',
+    'official server': '1',
+    '官服': '1',
+    '國服': '1',
+    '国服': '1',
     'asia': '2',
     'americas / europe': '3',
     'americas/europe': '3',
@@ -141,11 +147,16 @@ module.exports = {
             }
 
             try {
-                // 更新使用者資料庫中當前選用的角色與伺服器資訊
-                await user.update({
+                const updateData = {
                     uid: roleId,
                     serverId: serverId,
-                });
+                };
+                // 官服強制將語言變更為簡體中文
+                if (serverId === '1' || serverId === '57') {
+                    updateData.language = 'zh_Hans';
+                }
+                // 更新使用者資料庫中當前選用的角色與伺服器資訊
+                await user.update(updateData);
 
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
@@ -156,13 +167,8 @@ module.exports = {
                 // 切換完成後移除選單以防止重複操作
                 await interaction.editReply({ embeds: [embed], components: [] });
             } catch (error) {
-                console.error('[switch-server]', error);
-                const embed = new EmbedBuilder()
-                    .setColor(EMBED_COLOR)
-                    .setTitle(t(lang, 'error_title'))
-                    .setDescription(t(lang, 'db_error'))
-                    .setTimestamp();
-                await interaction.editReply({ embeds: [embed], components: [] });
+                const { replyWithError } = require('../../utils/errorHelper');
+                await replyWithError(interaction, error, lang);
             }
         }
     }

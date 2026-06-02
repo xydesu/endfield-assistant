@@ -5,8 +5,8 @@ const { t } = require('../../utils/i18n');
 const { scheduleDailyNotifyUser, cancelDailyNotifyUser } = require('../../utils/scheduler');
 
 // UTC offset (hours) for each server ID
-const SERVER_UTC_OFFSETS = { '2': 8, '3': -5 };
-const SERVER_TIMEZONE_LABELS = { '2': 'UTC+8', '3': 'UTC-5' };
+const SERVER_UTC_OFFSETS = { '1': 8, '57': 8, '2': 8, '3': -5 };
+const SERVER_TIMEZONE_LABELS = { '1': 'UTC+8', '57': 'UTC+8', '2': 'UTC+8', '3': 'UTC-5' };
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -102,13 +102,8 @@ module.exports = {
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
         } catch (error) {
-            console.error(error);
-            const embed = new EmbedBuilder()
-                .setColor(EMBED_COLOR)
-                .setTitle(t(lang, 'daily_notify_fail_title'))
-                .setDescription(t(lang, 'db_error'))
-                .setTimestamp();
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            const { replyWithError } = require('../../utils/errorHelper');
+            await replyWithError(interaction, error, lang);
         }
     },
 };
