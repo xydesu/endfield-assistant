@@ -4,3 +4,4 @@ node_modules
 *.sqlite
 .DS_Store
 data/
+assets/images/dynamic/
