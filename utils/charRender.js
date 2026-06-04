@@ -834,12 +834,18 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     ctx.globalAlpha = 1.0;
 
     // ==========================================
-    // C. 右側天賦陣列 (x: 784, y: 216, w: 1040, h: 402)
+    // C. 右側天賦陣列 (x: 784, y: 216, w: 1040, h: 動態高度)
     // ==========================================
+    // 用 groupTalents 對三種天賦分別進行分組
+    const abilityGroups = groupTalents(data.charData.abilityTalents);
+    const combatGroups = groupTalents(data.charData.combatTalents);
+    const cultivationGroups = groupTalents(data.charData.cultivationTalents);
+    const hasCultivation = cultivationGroups.length > 0;
+
     const talentX = rightZoneX;
     const talentY = rightZoneY + 120;
     const talentW = 1040;
-    const talentH = 402;
+    const talentH = hasCultivation ? 402 : 298;
 
     enableShadow(ctx);
     drawRoundRect(ctx, talentX, talentY, talentW, talentH, 16, '#FFFFFF', '#EEF0F2', 2);
@@ -855,15 +861,10 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     ctx.fillText("天賦陣列", talentX + 26, talentY + 24);
 
 
-    // 繪製 5 行天賦 Row
+    // 繪製天賦 Row
     const talentRowOffsets = [82, 134, 186, 238, 290];
 
-    // 用 groupTalents 對三種天賦分別進行分組
-    const abilityGroups = groupTalents(data.charData.abilityTalents);
-    const combatGroups = groupTalents(data.charData.combatTalents);
-    const cultivationGroups = groupTalents(data.charData.cultivationTalents);
-
-    // 建立 5 行天賦的動態行結構
+    // 建立天賦的動態行結構
     const talentRows = [];
 
     // 第一行：能力天賦 (Ability Talents)
@@ -902,22 +903,24 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
         }
     }
 
-    // 第四、五行：培育天賦 (Cultivation Talents)，最多兩行
-    for (let k = 0; k < 2; k++) {
-        if (cultivationGroups[k]) {
-            talentRows.push({
-                name: cultivationGroups[k].name,
-                icon: 'cultivationTalents.png',
-                nodes: cultivationGroups[k].nodes,
-                type: 'cultivation'
-            });
-        } else {
-            talentRows.push({
-                name: k === 0 ? '記憶熔爐' : '不熄炎火',
-                icon: 'cultivationTalents.png',
-                nodes: [],
-                type: 'cultivation'
-            });
+    // 第四、五行：培育天賦 (Cultivation Talents)，僅在有此類天賦時繪製，最多兩行
+    if (hasCultivation) {
+        for (let k = 0; k < 2; k++) {
+            if (cultivationGroups[k]) {
+                talentRows.push({
+                    name: cultivationGroups[k].name,
+                    icon: 'cultivationTalents.png',
+                    nodes: cultivationGroups[k].nodes,
+                    type: 'cultivation'
+                });
+            } else {
+                talentRows.push({
+                    name: k === 0 ? '記憶熔爐' : '不熄炎火',
+                    icon: 'cultivationTalents.png',
+                    nodes: [],
+                    type: 'cultivation'
+                });
+            }
         }
     }
 
@@ -925,7 +928,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const rowW = 992;
     const rowH = 42;
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < talentRows.length; i++) {
         const ry = talentY + talentRowOffsets[i];
         const isOdd = (i % 2 === 0);
         const rowBg = isOdd ? '#F7F8FA' : '#FFFFFF';
