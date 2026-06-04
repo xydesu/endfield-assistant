@@ -2,6 +2,7 @@ const { registerFont, createCanvas, loadImage } = require('canvas');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const { toTraditional } = require('./toTraditional');
 
 // 輔助函數：從網路下載檔案
 function downloadFile(url, dest) {
@@ -11,7 +12,9 @@ function downloadFile(url, dest) {
             fs.mkdirSync(dir, { recursive: true });
         }
         const file = fs.createWriteStream(dest);
-        https.get(url, (response) => {
+        let isAborted = false;
+
+        const request = https.get(url, (response) => {
             if (response.statusCode !== 200) {
                 reject(new Error(`下載失敗，狀態碼: ${response.statusCode}`));
                 return;
@@ -20,8 +23,18 @@ function downloadFile(url, dest) {
             file.on('finish', () => {
                 file.close(resolve);
             });
-        }).on('error', (err) => {
+        });
+
+        request.on('error', (err) => {
+            isAborted = true;
             fs.unlink(dest, () => reject(err));
+        });
+
+        request.setTimeout(10000, () => {
+            if (!isAborted) {
+                request.destroy();
+                reject(new Error('下載超時 (10s)'));
+            }
         });
     });
 }
@@ -32,7 +45,18 @@ async function resolveImagePath(urlOrPath) {
     
     // 如果是網路 URL
     if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
-        const filename = urlOrPath.substring(urlOrPath.lastIndexOf('/') + 1);
+        let filename;
+        try {
+            const parsedUrl = new URL(urlOrPath);
+            const pathname = parsedUrl.pathname;
+            filename = pathname.substring(pathname.lastIndexOf('/') + 1);
+        } catch (e) {
+            filename = urlOrPath.substring(urlOrPath.lastIndexOf('/') + 1);
+        }
+
+        if (!filename) {
+            filename = `img_${Date.now()}`;
+        }
         
         // 所有動態資源皆平鋪放置於 assets/images/dynamic/
         const localRelPath = `assets/images/dynamic/${filename}`;
@@ -165,7 +189,7 @@ function drawFlame(ctx, x, y, size, fillStyle, strokeStyle, strokeWidth) {
     ctx.bezierCurveTo(cx - r * 0.8, cy + r * 0.9, cx - r * 0.9, cy + r * 0.2, cx - r * 0.2, cy - r * 0.5);
     ctx.bezierCurveTo(cx - r * 0.5, cy - r * 0.1, cx - r * 0.4, cy + r * 0.3, cx, cy + r * 0.2);
     ctx.bezierCurveTo(cx + r * 0.3, cy - r * 0.4, cx, cy - r * 0.9, cx + r * 0.1, cy - r * 0.9);
-    ctx.bezierCurveTo(cx + r * 0.8, cy - r * 0.4, cx + r * 0.8, cy + r * 0.2, ctx + r * 0.6, cy + r * 0.6);
+    ctx.bezierCurveTo(cx + r * 0.8, cy - r * 0.4, cx + r * 0.8, cy + r * 0.2, cx + r * 0.6, cy + r * 0.6);
     ctx.bezierCurveTo(cx + r * 0.4, cy + r * 0.9, cx + r * 0.1, cy + r * 0.9, cx, cy + r * 0.9);
     ctx.closePath();
     if (fillStyle) {
@@ -230,18 +254,7 @@ function drawImageWithOutline(ctx, img, x, y, w, h, outlineColor, outlineWidth) 
     ctx.drawImage(img, x, y, w, h);
 }
 
-// 輔助函數：將簡體字轉為繁體字
-function toTraditional(str) {
-    if (!str) return '';
-    return str
-        .replace(/大量伤害/g, '大量傷害')
-        .replace(/燃烧/g, '燃燒')
-        .replace(/落潮轻甲/g, '落潮輕甲')
-        .replace(/动火用手甲/g, '動火用手甲')
-        .replace(/动火用测温镜/g, '動火用測溫鏡')
-        .replace(/优质锦草饮料/g, '優質錦草飲料')
-        .replace(/熔铸火焰/g, '熔鑄火焰');
-}
+
 
 // 輔助函數：根據天賦名稱獲取各個等級進度節點對應的 iconUrl 本地檔名列表（長度與匹配項目數相同）
 function getTalentNodeIcons(talentName, charData) {
@@ -355,8 +368,10 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     }
 
     // 動態收集養成/潛能徽章
-    pathsToLoad.push('assets/images/character/evolve_4.png');
-    pathsToLoad.push('assets/images/character/potential_1.png');
+    const evolvePhase = data.evolvePhase || 0;
+    const potentialLevel = data.potentialLevel || 0;
+    pathsToLoad.push(`assets/images/character/evolve_${evolvePhase}.png`);
+    pathsToLoad.push(`assets/images/character/potential_${potentialLevel}.png`);
 
     // 動態收集並非同步解析 URL 資源
     const urlsToResolve = [];
@@ -445,8 +460,9 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
 
     // 同步獲取圖片 helper 函數
     function getImage(relPath, fallbackRelPath = null) {
-        const normPath = relPath && !relPath.startsWith('assets/') ? 'assets/' + relPath : relPath;
-        const normFallback = fallbackRelPath && !fallbackRelPath.startsWith('assets/') ? 'assets/' + fallbackRelPath : fallbackRelPath;
+        const isRemote = (p) => p && (p.startsWith('http://') || p.startsWith('https://'));
+        const normPath = relPath && !relPath.startsWith('assets/') && !isRemote(relPath) ? 'assets/' + relPath : relPath;
+        const normFallback = fallbackRelPath && !fallbackRelPath.startsWith('assets/') && !isRemote(fallbackRelPath) ? 'assets/' + fallbackRelPath : fallbackRelPath;
         if (imageCache.has(normPath)) {
             return imageCache.get(normPath);
         }
@@ -518,10 +534,11 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
         ctx.drawImage(propIcon, propRowX + 4, propRowY + 4, 24, 24);
     }
 
-    // 6 顆 rarity_star (使用 8 方向描邊法勾勒灰白色星星)
+    // 動態計算幹員星級 (使用 8 方向描邊法勾勒灰白色星星)
+    const rarityVal = parseInt(data.charData?.rarity?.value) || 6;
     if (starImg) {
         const starStartX = propRowX + 32 + 10;
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < rarityVal; i++) {
             drawImageWithOutline(ctx, starImg, starStartX + i * 36, propRowY + 3, 26, 26, '#AEB4BA', 1);
         }
     }
@@ -532,17 +549,17 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
 
     drawRoundRect(ctx, lvlBlockX, lvlBlockY, 200, 131, 12, '#F7F8FA', '#EEF0F2', 1);
 
-    // "90 LEVEL" 文字 (依設計稿位置對齊)
+    // 動態等級與 "LEVEL" 文字 (依設計稿位置對齊)
     ctx.fillStyle = '#1A1A1A';
     ctx.font = "bold 30px 'Noto Sans TC'";
     ctx.textBaseline = 'top';
-    ctx.fillText("90", lvlBlockX + 14, lvlBlockY + 12);
+    ctx.fillText(String(data.level || 1), lvlBlockX + 14, lvlBlockY + 12);
     
     ctx.font = "bold 21px 'Noto Sans TC'";
     ctx.fillText("LEVEL", lvlBlockX + 51, lvlBlockY + 20);
 
     // 底部徽章：Elite 與 Potential (放至 75x75)，中間有灰色分隔線
-    const evolve = getImage('images/character/evolve_4.png');
+    const evolve = getImage(`images/character/evolve_${data.evolvePhase || 0}.png`);
     if (evolve) {
         ctx.drawImage(evolve, lvlBlockX + 14, lvlBlockY + 46, 75, 75);
     }
@@ -554,7 +571,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     ctx.lineTo(lvlBlockX + 101, lvlBlockY + 108);
     ctx.stroke();
 
-    const potential = getImage('images/character/potential_1.png');
+    const potential = getImage(`images/character/potential_${data.potentialLevel || 0}.png`);
     if (potential) {
         ctx.drawImage(potential, lvlBlockX + 114, lvlBlockY + 46, 74, 75);
     }
@@ -1076,25 +1093,28 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     drawRoundRect(ctx, potPlateX, potPlateY, 204, 26, 4, '#EEF0F2');
 
     // 潛能圖示
-    const potIcon = getImage('images/character/potential_1.png');
+    // 動態載入潛能圖示
+    const potIcon = getImage(`images/character/potential_${data.potentialLevel || 0}.png`);
     if (potIcon) {
         ctx.drawImage(potIcon, wpnX + 182, wpnY + 45, 51, 51);
     }
 
-    // "90" (後繪製文字與星星，作為前景圖層，避免被底板遮擋)
+    // 動態等級 (後繪製文字與星星，作為前景圖層，避免被底板遮擋)
     ctx.fillStyle = '#1A1A1A';
     ctx.font = "900 64px 'Noto Sans TC'";
-    ctx.fillText("90", wpnX + 28, wpnY + 28);
+    ctx.fillText(String(data.weapon?.level || 0), wpnX + 28, wpnY + 28);
 
-    // "LEVEL" (X 座標往右微調至 wpnX + 115 以防與 90 重疊)
+    // "LEVEL" (X 座標往右微調至 wpnX + 115 以防與等級重疊)
     ctx.fillStyle = '#666666';
     ctx.font = "bold 24px 'Noto Sans TC'";
     ctx.fillText("LEVEL", wpnX + 115, wpnY + 63);
 
-    // 6 顆灰白星星 (使用 8 方向描邊法勾勒灰白色星星)
+    // 動態計算武器星級 (使用 8 方向描邊法勾勒灰白色星星)
+    const wpnRarity = parseInt(data.weapon?.weaponData?.rarity?.value) || 5;
     if (starImg) {
         const starXs = [32, 67, 102, 137, 172, 207];
-        for (const sx of starXs) {
+        const displayStarXs = starXs.slice(0, wpnRarity);
+        for (const sx of displayStarXs) {
             drawImageWithOutline(ctx, starImg, wpnX + sx, wpnY + 115, 26, 26, '#AEB4BA', 1);
         }
     }

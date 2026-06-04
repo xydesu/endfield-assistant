@@ -5,18 +5,7 @@ const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
 const { renderCharacter } = require('../../utils/charRender');
 
-// 輔助函數：將簡體字轉為繁體字
-function toTraditional(str) {
-    if (!str) return '';
-    return str
-        .replace(/大量伤害/g, '大量傷害')
-        .replace(/燃烧/g, '燃燒')
-        .replace(/落潮轻甲/g, '落潮輕甲')
-        .replace(/动火用手甲/g, '動火用手甲')
-        .replace(/动火用测温镜/g, '動火用測溫鏡')
-        .replace(/优质锦草饮料/g, '優質錦草飲料')
-        .replace(/熔铸火焰/g, '熔鑄火焰');
-}
+const { toTraditional } = require('../../utils/toTraditional');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -86,77 +75,109 @@ module.exports = {
                 };
             });
 
+            // 多語言支援選單內容
+            let placeholder = '請選擇要查看詳細配置的幹員...';
+            let selectTitle = '👥 選擇幹員';
+            let selectDesc = '請從下方下拉選單中選擇您想要查看詳細配置的幹員（清單僅顯示等級最高的前 25 位）：';
+            
+            if (lang === 'zh_Hans') {
+                placeholder = '请选择要查看详细配置的干员...';
+                selectTitle = '👥 选择干员';
+                selectDesc = '请从下方下拉选单中选择您想要查看详细配置的干员（清单仅显示等级最高的前 25 位）：';
+            } else if (lang === 'en') {
+                placeholder = 'Select a character to view detailed loadout...';
+                selectTitle = '👥 Select Character';
+                selectDesc = 'Please select a character from the dropdown below to view their detailed loadout (only showing the top 25 by level):';
+            } else if (lang === 'ja') {
+                placeholder = '詳細配置を表示するキャラクターを選択してください...';
+                selectTitle = '👥 キャラクター選択';
+                selectDesc = '詳細配置を表示したいキャラクターを下のドロップダウンから選択してください（レベルの高い上位25名のみ表示されます）：';
+            }
+
             // 建立下拉選單
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('char:select')
-                .setPlaceholder(lang === 'zh_Hant' ? '請選擇要查看詳細配置的幹員...' : '请选择要查看详细配置的干员...')
+                .setPlaceholder(placeholder)
                 .addOptions(selectOptions);
 
             const row = new ActionRowBuilder().addComponents(selectMenu);
 
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle(lang === 'zh_Hant' ? '👥 選擇幹員' : '👥 选择干员')
-                .setDescription(lang === 'zh_Hant' 
-                    ? '請從下方下拉選單中選擇您想要查看詳細配置的幹員（清單僅顯示等級最高的前 25 位）：' 
-                    : '请从下方下拉选单中选择您想要查看详细配置的干员（清单仅显示等级最高的前 25 位）：')
+                .setTitle(selectTitle)
+                .setDescription(selectDesc)
                 .setTimestamp();
 
             const response = await interaction.editReply({ embeds: [embed], components: [row] });
 
             // 建立互動收集器
             const filter = i => i.customId === 'char:select' && i.user.id === interaction.user.id;
+            let confirmation;
             try {
-                const confirmation = await response.awaitMessageComponent({ filter, time: 60000 });
-                
-                // 點選後立刻進入 defer 狀態，防止 Discord 出現 Interaction Failed 錯誤
-                await confirmation.deferUpdate();
-
-                const selectedName = confirmation.values[0];
-                const targetChar = chars.find(c => c.charData.name === selectedName);
-
-                if (!targetChar) {
-                    throw new Error('Target character not found in user data');
-                }
-
-                // 開始 Canvas 1:1 渲染
-                const buffer = await renderCharacter(targetChar, lang);
-                const attachment = new AttachmentBuilder(buffer, { name: 'operator.png' });
-
-                let titleText = `${targetChar.charData.name} 的詳細配置`;
-                if (lang === 'en') {
-                    titleText = `Detailed Loadout of ${targetChar.charData.name}`;
-                } else if (lang === 'zh_Hans') {
-                    titleText = `${targetChar.charData.name} 的详细配置`;
-                } else if (lang === 'ja') {
-                    titleText = `${targetChar.charData.name} の詳細配置`;
-                }
-
-                const embedResult = new EmbedBuilder()
-                    .setColor(EMBED_COLOR)
-                    .setTitle(titleText)
-                    .setImage('attachment://operator.png')
-                    .setTimestamp();
-
-                // 原地編輯訊息，移除下拉選單並附上圖片
-                await interaction.editReply({
-                    embeds: [embedResult],
-                    files: [attachment],
-                    components: []
-                });
-
+                confirmation = await response.awaitMessageComponent({ filter, time: 60000 });
             } catch (e) {
-                // 若逾時或出錯，則移除選單
+                // 僅捕捉 awaitMessageComponent 逾時的錯誤，避免污染渲染錯誤
+                const timeoutTitle = {
+                    'zh_Hant': '❌ 操作已逾時',
+                    'zh_Hans': '❌ 操作已超时',
+                    'en': '❌ Interaction Timeout',
+                    'ja': '❌ 操作がタイムアウトしました'
+                }[lang] || '❌ 操作已逾時';
+
+                const timeoutDesc = {
+                    'zh_Hant': '您未在規定時間內選擇幹員，請重新執行指令。',
+                    'zh_Hans': '您未在规定时间内选择干员，请重新执行指令。',
+                    'en': 'You did not select a character in time, please run the command again.',
+                    'ja': '制限時間内にキャラクターが選択されなかったため、コマンドを再実行してください。'
+                }[lang] || '您未在規定時間內選擇幹員，請重新執行指令。';
+
                 const timeoutEmbed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle(lang === 'zh_Hant' ? '❌ 操作已逾時' : '❌ 操作已超时')
-                    .setDescription(lang === 'zh_Hant' ? '您未在規定時間內選擇幹員，請重新執行指令。' : '您未在规定时间内选择干员，请重新执行指令。')
+                    .setTitle(timeoutTitle)
+                    .setDescription(timeoutDesc)
                     .setTimestamp();
                 await interaction.editReply({
                     embeds: [timeoutEmbed],
                     components: []
                 }).catch(() => {});
+                return;
             }
+            
+            // 點選後立刻進入 defer 狀態，防止 Discord 出現 Interaction Failed 錯誤
+            await confirmation.deferUpdate();
+
+            const selectedName = confirmation.values[0];
+            const targetChar = chars.find(c => c.charData.name === selectedName);
+
+            if (!targetChar) {
+                throw new Error('Target character not found in user data');
+            }
+
+            // 開始 Canvas 1:1 渲染
+            const buffer = await renderCharacter(targetChar, lang);
+            const attachment = new AttachmentBuilder(buffer, { name: 'operator.png' });
+
+            let titleText = `${targetChar.charData.name} 的詳細配置`;
+            if (lang === 'en') {
+                titleText = `Detailed Loadout of ${targetChar.charData.name}`;
+            } else if (lang === 'zh_Hans') {
+                titleText = `${targetChar.charData.name} 的详细配置`;
+            } else if (lang === 'ja') {
+                titleText = `${targetChar.charData.name} の詳細配置`;
+            }
+
+            const embedResult = new EmbedBuilder()
+                .setColor(EMBED_COLOR)
+                .setTitle(titleText)
+                .setImage('attachment://operator.png')
+                .setTimestamp();
+
+            // 原地編輯訊息，移除下拉選單並附上圖片
+            await interaction.editReply({
+                embeds: [embedResult],
+                files: [attachment],
+                components: []
+            });
 
         } catch (error) {
             console.error('[char]', error);
