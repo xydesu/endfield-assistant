@@ -2,7 +2,8 @@ const { registerFont, createCanvas, loadImage } = require('canvas');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { toTraditional } = require('./toTraditional');
+const { toTraditional: toTraditionalOrig } = require('./toTraditional');
+const toTraditional = toTraditionalOrig;
 
 // 輔助函數：從網路下載檔案
 function downloadFile(url, dest) {
@@ -324,6 +325,36 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const height = 1200;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
+
+    // 動態切換字型族，適配官服簡體中文 (zh_Hans) 與日文 (ja) 等
+    const fontMap = {
+        'zh_Hant': 'Noto Sans TC',
+        'zh_Hans': 'Noto Sans SC',
+        'ja': 'Noto Sans JP',
+        'en': 'Noto Sans TC'
+    };
+    const fontFamily = fontMap[lang] || 'Noto Sans TC';
+
+    if (fontFamily !== 'Noto Sans TC') {
+        const proto = Object.getPrototypeOf(ctx);
+        const desc = Object.getOwnPropertyDescriptor(proto, 'font');
+        if (desc && desc.set) {
+            Object.defineProperty(ctx, 'font', {
+                get() {
+                    return desc.get.call(ctx);
+                },
+                set(val) {
+                    const newVal = val.replace(/'Noto Sans TC'/g, `'${fontFamily}'`).replace(/"Noto Sans TC"/g, `"${fontFamily}"`);
+                    desc.set.call(ctx, newVal);
+                },
+                configurable: true,
+                enumerable: true
+            });
+        }
+    }
+
+    // 建立局部 toTraditional 覆寫，當語言為簡體中文時保留原文字串，避免官服數據被強制轉繁體
+    const toTraditional = (str) => (lang === 'zh_Hans' ? str : toTraditionalOrig(str));
 
     // 2. 使用傳入的 charData 數據
     const data = charData;
