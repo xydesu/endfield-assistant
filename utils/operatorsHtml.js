@@ -10,6 +10,8 @@ const GAP = 8;
 const PADDING = 16;
 
 const SERVER_ID_TO_NAME = {
+    '1': 'China Mainland',
+    '57': 'China-tmp',
     '2': 'Asia',
     '3': 'Americas/Europe',
 };

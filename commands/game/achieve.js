@@ -55,6 +55,8 @@ const CERTIFY_BADGE_URL = 'https://static.skport.com/skport-fe-static/skport-gam
 const MEDAL_CARD_BG_URL = 'https://static.skport.com/skport-fe-static/skport-game-tools/images/medalCardBg.547da7.png';
 
 const SERVER_ID_TO_NAME = {
+    '1': 'China Mainland',
+    '57': 'China-tmp',
     '2': 'Asia',
     '3': 'Americas/Europe',
 };
@@ -432,13 +434,8 @@ module.exports = {
             await interaction.editReply({ embeds: [embed], files: [attachment] });
 
         } catch (error) {
-            console.error('[achieve]', error);
-            const embed = new EmbedBuilder()
-                .setColor(EMBED_COLOR)
-                .setTitle(t(lang, 'error_title'))
-                .setDescription(t(lang, 'error_query'))
-                .setTimestamp();
-            await interaction.editReply({ embeds: [embed] });
+            const { replyWithError } = require('../../utils/errorHelper');
+            await replyWithError(interaction, error, lang);
         }
     },
 };

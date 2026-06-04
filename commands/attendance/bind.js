@@ -11,6 +11,12 @@ const PENDING_TTL_MS = 10 * 60 * 1000;
 
 // Fallback: map server display name → numeric server ID
 const SERVER_NAME_TO_ID = {
+    'china mainland': '1',
+    'official': '1',
+    'official server': '1',
+    '官服': '1',
+    '國服': '1',
+    '国服': '1',
     'asia': '2',
     'americas / europe': '3',
     'americas/europe': '3',
@@ -215,12 +221,17 @@ module.exports = {
             }
 
             try {
-                await User.upsert({
+                const upsertData = {
                     discordId: userId,
                     cred: pending.encryptedCred,
                     uid: roleId,
                     serverId: serverId,
-                });
+                };
+                // 官服強制綁定簡體中文
+                if (serverId === '1' || serverId === '57') {
+                    upsertData.language = 'zh_Hans';
+                }
+                await User.upsert(upsertData);
                 pendingCredentials.delete(userId);
 
                 const embed = new EmbedBuilder()
@@ -230,13 +241,8 @@ module.exports = {
                     .setTimestamp();
                 await interaction.update({ embeds: [embed], components: [] });
             } catch (error) {
-                console.error(error);
-                const embed = new EmbedBuilder()
-                    .setColor(EMBED_COLOR)
-                    .setTitle(t(lang, 'bind_fail_title'))
-                    .setDescription(t(lang, 'db_error'))
-                    .setTimestamp();
-                await interaction.update({ embeds: [embed], components: [] });
+                const { replyWithError } = require('../../utils/errorHelper');
+                await replyWithError(interaction, error, lang);
             }
         }
     }

@@ -52,6 +52,7 @@ module.exports = {
     language_set_desc: (lang) => `言語を **${lang}** に設定しました。`,
     language_fail_title: '❌ 設定失敗',
     language_not_bound: 'アカウントがバインドされていません。まず `/bind` でバインドしてから言語を設定してください。',
+    language_cn_forced: '中国大陸の官服アカウントの言語は簡体字中国語に固定されており、変更できません。',
 
     // ─── profile ──────────────────────────────────────────────────────────────
     profile_title: (name) => `👤 ${name} のプロフィール`,
@@ -131,7 +132,7 @@ module.exports = {
     bind_script_label: 'スクリプト',
     bind_step4_label: 'ステップ 4',
     bind_step5_label: 'ステップ 5',
-    bind_step1: 'PCブラウザで [Hypergryphサイト](https://www.skport.com) を開き、ログインしてください。',
+    bind_step1: 'PCブラウザで [Hypergryph官服サイト](https://www.skland.com)（中国大陸服）または [Hypergryph国際服サイト](https://www.skport.com)（グローバル服）を開き、ログインしてください。',
     bind_step2: '`F12` を押して開発者ツールを開き、`Console` タブに切り替えてください。',
     bind_step3: '以下のコマンドをコピーして Console に貼り付けて実行してください：',
     bind_step4: '実行後、Console に `cred` の値が表示されます。それをコピーしてください。',

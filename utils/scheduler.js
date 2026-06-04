@@ -17,6 +17,13 @@ async function runSignIn(userId, client) {
     const lang = user.language || 'zh_Hant';
 
     console.log(`[Scheduler] Running auto sign-in for ${user.discordId}`);
+
+    // 開發測試模式防風控：如果 SKIP_AUTO_SIGNIN 設為 true 則不真正調用 API 簽到
+    if (process.env.SKIP_AUTO_SIGNIN === 'true') {
+        console.log(`[Scheduler] [Dev Mode] Skipped actual sign-in request for ${user.discordId}`);
+        return;
+    }
+
     const result = await signIn(user);
 
     // Notify user via DM - DISABLED per user request (Only guild channel)
@@ -221,14 +228,17 @@ async function initScheduler(client) {
     console.log('[Scheduler] Stamina check scheduled every 30 minutes.');
 
     // Reset dailyNotified at each server's daily reset time (04:00 server time):
-    // Asia (UTC+8): 04:00 UTC+8 = 20:00 UTC
-    // Americas/Europe (UTC-5): 04:00 UTC-5 = 09:00 UTC
-    const asiaResetRule = new schedule.RecurrenceRule();
-    asiaResetRule.hour = 20;
-    asiaResetRule.minute = 0;
-    asiaResetRule.tz = 'UTC';
-    schedule.scheduleJob(asiaResetRule, () => resetDailyNotified(ASIA_SERVER_ID));
-    console.log('[DailyNotify] Asia daily reset job scheduled at 20:00 UTC.');
+    // Asia (UTC+8) & China Mainland (UTC+8): 04:00 UTC+8 = 20:00 UTC
+    const cnAsiaResetRule = new schedule.RecurrenceRule();
+    cnAsiaResetRule.hour = 20;
+    cnAsiaResetRule.minute = 0;
+    cnAsiaResetRule.tz = 'UTC';
+    schedule.scheduleJob(cnAsiaResetRule, () => {
+        resetDailyNotified('1');
+        resetDailyNotified('2');
+        resetDailyNotified('57');
+    });
+    console.log('[DailyNotify] China/Asia daily reset job scheduled at 20:00 UTC.');
 
     const ameResetRule = new schedule.RecurrenceRule();
     ameResetRule.hour = 9;

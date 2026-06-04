@@ -34,6 +34,16 @@ module.exports = {
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
 
+            // 官服強制鎖定為簡體中文
+            if ((user.serverId === '1' || user.serverId === '57') && lang !== 'zh_Hans') {
+                const embed = new EmbedBuilder()
+                    .setColor(EMBED_COLOR)
+                    .setTitle(t(lang, 'error_title'))
+                    .setDescription(t(lang, 'language_cn_forced'))
+                    .setTimestamp();
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+
             await user.update({ language: lang });
 
             const embed = new EmbedBuilder()
@@ -43,13 +53,8 @@ module.exports = {
                 .setTimestamp();
             await interaction.reply({ embeds: [embed], ephemeral: true });
         } catch (error) {
-            console.error(error);
-            const embed = new EmbedBuilder()
-                .setColor(EMBED_COLOR)
-                .setTitle(t(lang, 'language_fail_title'))
-                .setDescription(t(lang, 'db_error'))
-                .setTimestamp();
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            const { replyWithError } = require('../../utils/errorHelper');
+            await replyWithError(interaction, error, lang);
         }
     },
 };
