@@ -254,4 +254,11 @@ module.exports = {
     welcome_admin_title: '⚙️ 管理者設定のヒント',
     welcome_admin_desc: 'サーバーメンバーのデイリーログイン結果や通知を受け取るには、管理者が `/set-notify-channel` コマンドを使用して専用の通知チャンネルを設定できます。',
     welcome_links_title: '🔗 関連リンク',
+    
+    // ─── crisis ───────────────────────────────────────────────────────────────
+    crisis_no_activity_title: 'ℹ️ 契約イベントなし',
+    crisis_no_activity_desc: '現在進行中の危機契約はありません。',
+    crisis_no_record_title: 'ℹ️ 記録なし',
+    crisis_no_record_desc: '現在、危機契約の挑戦記録はありません。',
+    crisis_embed_title: (name) => `📊 ${name} 作戦記録`,
 };

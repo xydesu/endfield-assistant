@@ -254,4 +254,11 @@ module.exports = {
     welcome_admin_title: '⚙️ 管理员设置提示',
     welcome_admin_desc: '若要接收服务器成员的每日签到结果与提醒，管理员可以使用 `/set-notify-channel` 指令来设定专用的通知频道。',
     welcome_links_title: '🔗 实用链接',
+    
+    // ─── crisis ───────────────────────────────────────────────────────────────
+    crisis_no_activity_title: 'ℹ️ 无合约活动',
+    crisis_no_activity_desc: '目前没有进行中的危机合约。',
+    crisis_no_record_title: 'ℹ️ 无纪录',
+    crisis_no_record_desc: '您目前尚未有危机合约的挑战纪录。',
+    crisis_embed_title: (name) => `📊 ${name} 作战记录`,
 };

@@ -254,4 +254,11 @@ module.exports = {
     welcome_admin_title: '⚙️ Server Admin Tips',
     welcome_admin_desc: 'To receive daily sign-in reports and reminders, administrators can use the `/set-notify-channel` command to configure a dedicated notification channel.',
     welcome_links_title: '🔗 Useful Links',
+    
+    // ─── crisis ───────────────────────────────────────────────────────────────
+    crisis_no_activity_title: 'ℹ️ No Contract Event',
+    crisis_no_activity_desc: 'There is currently no ongoing Crisis Contract.',
+    crisis_no_record_title: 'ℹ️ No Record',
+    crisis_no_record_desc: 'You do not have any Crisis Contract challenge records yet.',
+    crisis_embed_title: (name) => `📊 ${name} Battle Record`,
 };

@@ -504,4 +504,64 @@ async function getBindingList(rawCred) {
     return allRoles;
 }
 
-module.exports = { signIn, buildAttendanceEmbed, getCardDetail, getIndieHardDetail, getBindingList };
+async function getCrisisSummary(user, contractId) {
+    const lang = user.language || 'zh_Hant';
+    try {
+        let token = '';
+        try {
+            token = await refreshSignToken(user);
+        } catch (e) {
+            console.error(`[${user.uid}] Token refresh failed for crisis summary: ${e.message}`);
+        }
+
+        const result = await request('GET', '/api/v1/game/endfield/card/crisis-contract', user,
+            { roleId: user.uid, serverId: user.serverId, userId: '', contractId: contractId }, token);
+
+        if (result.code === 0 && result.data) {
+            return { success: true, data: result.data };
+        } else {
+            return { success: false, message: t(lang, 'attendance_api_error')(result.message ?? JSON.stringify(result).substring(0, 200)) };
+        }
+    } catch (error) {
+        let errorMsg = error.message;
+        if (!errorMsg && error.body) {
+            errorMsg = `Status ${error.statusCode}: ${error.body}`;
+        } else if (!errorMsg) {
+            errorMsg = JSON.stringify(error);
+        }
+        console.error(`[getCrisisSummary] uid=${user.uid}`, error);
+        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 500)) };
+    }
+}
+
+async function getCrisisDetail(user, recordId, contractId) {
+    const lang = user.language || 'zh_Hant';
+    try {
+        let token = '';
+        try {
+            token = await refreshSignToken(user);
+        } catch (e) {
+            console.error(`[${user.uid}] Token refresh failed for crisis detail: ${e.message}`);
+        }
+
+        const result = await request('GET', '/api/v1/game/endfield/card/crisis-contract/record', user,
+            { roleId: user.uid, serverId: user.serverId, userId: '', contractId: contractId, recordId: recordId }, token);
+
+        if (result.code === 0 && result.data) {
+            return { success: true, data: result.data };
+        } else {
+            return { success: false, message: t(lang, 'attendance_api_error')(result.message ?? JSON.stringify(result).substring(0, 200)) };
+        }
+    } catch (error) {
+        let errorMsg = error.message;
+        if (!errorMsg && error.body) {
+            errorMsg = `Status ${error.statusCode}: ${error.body}`;
+        } else if (!errorMsg) {
+            errorMsg = JSON.stringify(error);
+        }
+        console.error(`[getCrisisDetail] uid=${user.uid}`, error);
+        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 500)) };
+    }
+}
+
+module.exports = { signIn, buildAttendanceEmbed, getCardDetail, getIndieHardDetail, getBindingList, getCrisisSummary, getCrisisDetail };

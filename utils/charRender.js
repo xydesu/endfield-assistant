@@ -403,6 +403,13 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const potentialLevel = data.potentialLevel || 0;
     pathsToLoad.push(`assets/images/character/evolve_${evolvePhase}.png`);
     pathsToLoad.push(`assets/images/character/potential_${potentialLevel}.png`);
+    // 載入備用技能圖示以防載入失敗
+    pathsToLoad.push('assets/images/character/potential_1.png');
+    // 載入武器精煉等級對應的潛能圖示
+    if (data.weapon) {
+        const refineLevel = data.weapon.refineLevel || 0;
+        pathsToLoad.push(`assets/images/character/potential_${refineLevel}.png`);
+    }
 
     // 動態收集並非同步解析 URL 資源
     const urlsToResolve = [];

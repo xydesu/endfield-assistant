@@ -254,4 +254,11 @@ module.exports = {
     welcome_admin_title: '⚙️ 管理員設定提示',
     welcome_admin_desc: '若要接收伺服器成員的每日簽到結果與提醒，管理員可以使用 `/set-notify-channel` 指令來設定專用的通知頻道。',
     welcome_links_title: '🔗 實用連結',
+    
+    // ─── crisis ───────────────────────────────────────────────────────────────
+    crisis_no_activity_title: 'ℹ️ 無合約活動',
+    crisis_no_activity_desc: '目前沒有進行中的危機合約。',
+    crisis_no_record_title: 'ℹ️ 無紀錄',
+    crisis_no_record_desc: '您目前尚未有危機合約的挑戰紀錄。',
+    crisis_embed_title: (name) => `📊 ${name} 作戰紀錄`,
 };

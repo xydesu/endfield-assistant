@@ -229,13 +229,13 @@ async function generateProfileImage(detail, user, lang) {
     drawPolygon(ctx, [{ x: 40, y: 360 }, { x: 320, y: 360 }, { x: 320, y: 560 }, { x: 280, y: 560 }, { x: 40, y: 560 }], colors.panelBg, colors.border, 2);
     drawDecoratedTitle(ctx, lang, getText(lang, 'img_realtime_info', '即時資訊'), 60, 390, 13, 22, colors.textMain, colors.bracketLight);
 
-    const curStamina = parseInt(dungeon.curStamina) || 0;
-    const maxStamina = parseInt(dungeon.maxStamina) || 0;
+    const curStamina = dungeon ? (parseInt(dungeon.curStamina) || 0) : 0;
+    const maxStamina = dungeon ? (parseInt(dungeon.maxStamina) || 0) : 0;
     drawText(ctx, lang, `${curStamina}`, 60, 440, 64, colors.textMain, 'left', 'bold');
     drawText(ctx, lang, `/ ${maxStamina}`, 180, 450, 18, colors.textSub);
 
     let recoveryText = getText(lang, 'img_stamina_maxed', '已達上限');
-    if (curStamina < maxStamina && dungeon.maxTs) {
+    if (curStamina < maxStamina && dungeon && dungeon.maxTs) {
         const secondsLeft = parseInt(dungeon.maxTs) - Math.floor(Date.now() / 1000);
         if (secondsLeft > 0) {
             const h = Math.floor(secondsLeft / 3600);
