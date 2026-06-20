@@ -1128,7 +1128,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
 
     // 潛能圖示
     // 動態載入潛能圖示
-    const potIcon = getImage(`images/character/potential_${data.potentialLevel || 0}.png`);
+    const potIcon = getImage(`images/character/potential_${data.weapon?.refineLevel || 0}.png`);
     if (potIcon) {
         ctx.drawImage(potIcon, wpnX + 182, wpnY + 45, 51, 51);
     }
