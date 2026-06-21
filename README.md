@@ -99,6 +99,16 @@ Create your `.env` file in the same directory as described in the [Environment V
 docker-compose up -d
 ```
 
+### Synology NAS Installation
+
+If you are using a Synology NAS running DSM 7.2 or later:
+1. Open **Container Manager**.
+2. Go to **Project** on the left panel, then click **Create**.
+3. Set a project name (e.g., `endfield-assistant`) and set the path to a folder (e.g., `/docker/endfield-assistant`).
+4. Manually create a `.env` file in that folder and fill in the [Environment Variables](#environment-variables).
+5. For the Source, select **Create docker-compose.yml**, and paste the YAML configuration from the Docker section above.
+6. Click Next and build the project. The system will pull the image and start the bot.
+
 ### Manual Installation
 
 ```bash

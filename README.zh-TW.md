@@ -97,6 +97,16 @@ services:
 docker-compose up -d
 ```
 
+### 群暉 NAS (Synology NAS) 安裝指南
+
+如果您使用的是群暉 NAS（俗稱白裙或黑裙），且系統版本為 DSM 7.2 或以上：
+1. 開啟 **Container Manager**。
+2. 點擊左側的 **專案 (Project)**，接著點擊 **新增 (Create)**。
+3. 設定專案名稱（例如 `endfield-assistant`）並選擇或建立一個儲存路徑（例如 `/docker/endfield-assistant`）。
+4. 在該路徑下，先手動建立一個 `.env` 檔案並填寫[環境變數](#環境變數)。
+5. 來源選擇 **建立 docker-compose.yml (Create docker-compose.yml)**，然後將上方的 `docker-compose.yml` 內容貼入文字框中。
+6. 完成設定並啟動專案，系統將會自動拉取映像檔並啟動機器人。
+
 ### 手動安裝
 
 ```bash
