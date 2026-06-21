@@ -75,13 +75,25 @@ To add the hosted bot to your server, use the invite link below — no self-host
 
 ### Docker Installation (Recommended)
 
-```bash
-# Clone the repository
-git clone https://github.com/xydesu/endfield-assistant.git
-cd endfield-assistant
+You don't need to clone the repository to run the bot with Docker. Just create a new directory and add this `docker-compose.yml` file:
+
+```yaml
+version: '3.8'
+
+services:
+  endfield-bot:
+    image: ghcr.io/xydesu/endfield-assistant:main
+    container_name: endfield-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./assets:/app/assets
+      - ./locales:/app/locales
+      - ./database:/app/database
 ```
 
-Create your `.env` file as described in the [Environment Variables](#environment-variables) section, then start the bot:
+Create your `.env` file in the same directory as described in the [Environment Variables](#environment-variables) section, then start the bot:
 
 ```bash
 docker-compose up -d
