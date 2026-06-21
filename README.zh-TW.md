@@ -67,10 +67,25 @@
 
 ### 前置需求
 
-- [Node.js](https://nodejs.org/) v18 或更新版本
+- [Node.js](https://nodejs.org/) v18 或更新版本（用於手動安裝）
+- [Docker](https://www.docker.com/) 及 Docker Compose（用於 Docker 安裝）
 - Discord 機器人 Token（[Discord 開發者入口](https://discord.com/developers/applications)）
 
-### 安裝
+### Docker 安裝（推薦）
+
+```bash
+# 複製儲存庫
+git clone https://github.com/xydesu/endfield-assistant.git
+cd endfield-assistant
+```
+
+請參考 [環境變數](#環境變數) 章節建立 `.env` 檔案，接著啟動機器人：
+
+```bash
+docker-compose up -d
+```
+
+### 手動安裝
 
 ```bash
 # 複製儲存庫

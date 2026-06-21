@@ -69,10 +69,25 @@ To add the hosted bot to your server, use the invite link below — no self-host
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) v18 or later
+- [Node.js](https://nodejs.org/) v18 or later (for manual installation)
+- [Docker](https://www.docker.com/) and Docker Compose (for Docker installation)
 - A Discord bot token ([Discord Developer Portal](https://discord.com/developers/applications))
 
-### Installation
+### Docker Installation (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/xydesu/endfield-assistant.git
+cd endfield-assistant
+```
+
+Create your `.env` file as described in the [Environment Variables](#environment-variables) section, then start the bot:
+
+```bash
+docker-compose up -d
+```
+
+### Manual Installation
 
 ```bash
 # Clone the repository
