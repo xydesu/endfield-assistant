@@ -67,10 +67,37 @@
 
 ### 前置需求
 
-- [Node.js](https://nodejs.org/) v18 或更新版本
+- [Node.js](https://nodejs.org/) v18 或更新版本（用於手動安裝）
+- [Docker](https://www.docker.com/) 及 Docker Compose（用於 Docker 安裝）
 - Discord 機器人 Token（[Discord 開發者入口](https://discord.com/developers/applications)）
 
-### 安裝
+### Docker 安裝（推薦）
+
+您不需要複製整個儲存庫即可使用 Docker 執行機器人。只需建立一個新資料夾，並在其中新增 `docker-compose.yml` 檔案：
+
+```yaml
+version: '3.8'
+
+services:
+  endfield-bot:
+    image: ghcr.io/xydesu/endfield-assistant:main
+    container_name: endfield-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./assets:/app/assets
+      - ./locales:/app/locales
+      - ./database:/app/database
+```
+
+請在同一個資料夾中參考 [環境變數](#環境變數) 章節建立 `.env` 檔案，接著啟動機器人：
+
+```bash
+docker-compose up -d
+```
+
+### 手動安裝
 
 ```bash
 # 複製儲存庫

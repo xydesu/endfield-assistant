@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  endfield-bot:
+    build: .
+    container_name: endfield-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # 將資源與語系目錄掛載出來，方便外部修改與持久化
+      - ./assets:/app/assets
+      - ./locales:/app/locales
+      # 將資料庫目錄掛載出來，確保 SQLite 資料庫檔案重啟不遺失
+      - ./database:/app/database
