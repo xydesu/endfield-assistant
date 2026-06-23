@@ -161,6 +161,15 @@ SQLITE_STORAGE=./database/database.sqlite
 
 > **Security note:** Never commit your `.env` file. Keep your `ENCRYPTION_KEY` secret and back it up — losing it will prevent existing credentials from being decrypted.
 
+### Database Migration
+
+If you are migrating from a local execution to Docker/NAS, you can carry over your existing SQLite database:
+1. Ensure the `ENCRYPTION_KEY` in your new `.env` file exactly matches your old one.
+2. Copy your existing `database/database.sqlite` file into the new environment.
+   - **Docker**: Place it in the `./database/` folder in the same directory as your `docker-compose.yml`.
+   - **Synology NAS**: Upload it to your mapped database folder (e.g., `/docker/endfield-assistant/database/`) using File Station.
+3. Restart the container. Your data and scheduled jobs will be restored automatically.
+
 ### Deploy Slash Commands
 
 ```bash

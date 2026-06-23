@@ -159,6 +159,15 @@ SQLITE_STORAGE=./database/database.sqlite
 
 > **安全性提醒：** 請勿將 `.env` 檔案提交至版本控制。請妥善保管你的 `ENCRYPTION_KEY`——若遺失，將無法解密已儲存的憑證。
 
+### 資料庫遷移 (舊環境轉移)
+
+如果您準備從本地端手動執行轉移至 Docker 或 NAS，您可以將現有的 SQLite 資料庫無縫遷移：
+1. 請確認新環境 `.env` 檔案中的 `ENCRYPTION_KEY` 與舊環境**完全一致**。
+2. 將舊環境中的 `database/database.sqlite` 檔案複製到新環境：
+   - **Docker**：將檔案放入與 `docker-compose.yml` 同一層的 `./database/` 資料夾內。
+   - **群暉 NAS**：透過 File Station 將檔案上傳到您掛載的資料夾（例如 `/docker/endfield-assistant/database/`）。
+3. 重新啟動容器，機器人會自動讀取所有舊有的綁定與排程資料。
+
 ### 部署斜線指令
 
 ```bash
