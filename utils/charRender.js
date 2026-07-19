@@ -1172,8 +1172,8 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const centerY = wpnIconBoxY + 24; // 垂直中心 Y 座標 (48/2 = 24)
     
     // 優先加載對應的武器類型圖標，fallback 使用單手劍圖標
-    const wpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
-    const swordIcon = getImage(`images/weapon/${wpnTypeKey}.png`, 'images/weapon/weapon_type_sword.png');
+    const renderWpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
+    const swordIcon = getImage(`images/weapon/${renderWpnTypeKey}.png`, 'images/weapon/weapon_type_sword.png');
     if (swordIcon) {
         ctx.drawImage(swordIcon, wpnIconBoxX, wpnIconBoxY, 48, 48);
     }
