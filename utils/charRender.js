@@ -476,10 +476,9 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     }
 
     // 8. 武器類型圖標
-    if (data.weapon && data.weapon.weaponData && data.weapon.weaponData.type) {
-        const wpnTypeKey = data.weapon.weaponData.type.key || 'weapon_type_sword';
-        pathsToLoad.push(`assets/images/weapon/${wpnTypeKey}.png`);
-    }
+    const wpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
+    pathsToLoad.push(`assets/images/weapon/${wpnTypeKey}.png`);
+    pathsToLoad.push('assets/images/weapon/weapon_type_sword.png'); // 總是載入 fallback
 
     // 併發載入所有唯一的圖片路徑
     const uniquePaths = Array.from(new Set(pathsToLoad));
@@ -1173,7 +1172,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const centerY = wpnIconBoxY + 24; // 垂直中心 Y 座標 (48/2 = 24)
     
     // 優先加載對應的武器類型圖標，fallback 使用單手劍圖標
-    const wpnTypeKey = data.weapon.weaponData.type.key || 'weapon_type_sword';
+    const wpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
     const swordIcon = getImage(`images/weapon/${wpnTypeKey}.png`, 'images/weapon/weapon_type_sword.png');
     if (swordIcon) {
         ctx.drawImage(swordIcon, wpnIconBoxX, wpnIconBoxY, 48, 48);
