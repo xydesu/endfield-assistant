@@ -1204,24 +1204,26 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     ctx.stroke();
     ctx.closePath();
 
-    const gemBaseRel = `images/gem/item_gem_rarity_${data.weapon.gem.gemData.rarity || 5}.png`;
-    const gemBase = getImage(gemBaseRel);
-    if (gemBase) {
-        ctx.drawImage(gemBase, gemSlotX + 16, gemSlotY + 16, 80, 80);
-    }
+    if (data.weapon?.gem?.gemData) {
+        const gemBaseRel = `images/gem/item_gem_rarity_${data.weapon.gem.gemData.rarity || 5}.png`;
+        const gemBase = getImage(gemBaseRel);
+        if (gemBase) {
+            ctx.drawImage(gemBase, gemSlotX + 16, gemSlotY + 16, 80, 80);
+        }
 
-    const gemCoreRel = await resolveImagePath(data.weapon.gem.gemData.icon);
-    const gemCore = getImage(gemCoreRel);
-    if (gemCore) {
-        ctx.drawImage(gemCore, gemSlotX + 16, gemSlotY + 16, 80, 80);
-    }
+        const gemCoreRel = await resolveImagePath(data.weapon.gem.gemData.icon);
+        const gemCore = getImage(gemCoreRel);
+        if (gemCore) {
+            ctx.drawImage(gemCore, gemSlotX + 16, gemSlotY + 16, 80, 80);
+        }
 
-    const gemName = toTraditional(data.weapon.gem.gemData.name || "無瑕基質·夜幕");
-    ctx.fillStyle = '#888888';
-    ctx.font = "normal 12px 'Noto Sans TC'";
-    ctx.textAlign = 'center';
-    ctx.fillText(gemName, gemSlotX + 56, gemSlotY + 128);
-    ctx.textAlign = 'left';
+        const gemName = toTraditional(data.weapon.gem.gemData.name || "無瑕基質·夜幕");
+        ctx.fillStyle = '#888888';
+        ctx.font = "normal 12px 'Noto Sans TC'";
+        ctx.textAlign = 'center';
+        ctx.fillText(gemName, gemSlotX + 56, gemSlotY + 128);
+        ctx.textAlign = 'left';
+    }
 
     // ==========================================
     // E. 右側裝備與道具卡片區 (WRhpT, x: 1328, y: 678, w: 496, h: 472)
