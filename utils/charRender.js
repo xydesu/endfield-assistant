@@ -1248,41 +1248,41 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     // 裝備卡片數據
     const equipsData = [
         {
-            name: toTraditional(data.bodyEquip.equipData.name),
-            lvl: data.bodyEquip.equipData.level.value,
-            img: await resolveImagePath(data.bodyEquip.equipData.iconUrl),
-            suit: data.bodyEquip.equipData.suit ? toTraditional(data.bodyEquip.equipData.suit.name) : null,
+            name: data.bodyEquip?.equipData?.name ? toTraditional(data.bodyEquip.equipData.name) : "尚未裝備",
+            lvl: data.bodyEquip?.equipData?.level?.value || 0,
+            img: data.bodyEquip?.equipData?.iconUrl ? await resolveImagePath(data.bodyEquip.equipData.iconUrl) : null,
+            suit: data.bodyEquip?.equipData?.suit?.name ? toTraditional(data.bodyEquip.equipData.suit.name) : null,
             icon: "shirt",
             iconImg: "images/equipment/bodyEquip.png"
         },
         {
-            name: toTraditional(data.armEquip.equipData.name),
-            lvl: data.armEquip.equipData.level.value,
-            img: await resolveImagePath(data.armEquip.equipData.iconUrl),
-            suit: data.armEquip.equipData.suit ? toTraditional(data.armEquip.equipData.suit.name) : null,
+            name: data.armEquip?.equipData?.name ? toTraditional(data.armEquip.equipData.name) : "尚未裝備",
+            lvl: data.armEquip?.equipData?.level?.value || 0,
+            img: data.armEquip?.equipData?.iconUrl ? await resolveImagePath(data.armEquip.equipData.iconUrl) : null,
+            suit: data.armEquip?.equipData?.suit?.name ? toTraditional(data.armEquip.equipData.suit.name) : null,
             icon: "hand",
             iconImg: "images/equipment/armEquip.png"
         },
         {
-            name: toTraditional(data.firstAccessory.equipData.name),
-            lvl: data.firstAccessory.equipData.level.value,
-            img: await resolveImagePath(data.firstAccessory.equipData.iconUrl),
-            suit: data.firstAccessory.equipData.suit ? toTraditional(data.firstAccessory.equipData.suit.name) : null,
+            name: data.firstAccessory?.equipData?.name ? toTraditional(data.firstAccessory.equipData.name) : "尚未裝備",
+            lvl: data.firstAccessory?.equipData?.level?.value || 0,
+            img: data.firstAccessory?.equipData?.iconUrl ? await resolveImagePath(data.firstAccessory.equipData.iconUrl) : null,
+            suit: data.firstAccessory?.equipData?.suit?.name ? toTraditional(data.firstAccessory.equipData.suit.name) : null,
             icon: "eye",
             iconImg: "images/equipment/firstAccessory.png"
         },
         {
-            name: toTraditional(data.secondAccessory.equipData.name),
-            lvl: data.secondAccessory.equipData.level.value,
-            img: await resolveImagePath(data.secondAccessory.equipData.iconUrl),
-            suit: data.secondAccessory.equipData.suit ? toTraditional(data.secondAccessory.equipData.suit.name) : null,
+            name: data.secondAccessory?.equipData?.name ? toTraditional(data.secondAccessory.equipData.name) : "尚未裝備",
+            lvl: data.secondAccessory?.equipData?.level?.value || 0,
+            img: data.secondAccessory?.equipData?.iconUrl ? await resolveImagePath(data.secondAccessory.equipData.iconUrl) : null,
+            suit: data.secondAccessory?.equipData?.suit?.name ? toTraditional(data.secondAccessory.equipData.suit.name) : null,
             icon: "eye",
             iconImg: "images/equipment/secondAccessory.png"
         },
         {
-            name: toTraditional(data.tacticalItem.tacticalItemData.name),
+            name: data.tacticalItem?.tacticalItemData?.name ? toTraditional(data.tacticalItem.tacticalItemData.name) : "尚未裝備",
             lvl: "MAX",
-            img: await resolveImagePath(data.tacticalItem.tacticalItemData.iconUrl),
+            img: data.tacticalItem?.tacticalItemData?.iconUrl ? await resolveImagePath(data.tacticalItem.tacticalItemData.iconUrl) : null,
             suit: null,
             icon: null,
             iconImg: "images/equipment/tacticalItem.png"
