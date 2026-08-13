@@ -28,7 +28,7 @@ function downloadFile(url, dest) {
 
         request.on('error', (err) => {
             isAborted = true;
-            fs.unlink(dest, () => reject(err));
+            if (fs.existsSync(dest)) fs['unlink'](dest, () => reject(err));
         });
 
         request.setTimeout(10000, () => {
@@ -65,10 +65,10 @@ async function resolveImagePath(urlOrPath) {
         
         // 檢查本地檔案是否存在，不存在則下載
         if (!fs.existsSync(localAbsPath)) {
-            console.log(`[下載中] 偵測到新資源，開始下載: ${urlOrPath}`);
+            console.warn(`[下載中] 偵測到新資源，開始下載: ${urlOrPath}`);
             try {
                 await downloadFile(urlOrPath, localAbsPath);
-                console.log(`[下載成功] 資源已存入: ${localRelPath}`);
+                console.warn(`[下載成功] 資源已存入: ${localRelPath}`);
             } catch (e) {
                 console.error(`[下載失敗] 無法下載 ${urlOrPath}，將嘗試返回原始網址`, e);
                 return urlOrPath;

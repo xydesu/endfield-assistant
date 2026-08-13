@@ -16,11 +16,11 @@ async function runSignIn(userId, client) {
     if (!user) return;
     const lang = user.language || 'zh_Hant';
 
-    console.log(`[Scheduler] Running auto sign-in for ${user.discordId}`);
+    console.warn(`[Scheduler] Running auto sign-in for ${user.discordId}`);
 
     // 開發測試模式防風控：如果 SKIP_AUTO_SIGNIN 設為 true 則不真正調用 API 簽到
     if (process.env.SKIP_AUTO_SIGNIN === 'true') {
-        console.log(`[Scheduler] [Dev Mode] Skipped actual sign-in request for ${user.discordId}`);
+        console.warn(`[Scheduler] [Dev Mode] Skipped actual sign-in request for ${user.discordId}`);
         return;
     }
 
@@ -93,14 +93,14 @@ function scheduleUser(user, client) {
 
     const job = schedule.scheduleJob(rule, () => runSignIn(user.discordId, client));
     jobs.set(user.discordId, job);
-    console.log(`[Scheduler] Scheduled job for ${user.discordId} at ${user.autoSignTime}`);
+    console.warn(`[Scheduler] Scheduled job for ${user.discordId} at ${user.autoSignTime}`);
 }
 
 function cancelUser(userId) {
     if (jobs.has(userId)) {
         jobs.get(userId).cancel();
         jobs.delete(userId);
-        console.log(`[Scheduler] Cancelled job for ${userId}`);
+        console.warn(`[Scheduler] Cancelled job for ${userId}`);
     }
 }
 
@@ -121,7 +121,7 @@ async function checkAndSendDailyNotification(userId, client) {
 
         await sendDailyNotification(user, dailyMission.dailyActivation, dailyMission.maxDailyActivation, client);
         await user.update({ dailyNotified: true });
-        console.log(`[DailyNotify] Notified ${userId} (${dailyMission.dailyActivation}/${dailyMission.maxDailyActivation})`);
+        console.warn(`[DailyNotify] Notified ${userId} (${dailyMission.dailyActivation}/${dailyMission.maxDailyActivation})`);
     } catch (e) {
         console.error(`[DailyNotify] Error checking daily mission for ${userId}:`, e);
     }
@@ -186,14 +186,14 @@ function scheduleDailyNotifyUser(user, client) {
 
     const job = schedule.scheduleJob(rule, () => checkAndSendDailyNotification(user.discordId, client));
     dailyJobs.set(user.discordId, job);
-    console.log(`[DailyNotify] Scheduled notify job for ${user.discordId} at ${user.dailyNotifyTime} UTC`);
+    console.warn(`[DailyNotify] Scheduled notify job for ${user.discordId} at ${user.dailyNotifyTime} UTC`);
 }
 
 function cancelDailyNotifyUser(userId) {
     if (dailyJobs.has(userId)) {
         dailyJobs.get(userId).cancel();
         dailyJobs.delete(userId);
-        console.log(`[DailyNotify] Cancelled notify job for ${userId}`);
+        console.warn(`[DailyNotify] Cancelled notify job for ${userId}`);
     }
 }
 
@@ -203,7 +203,7 @@ async function resetDailyNotified(serverId) {
             { dailyNotified: false },
             { where: { dailyNotify: true, serverId, dailyNotified: true } }
         );
-        console.log(`[DailyNotify] Reset dailyNotified for server ${serverId}`);
+        console.warn(`[DailyNotify] Reset dailyNotified for server ${serverId}`);
     } catch (e) {
         console.error(`[DailyNotify] Error resetting dailyNotified for server ${serverId}:`, e);
     }
@@ -219,13 +219,13 @@ async function initScheduler(client) {
             scheduleDailyNotifyUser(user, client);
         }
     }
-    console.log(`[Scheduler] Initialized ${jobs.size} sign-in jobs and ${dailyJobs.size} daily notify jobs.`);
+    console.warn(`[Scheduler] Initialized ${jobs.size} sign-in jobs and ${dailyJobs.size} daily notify jobs.`);
 
     // Check stamina every 30 minutes (at :00 and :30 of each hour)
     const staminaRule = new schedule.RecurrenceRule();
     staminaRule.minute = [0, 30];
     schedule.scheduleJob(staminaRule, () => checkStamina(client));
-    console.log('[Scheduler] Stamina check scheduled every 30 minutes.');
+    console.warn('[Scheduler] Stamina check scheduled every 30 minutes.');
 
     // Reset dailyNotified at each server's daily reset time (04:00 server time):
     // Asia (UTC+8) & China Mainland (UTC+8): 04:00 UTC+8 = 20:00 UTC
@@ -238,14 +238,14 @@ async function initScheduler(client) {
         resetDailyNotified('2');
         resetDailyNotified('57');
     });
-    console.log('[DailyNotify] China/Asia daily reset job scheduled at 20:00 UTC.');
+    console.warn('[DailyNotify] China/Asia daily reset job scheduled at 20:00 UTC.');
 
     const ameResetRule = new schedule.RecurrenceRule();
     ameResetRule.hour = 9;
     ameResetRule.minute = 0;
     ameResetRule.tz = 'UTC';
     schedule.scheduleJob(ameResetRule, () => resetDailyNotified(AMERICAS_EUROPE_SERVER_ID));
-    console.log('[DailyNotify] Americas/Europe daily reset job scheduled at 09:00 UTC.');
+    console.warn('[DailyNotify] Americas/Europe daily reset job scheduled at 09:00 UTC.');
 }
 
 async function sendStaminaNotification(user, curStamina, maxStamina, client) {
@@ -308,7 +308,7 @@ async function checkStamina(client) {
             if (isNearFull && !user.staminaNotified) {
                 await sendStaminaNotification(user, curStamina, maxStamina, client);
                 await user.update({ staminaNotified: true });
-                console.log(`[Stamina] Notified ${user.discordId} (${curStamina}/${maxStamina})`);
+                console.warn(`[Stamina] Notified ${user.discordId} (${curStamina}/${maxStamina})`);
             } else if (!isNearFull && user.staminaNotified) {
                 // Stamina dropped below threshold — reset so the next peak triggers a new notification
                 await user.update({ staminaNotified: false });

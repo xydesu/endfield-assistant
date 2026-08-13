@@ -4,7 +4,7 @@ module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
-        console.log(`Ready! Logged in as ${client.user.tag}`);
+        console.warn(`Ready! Logged in as ${client.user.tag}`);
 
         client.user.setPresence({
             activities: [{
@@ -21,7 +21,7 @@ module.exports = {
 
             await User.sync();
             await Server.sync();
-            console.log('Database synced');
+            console.warn('Database synced');
 
             await scheduler.initScheduler(client);
         } catch (error) {
