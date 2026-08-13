@@ -33,7 +33,7 @@ try {
     registerLangFont('TC', 'Noto Sans TC');
     registerLangFont('SC', 'Noto Sans SC');
     registerLangFont('JP', 'Noto Sans JP');
-    console.log('[Canvas] ✅ 成功載入多語言 Noto Sans 字體');
+    console.warn('[Canvas] ✅ 成功載入多語言 Noto Sans 字體');
 } catch (error) {
     console.error('[Canvas] ⚠️ 載入字體時發生錯誤，將降級使用系統預設字體！', error.message);
 }

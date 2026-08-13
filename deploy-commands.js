@@ -16,12 +16,12 @@ for (const folder of commandFolders) {
         if ('data' in command && 'execute' in command) {
             commands.push(command.data.toJSON());
         } else {
-            console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+            console.warn(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
         }
     }
 }
 
-const rest = new REST().setToken(process.env.DISCORD_TOKEN);
+const rest = new REST().setToken(process.env.DISCORD_AUTH || process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
@@ -29,24 +29,24 @@ const rest = new REST().setToken(process.env.DISCORD_TOKEN);
             console.error('Error: CLIENT_ID is missing in .env');
             process.exit(1);
         }
-        console.log(`Started refreshing ${commands.length} application (/) commands.`);
+        console.warn(`Started refreshing ${commands.length} application (/) commands.`);
 
         let data;
         if (process.env.GUILD_ID) {
-            console.log(`Deploying to Guild: ${process.env.GUILD_ID}`);
+            console.warn(`Deploying to Guild: ${process.env.GUILD_ID}`);
             data = await rest.put(
                 Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
                 { body: commands },
             );
         } else {
-            console.log('Deploying Globally (GUILD_ID not found in .env)');
+            console.warn('Deploying Globally (GUILD_ID not found in .env)');
             data = await rest.put(
                 Routes.applicationCommands(process.env.CLIENT_ID),
                 { body: commands },
             );
         }
 
-        console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+        console.warn(`Successfully reloaded ${data.length} application (/) commands.`);
     } catch (error) {
         console.error(error);
     }
