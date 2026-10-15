@@ -1,15 +1,9 @@
 const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
-const puppeteer = require('puppeteer');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
-const { generateOperatorsHtml, COLS, CARD_W, IMAGE_H, NAME_H, WEAPON_H, GAP, PADDING } = require('../../utils/operatorsHtml');
-
-const DEVICE_SCALE = 2;
-
-// Extra pixels added to the viewport height so nothing is clipped during rendering
-const VIEWPORT_HEIGHT_BUFFER = 100;
+const { renderOperatorsCanvas } = require('../../utils/operatorsCanvas');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -57,37 +51,15 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            const html = await generateOperatorsHtml(chars, { uid: user.uid, serverId: user.serverId, botName: t(lang, 'bot_name'), lang });
+            const imageBuffer = await renderOperatorsCanvas(chars, { uid: user.uid, serverId: user.serverId, botName: t(lang, 'bot_name'), lang });
 
-            const viewportW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
-            const rows = Math.ceil(chars.length / COLS);
-            const viewportH = rows * (IMAGE_H + NAME_H + WEAPON_H) + (rows - 1) * GAP + PADDING * 2 + VIEWPORT_HEIGHT_BUFFER;
-
-            let browser;
-            try {
-                browser = await puppeteer.launch({
-                    headless: true,
-                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-                });
-                const page = await browser.newPage();
-                await page.setViewport({ width: viewportW, height: viewportH, deviceScaleFactor: DEVICE_SCALE });
-                await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
-
-                const wrapperEl = await page.$('#wrapper');
-                if (!wrapperEl) throw new Error('Wrapper element not found');
-
-                const imageBuffer = await wrapperEl.screenshot({ type: 'png' });
-
-                const attachment = new AttachmentBuilder(imageBuffer, { name: 'operators.png' });
-                const embed = new EmbedBuilder()
-                    .setColor(EMBED_COLOR)
-                    .setTitle(t(lang, 'operators_title')(base?.name ?? interaction.user.username))
-                    .setImage('attachment://operators.png')
-                    .setTimestamp();
-                await interaction.editReply({ embeds: [embed], files: [attachment] });
-            } finally {
-                if (browser) await browser.close().catch((err) => console.error('[operators] browser close error:', err));
-            }
+            const attachment = new AttachmentBuilder(imageBuffer, { name: 'operators.png' });
+            const embed = new EmbedBuilder()
+                .setColor(EMBED_COLOR)
+                .setTitle(t(lang, 'operators_title')(base?.name ?? interaction.user.username))
+                .setImage('attachment://operators.png')
+                .setTimestamp();
+            await interaction.editReply({ embeds: [embed], files: [attachment] });
         } catch (error) {
             console.error('[operators]', error);
             const embed = new EmbedBuilder()

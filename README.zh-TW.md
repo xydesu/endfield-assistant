@@ -218,7 +218,6 @@ endfield-assistant/
 | `discord.js` | Discord API 客戶端 |
 | `dotenv` | 環境變數載入 |
 | `node-schedule` | 類 Cron 工作排程器 |
-| `puppeteer` | 無頭瀏覽器，用於圖卡生成 |
 | `sequelize` | 資料庫存取 ORM |
 | `sqlite3` | SQLite 資料庫驅動程式 |
 | `upng-js` | PNG 圖片處理 |

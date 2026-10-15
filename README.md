@@ -220,7 +220,6 @@ endfield-assistant/
 | `discord.js` | Discord API client |
 | `dotenv` | Environment variable loading |
 | `node-schedule` | Cron-like job scheduler |
-| `puppeteer` | Headless browser for image card generation |
 | `sequelize` | ORM for database access |
 | `mongoose` | MongoDB ODM |
 | `mysql2` | MySQL/MariaDB driver for Sequelize |

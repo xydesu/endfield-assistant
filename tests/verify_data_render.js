@@ -32,29 +32,22 @@ async function testDataSnapshots() {
     return { dataJson, indieJson };
 }
 
-async function testOperatorsHtml(dataJson) {
-    console.log('\n2. 驗證幹員列表 HTML 生成邏輯 (operatorsHtml)...');
-    const { generateOperatorsHtml } = require('../utils/operatorsHtml');
+async function testOperatorsCanvasRender(dataJson) {
+    console.log('\n2. 驗證幹員列表 Canvas 繪圖渲染 (operatorsCanvas)...');
+    const { renderOperatorsCanvas } = require('../utils/operatorsCanvas');
     const chars = dataJson.data.detail.chars;
 
-    const html = await generateOperatorsHtml(chars, {
+    const buffer = await renderOperatorsCanvas(chars, {
         uid: '4866844507',
         serverId: '2',
         botName: '終末地助手',
         lang: 'zh_Hant'
     });
 
-    assert(typeof html === 'string', 'generateOperatorsHtml 必須回傳字串');
-    assert(html.includes('<!DOCTYPE html>'), '必須包含標準 HTML 標頭');
-    assert(html.includes('class="card"'), '必須包含幹員卡片結構');
+    assert(Buffer.isBuffer(buffer), 'renderOperatorsCanvas 必須回傳 Buffer');
+    assert(buffer.length > 100000, `生成的幹員名冊圖卡 Buffer 應大於 100KB (實際: ${buffer.length} bytes)`);
 
-    // 檢查首個幹員名稱是否出現在 HTML 中
-    const firstCharName = chars[0].charData?.name;
-    if (firstCharName) {
-        assert(html.includes(firstCharName), `HTML 中應包含幹員名稱 ${firstCharName}`);
-    }
-
-    console.log('✅ 幹員列表 HTML 生成測試通過！');
+    console.log(`✅ 幹員列表 Canvas 繪圖測試通過！(大小: ${buffer.length} bytes)`);
 }
 
 async function testCharCanvasRender(dataJson) {
@@ -113,7 +106,7 @@ async function run() {
     console.log('=== 開始執行端到端資料與渲染驗證測試 ===\n');
     try {
         const { dataJson, indieJson } = await testDataSnapshots();
-        await testOperatorsHtml(dataJson);
+        await testOperatorsCanvasRender(dataJson);
         await testCharCanvasRender(dataJson);
         await testMonumentLogic(indieJson);
         await testExploreCanvasRender(dataJson);
