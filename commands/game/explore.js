@@ -56,7 +56,6 @@ const colors = {
     yellow: '#F4D216',
     headerBg: '#E8E8E8',
     black: '#000000',
-    badgeBg: '#11131A',
     textMain: '#101012',
     textSub: '#4F4F52',
     textLight: '#B0B0B5',
@@ -145,33 +144,18 @@ function drawBadge(ctx, lang, text, x, y) {
     const current = parts[0].trim();
     const max = parts[1].trim();
 
-    if (current === max) {
-        const bw = 70;
-        const bh = 22;
-        const slant = 8;
-        drawPolygon(ctx, [
-            { x: x - bw / 2 + slant, y: y - bh / 2 },
-            { x: x + bw / 2, y: y - bh / 2 },
-            { x: x + bw / 2 - slant, y: y + bh / 2 },
-            { x: x - bw / 2, y: y + bh / 2 }
-        ], colors.badgeBg);
+    const maxStr = ` / ${max}`;
+    const curWidth = ctx.measureText(current).width;
+    const maxWidth = ctx.measureText(maxStr).width;
+    const totalWidth = curWidth + maxWidth;
+    const startX = x - totalWidth / 2;
 
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(text, x, y);
-    } else {
-        const maxStr = ` / ${max}`;
-        const curWidth = ctx.measureText(current).width;
-        const maxWidth = ctx.measureText(maxStr).width;
-        const totalWidth = curWidth + maxWidth;
-        const startX = x - totalWidth / 2;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = colors.textMain;
+    ctx.fillText(current, startX, y);
 
-        ctx.textAlign = 'left';
-        ctx.fillStyle = colors.textMain;
-        ctx.fillText(current, startX, y);
-
-        ctx.fillStyle = colors.textLight;
-        ctx.fillText(maxStr, startX + curWidth, y);
-    }
+    ctx.fillStyle = colors.textLight;
+    ctx.fillText(maxStr, startX + curWidth, y);
 }
 
 function formatProgress(data) {
@@ -749,4 +733,5 @@ module.exports = {
         
         refreshControlsTimer(interaction.message);
     },
+    _generateExploreImage: generateExploreImage,
 };

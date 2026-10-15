@@ -93,6 +93,22 @@ async function testMonumentLogic(indieJson) {
     console.log(`✅ 影拓豐碑結構解析正常：共 ${groups.length} 組區域，累計 ${totalDungeons} 關！`);
 }
 
+async function testExploreCanvasRender(dataJson) {
+    console.log('\n5. 驗證區域探索進度圖卡渲染 (explore)...');
+    const { _generateExploreImage } = require('../commands/game/explore');
+    const domains = dataJson.data.detail.domain;
+    assert(Array.isArray(domains) && domains.length > 0, 'detail.domain 必須為非空陣列');
+
+    const wulingDomain = domains.find(d => d.name === '武陵') || domains[0];
+    console.log(`   正在測試探索圖卡 [${wulingDomain.name}] (Page 1) 繪製...`);
+    const cardPage1 = await _generateExploreImage(wulingDomain, 'ja', 1);
+    assert(cardPage1 && Buffer.isBuffer(cardPage1.buffer), '繪圖結果必須包含 Buffer');
+    assert(cardPage1.buffer.length > 30000, '生成的探索圖卡 Buffer 應大於 30KB');
+    console.log(`   ✅ [${wulingDomain.name}] 第 2 頁繪製成功 (大小: ${cardPage1.buffer.length} bytes)`);
+
+    console.log('✅ 區域探索進度繪圖渲染測試通過！');
+}
+
 async function run() {
     console.log('=== 開始執行端到端資料與渲染驗證測試 ===\n');
     try {
@@ -100,6 +116,7 @@ async function run() {
         await testOperatorsHtml(dataJson);
         await testCharCanvasRender(dataJson);
         await testMonumentLogic(indieJson);
+        await testExploreCanvasRender(dataJson);
 
         console.log('\n===========================================');
         console.log('🎉 所有資料與渲染自動化驗證測試全數通過！');
@@ -111,3 +128,4 @@ async function run() {
 }
 
 run();
+
