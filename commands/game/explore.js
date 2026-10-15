@@ -201,9 +201,28 @@ function shouldShowEquipColumn(domain) {
     return levels.some((lv) => hasProgressData(lv?.equipTrchestCount));
 }
 
-function safeDomainRows(domain, showEquipColumn = false) {
+const LEVELS_PER_PAGE = 6;
+
+function getSubzonePageLabel(lang, pageIndex, totalLevels) {
+    const start = pageIndex * LEVELS_PER_PAGE + 1;
+    const end = Math.min((pageIndex + 1) * LEVELS_PER_PAGE, totalLevels);
+    switch (lang) {
+        case 'zh_Hans':
+            return `第 ${start}-${end} 分区`;
+        case 'ja':
+            return `第 ${start}-${end} エリア`;
+        case 'en':
+            return `Subzones ${start}-${end}`;
+        case 'zh_Hant':
+        default:
+            return `第 ${start}-${end} 分區`;
+    }
+}
+
+function safeDomainRows(domain, showEquipColumn = false, page = 0) {
     const levels = Array.isArray(domain?.levels) ? domain.levels : [];
-    return levels.slice(0, 6).map((lv) => ({
+    const start = page * LEVELS_PER_PAGE;
+    return levels.slice(start, start + LEVELS_PER_PAGE).map((lv) => ({
         name: lv?.name || '-',
         data: [
             formatProgress(lv?.trchestCount),
@@ -233,15 +252,14 @@ function getExploreCurrencyLabel(lang, domainName) {
 
 function clampIndex(index, length) {
     if (length <= 0) return 0;
-    if (index < 0) return 0; // 改為：小於 0 時停留在第一頁
-    if (index >= length) return length - 1; // 改為：超過長度時停留在最後一頁
+    if (index < 0) return 0;
+    if (index >= length) return length - 1;
     return index;
 }
 
-function buildExploreComponents(domains, currentIndex, lang) {
+function buildExploreComponents(domains, currentIndex, lang, page = 0) {
     const disableSwitch = domains.length <= 1;
     
-    // 下拉選單維持原樣
     const options = domains.map((domain, index) => ({
         label: (domain?.name || `Domain ${index + 1}`).substring(0, 100),
         description: `${getText(lang, 'img_explore_level', '探索等級')} ${Number.parseInt(domain?.level, 10) || 0}`.substring(0, 100),
@@ -255,14 +273,12 @@ function buildExploreComponents(domains, currentIndex, lang) {
         .setDisabled(disableSwitch)
         .addOptions(options);
 
-    // --- 新增的按鈕動態邏輯 ---
     const isFirstPage = currentIndex === 0;
     const isLastPage = currentIndex === domains.length - 1;
 
-    // 取得前後區域的名稱，若無則給予預設文字 (例如：已經是第一頁時，上一頁名稱給預設值，反正會被 Disable)
     const prevDomainName = !isFirstPage && domains[currentIndex - 1]?.name 
         ? domains[currentIndex - 1].name 
-        : getText(lang, 'btn_prev', '上一頁'); // 假設你的 i18n 有這個 key，沒有的話可以直接寫死文字
+        : getText(lang, 'btn_prev', '上一頁');
         
     const nextDomainName = !isLastPage && domains[currentIndex + 1]?.name 
         ? domains[currentIndex + 1].name 
@@ -273,37 +289,62 @@ function buildExploreComponents(domains, currentIndex, lang) {
             .setCustomId('explore:prevDomain')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('⬅️')
-            // Discord 限制按鈕 Label 最長 80 字元
             .setLabel(prevDomainName.substring(0, 80)) 
-            .setDisabled(isFirstPage), // 沒有上一頁時禁用
+            .setDisabled(isFirstPage),
             
         new ButtonBuilder()
             .setCustomId('explore:nextDomain')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('➡️')
             .setLabel(nextDomainName.substring(0, 80))
-            .setDisabled(isLastPage) // 沒有下一頁時禁用
+            .setDisabled(isLastPage)
     );
 
-    return [
+    const rows = [
         new ActionRowBuilder().addComponents(selectMenu),
         switchButtons,
     ];
+
+    const currentDomain = domains[currentIndex];
+    const levels = Array.isArray(currentDomain?.levels) ? currentDomain.levels : [];
+    const totalSubpages = Math.ceil(levels.length / LEVELS_PER_PAGE);
+
+    if (totalSubpages > 1) {
+        const subpageButtons = [];
+        for (let i = 0; i < totalSubpages; i++) {
+            const isCurrentSubpage = i === page;
+            subpageButtons.push(
+                new ButtonBuilder()
+                    .setCustomId(`explore:subpage_${i}`)
+                    .setStyle(isCurrentSubpage ? ButtonStyle.Primary : ButtonStyle.Secondary)
+                    .setLabel(getSubzonePageLabel(lang, i, levels.length))
+                    .setDisabled(isCurrentSubpage)
+            );
+        }
+        rows.push(new ActionRowBuilder().addComponents(subpageButtons));
+    }
+
+    return rows;
 }
 
-async function buildExplorePayload(domains, index, lang) {
+async function buildExplorePayload(domains, index, lang, page = 0) {
     const currentIndex = clampIndex(index, domains.length);
     const targetDomain = domains[currentIndex];
+    const levels = Array.isArray(targetDomain?.levels) ? targetDomain.levels : [];
+    const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
+    const currentPage = Math.max(0, Math.min(page, totalPages - 1));
     
+    if (!targetDomain.cachedCards) {
+        targetDomain.cachedCards = {};
+    }
+    const cacheKey = `${targetDomain?.name || 'domain'}_p${currentPage}_${lang}`;
+
     let card;
-    // 💡 檢查該區域物件是否已經有繪製好的快取
-    if (targetDomain.cachedCard) {
-        card = targetDomain.cachedCard;
+    if (targetDomain.cachedCards[cacheKey]) {
+        card = targetDomain.cachedCards[cacheKey];
     } else {
-        // 快取未命中，呼叫 Canvas 繪圖
-        card = await generateExploreImage(targetDomain, lang);
-        // 將繪製結果（包含 Buffer、名稱、等級）寫入該區域物件中
-        targetDomain.cachedCard = card;
+        card = await generateExploreImage(targetDomain, lang, currentPage);
+        targetDomain.cachedCards[cacheKey] = card;
     }
 
     const fileName = 'endfield_explore.png';
@@ -317,9 +358,10 @@ async function buildExplorePayload(domains, index, lang) {
 
     return {
         currentIndex,
+        currentPage,
         embed,
         attachment,
-        components: buildExploreComponents(domains, currentIndex, lang),
+        components: buildExploreComponents(domains, currentIndex, lang, currentPage),
     };
 }
 
@@ -396,7 +438,7 @@ function getExploreInteractionText(lang, key) {
     return getText(lang, key, fallbackByKey[key] || 'Unknown error.');
 }
 
-async function generateExploreImage(domain, lang) {
+async function generateExploreImage(domain, lang, page = 0) {
     const width = 1000;
     const height = 620;
     const canvas = createCanvas(width, height);
@@ -406,7 +448,7 @@ async function generateExploreImage(domain, lang) {
     const domainLevel = Number.parseInt(domain.level, 10) || 0;
     const currency = formatDomainCurrency(domain);
     const showEquipColumn = shouldShowEquipColumn(domain);
-    const rows = safeDomainRows(domain, showEquipColumn);
+    const rows = safeDomainRows(domain, showEquipColumn, page);
     const updatedAt = new Date();
     const updateTime = updatedAt.toLocaleString(lang === 'ja' ? 'ja-JP' : lang === 'en' ? 'en-US' : 'zh-TW', {
         hour: '2-digit',
@@ -468,7 +510,10 @@ async function generateExploreImage(domain, lang) {
 
     drawTechBar(ctx, 60, 280, 240, 10, currency.count, currency.total, colors.yellow);
     drawText(ctx, lang, `${getText(lang, 'img_update_time', 'Updated')}: ${updateTime}`, 60, 315, 12, colors.textSub);
-    drawText(ctx, lang, `// ${getText(lang, 'img_explore_overview', 'Regional Overview')}`, 360, 60, 24, colors.textMain, 'left', '900');
+    const levels = Array.isArray(domain?.levels) ? domain.levels : [];
+    const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
+    const pageSuffix = totalPages > 1 ? ` (${page + 1}/${totalPages})` : '';
+    drawText(ctx, lang, `// ${getText(lang, 'img_explore_overview', 'Regional Overview')}${pageSuffix}`, 360, 60, 24, colors.textMain, 'left', '900');
 
     const tableX = 360;
     const tableY = 85;
@@ -593,27 +638,18 @@ module.exports = {
             }
 
             const limitedDomains = domains.slice(0, MAX_DOMAIN_OPTIONS);
-            const payload = await buildExplorePayload(limitedDomains, 0, lang);
+            const payload = await buildExplorePayload(limitedDomains, 0, lang, 0);
             const message = await interaction.editReply({
                 embeds: [payload.embed],
                 files: [payload.attachment],
                 components: payload.components,
             });
-            /*const controlsTimeoutId = setTimeout(async () => {
-                clearExploreState(message.id);
-                try {
-                    await message.edit({ components: [] });
-                } catch (removeError) {
-                    console.warn('[explore] Failed to remove expired controls', removeError?.message || removeError);
-                }
-            }, EXPLORE_COMPONENT_LIFETIME_MS);
-            if (typeof controlsTimeoutId.unref === 'function') controlsTimeoutId.unref();*/
             setExploreState(message.id, {
                 userId: interaction.user.id,
                 lang,
                 domains: limitedDomains,
                 currentIndex: payload.currentIndex,
-                //controlsTimeoutId,
+                currentPage: payload.currentPage,
             });
             refreshControlsTimer(message);
         } catch (error) {
@@ -643,13 +679,26 @@ module.exports = {
             });
         }
 
-        const delta = action === 'prevDomain' ? -1 : action === 'nextDomain' ? 1 : 0;
-        if (delta === 0) return;
-        const nextIndex = clampIndex(state.currentIndex + delta, state.domains.length);
-        const payload = await buildExplorePayload(state.domains, nextIndex, state.lang);
+        let nextIndex = state.currentIndex;
+        let nextSubpage = state.currentPage ?? 0;
+
+        if (action === 'prevDomain' || action === 'nextDomain') {
+            const delta = action === 'prevDomain' ? -1 : 1;
+            nextIndex = clampIndex(state.currentIndex + delta, state.domains.length);
+            nextSubpage = 0;
+        } else if (action.startsWith('subpage_')) {
+            const parsedPage = Number.parseInt(action.replace('subpage_', ''), 10);
+            if (Number.isNaN(parsedPage)) return;
+            nextSubpage = parsedPage;
+        } else {
+            return;
+        }
+
+        const payload = await buildExplorePayload(state.domains, nextIndex, state.lang, nextSubpage);
         setExploreState(interaction.message.id, {
             ...state,
             currentIndex: payload.currentIndex,
+            currentPage: payload.currentPage,
         });
         await interaction.update({
             embeds: [payload.embed],
@@ -657,7 +706,6 @@ module.exports = {
             components: payload.components,
         });
         
-        // 💡 新增這行：每次切換頁面後，重置按鈕的倒數計時！
         refreshControlsTimer(interaction.message);
     },
     async handleSelectMenu(interaction, action) {
@@ -687,10 +735,11 @@ module.exports = {
             });
         }
 
-        const payload = await buildExplorePayload(state.domains, selected, state.lang);
+        const payload = await buildExplorePayload(state.domains, selected, state.lang, 0);
         setExploreState(interaction.message.id, {
             ...state,
             currentIndex: payload.currentIndex,
+            currentPage: payload.currentPage,
         });
         await interaction.update({
             embeds: [payload.embed],
@@ -698,7 +747,6 @@ module.exports = {
             components: payload.components,
         });
         
-        // 💡 新增這行：每次切換頁面後，重置按鈕的倒數計時！
         refreshControlsTimer(interaction.message);
     },
 };

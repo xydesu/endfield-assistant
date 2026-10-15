@@ -116,7 +116,10 @@ function buildHelpPayload(category, lang, client) {
                  `• ${t(lang, 'help_game_achieve')}\n` +
                  `• ${t(lang, 'help_game_monument')}\n` +
                  `• ${t(lang, 'help_game_operators')}\n` +
-                 `• ${t(lang, 'help_game_stamina')}`
+                 `• ${t(lang, 'help_game_stamina')}\n` +
+                 `• ${t(lang, 'help_game_char')}\n` +
+                 `• ${t(lang, 'help_game_crisis')}\n` +
+                 `• ${t(lang, 'help_game_daily_notify')}`
              )
              .setFooter({ text: labels.footer });
     } else if (category === 'admin') {

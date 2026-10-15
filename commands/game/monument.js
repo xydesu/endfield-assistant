@@ -21,7 +21,7 @@ const { ELEMENT_ICONS, ELEMENT_COLORS, RARITY_COLORS } = require('../../utils/op
 // 儲存各使用者面板的互動狀態，防呆並定時清理
 const monumentViewState = new Map();
 const MONUMENT_VIEW_TTL_MS = 10 * 60 * 1000; // 面板會話最大生存時間 (10 分鐘)
-const MONUMENT_COMPONENT_LIFETIME_MS = 10 * 1000; // 按鈕與選單等組件有效時間 (10 秒)
+const MONUMENT_COMPONENT_LIFETIME_MS = 60 * 1000; // 按鈕與選單等組件有效時間 (60 秒)
 const MAX_CACHED_MONUMENT_VIEWS = 500; // 記憶體中最大快取面板數量
 
 // 全局圖片快取，避免重複下載

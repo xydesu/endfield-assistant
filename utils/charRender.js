@@ -476,7 +476,8 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     }
 
     // 8. 武器類型圖標
-    const wpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
+    let wpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
+    wpnTypeKey = wpnTypeKey.replace(/claymores$/, 'claymore');
     pathsToLoad.push(`assets/images/weapon/${wpnTypeKey}.png`);
     pathsToLoad.push('assets/images/weapon/weapon_type_sword.png'); // 總是載入 fallback
 
@@ -1172,7 +1173,8 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const centerY = wpnIconBoxY + 24; // 垂直中心 Y 座標 (48/2 = 24)
     
     // 優先加載對應的武器類型圖標，fallback 使用單手劍圖標
-    const renderWpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
+    let renderWpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
+    renderWpnTypeKey = renderWpnTypeKey.replace(/claymores$/, 'claymore');
     const swordIcon = getImage(`images/weapon/${renderWpnTypeKey}.png`, 'images/weapon/weapon_type_sword.png');
     if (swordIcon) {
         ctx.drawImage(swordIcon, wpnIconBoxX, wpnIconBoxY, 48, 48);

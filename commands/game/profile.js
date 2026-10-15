@@ -222,7 +222,7 @@ async function generateProfileImage(detail, user, lang) {
 
     drawText(ctx, lang, base.name || getText(lang, 'img_unknown_operator', '未知幹員'), 160, 180, 28, colors.textMain, 'left', 'bold');
     drawText(ctx, lang, `ID: ${user.uid || '—'}`, 160, 210, 12, colors.textSub);
-    drawText(ctx, lang, `${base.serverName || 'Asia'} | ${getText(lang, 'img_explore_level', '探索等級')}: ${base.worldLevel || 1}`, 60, 270, 12, colors.textSub);
+    drawText(ctx, lang, `${base.serverName || 'Asia'} | ${getText(lang, 'img_world_level', '世界等級')}: ${base.worldLevel || 1}`, 60, 270, 12, colors.textSub);
     drawText(ctx, lang, `${getText(lang, 'img_awaken_day', '甦醒日')}: ${createDateStr}`, 60, 290, 12, colors.textSub);
 
     // 4. 左側：理智 Sanity Core
@@ -256,7 +256,8 @@ async function generateProfileImage(detail, user, lang) {
     drawPolygon(ctx, [{ x: 660, y: dataBoxY }, { x: 660, y: 120 }], null, colors.border, 1);
 
     const leftX = 380, rightX = 680, listYStart = 145, listGap = 40;
-    const controlCenterLevel = spaceShip?.rooms?.[0]?.level ?? '—';
+    const controlCenter = spaceShip?.rooms?.find(r => r.type === 0);
+    const controlCenterLevel = controlCenter?.level ?? '—';
 
     drawDecoratedTitle(ctx, lang, getText(lang, 'img_operator_weapon', '幹員與武裝'), leftX, 106, 12, 18, colors.textMain, '#C0C0C5');
     drawDataRow(ctx, lang, getText(lang, 'img_operator', '幹員'), base.charNum || 0, leftX, listYStart, 250);

@@ -9,7 +9,7 @@ const { getBindingList } = require('../../utils/attendance');
 const pendingCredentials = new Map();
 const PENDING_TTL_MS = 10 * 60 * 1000;
 
-// Fallback: map server display name → numeric server ID
+// 映射伺服器展示名稱至數值 ID（備援映射）
 const SERVER_NAME_TO_ID = {
     'china mainland': '1',
     'official': '1',
@@ -17,9 +17,25 @@ const SERVER_NAME_TO_ID = {
     '官服': '1',
     '國服': '1',
     '国服': '1',
+    'china-tmp': '57',
+    'china tmp': '57',
+    'tmp': '57',
+    '測試服': '57',
+    '测试服': '57',
     'asia': '2',
+    '亞服': '2',
+    '亚服': '2',
     'americas / europe': '3',
     'americas/europe': '3',
+    'americas': '3',
+    'europe': '3',
+    'america': '3',
+    'global': '3',
+    '美歐服': '3',
+    '美欧服': '3',
+    '美服': '3',
+    '歐服': '3',
+    '欧服': '3',
 };
 
 function resolveServerId(role) {
