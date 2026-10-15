@@ -1,18 +1,39 @@
-const https = require('https');
-const { URL } = require('url');
+const fs = require('fs');
+const path = require('path');
 
-// ── Source URLs ────────────────────────────────────────────────────────────────
-const PROFESSION_ENUM_URL =
-    'https://gist.githubusercontent.com/xydesu/c9ff59dd9cbab4865427664ae8e89705/raw/866804baf7d3965c06cf68296b3435c3c350d041/enum_profession.js';
+// 輔助函數：讀取本地圖片並轉換為 Base64 Data URI
+function getBase64DataUri(filePath) {
+    if (!fs.existsSync(filePath)) return '';
+    try {
+        const buf = fs.readFileSync(filePath);
+        return `data:image/png;base64,${buf.toString('base64')}`;
+    } catch (err) {
+        return '';
+    }
+}
 
-// ── Element icons — CDN URLs (from other_enum.js) ──────────────────────────────
-const ELEMENT_ICONS = {
+const CHAR_DIR = path.resolve(__dirname, '../assets/images/character');
+const UI_DIR = path.resolve(__dirname, '../assets/images/ui');
+
+// ── Element icons — 本地 Base64 Data URI (徹底解耦遠端 CDN 請求) ───────────
+const ELEMENT_REMOTE_FALLBACK = {
     char_property_physical: 'https://assets.skport.com/ui-component/endfield/assets/elements/physical.png',
     char_property_fire:     'https://assets.skport.com/ui-component/endfield/assets/elements/fire.png',
     char_property_pulse:    'https://assets.skport.com/ui-component/endfield/assets/elements/electric.png',
     char_property_cryst:    'https://assets.skport.com/ui-component/endfield/assets/elements/ice.png',
     char_property_natural:  'https://assets.skport.com/ui-component/endfield/assets/elements/nature.png',
 };
+
+const ELEMENT_ICONS = {};
+for (const [key, fallbackUrl] of Object.entries(ELEMENT_REMOTE_FALLBACK)) {
+    const localPath = path.join(CHAR_DIR, `${key}.png`);
+    const dataUri = getBase64DataUri(localPath);
+    const finalIcon = dataUri || fallbackUrl;
+    ELEMENT_ICONS[key] = finalIcon;
+    // 支援無前綴鍵值 (例如 physical, fire 等)
+    const shortKey = key.replace('char_property_', '');
+    ELEMENT_ICONS[shortKey] = finalIcon;
+}
 
 // ── Element badge background colors (from color_enum.js Pt) ───────────────────
 const ELEMENT_COLORS = {
@@ -21,6 +42,12 @@ const ELEMENT_COLORS = {
     char_property_pulse:    '#FFC000',
     char_property_cryst:    '#21C6D0',
     char_property_natural:  '#9EDA23',
+    // 支援無前綴鍵值
+    physical: '#888888',
+    fire:     '#FF623D',
+    pulse:    '#FFC000',
+    cryst:    '#21C6D0',
+    natural:  '#9EDA23',
 };
 
 // ── Rarity bottom-border colors (from color_enum.js dark_rank_*) ──────────────
@@ -35,59 +62,61 @@ const RARITY_COLORS = {
 
 // ── Profession icon loader ─────────────────────────────────────────────────────
 
-// Ordered list of keys matching the data-URI order in enum_profession.js.
-// The file defines: all, allActive, then each profession + its Active variant.
-const PROFESSION_KEY_ORDER = [
-    'all',               'allActive',
-    'profession_guard',        'profession_guardActive',
-    'profession_defender',     'profession_defenderActive',
-    'profession_supporter',    'profession_supporterActive',
-    'profession_caster',       'profession_casterActive',
-    'profession_assault',      'profession_assaultActive',
-    'profession_vanguard',     'profession_vanguardActive',
-];
-
 let professionIconCache = null;
 
-function fetchText(url) {
-    return new Promise((resolve, reject) => {
-        const u = new URL(url);
-        const req = https.request(
-            { hostname: u.hostname, path: u.pathname + u.search, method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' } },
-            (res) => {
-                if (res.statusCode < 200 || res.statusCode >= 300) {
-                    res.resume();
-                    return reject(new Error(`HTTP ${res.statusCode} fetching ${url}`));
-                }
-                const chunks = [];
-                res.on('data', (c) => chunks.push(c));
-                res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-            }
-        );
-        req.on('error', reject);
-        req.end();
-    });
-}
-
 /**
- * Fetches enum_profession.js from the gist, extracts all embedded data-URIs
- * in document order (which matches PROFESSION_KEY_ORDER), caches, and returns
- * an object keyed by profession string (e.g. "profession_guard" → data-URI).
+ * 載入本地 6 種職業圖標與全部圖標，轉換為 Base64 Data URI。
+ * 徹底解耦對外部 GitHub Gist 的網路請求，保證離線與網路受限環境 100% 穩定可用。
  */
-async function getProfessionIcons() {
+function loadProfessionIcons() {
     if (professionIconCache) return professionIconCache;
 
-    const text = await fetchText(PROFESSION_ENUM_URL);
-    // Each profession icon is a data:image/png;base64,… literal in the file.
-    const uris = text.match(/data:image\/png;base64,[A-Za-z0-9+/]+={0,2}/g) || [];
-
     const icons = {};
-    PROFESSION_KEY_ORDER.forEach((key, i) => {
-        if (uris[i]) icons[key] = uris[i];
-    });
+
+    // 6 種職業
+    const professions = ['guard', 'defender', 'supporter', 'caster', 'assault', 'vanguard'];
+    for (const prof of professions) {
+        const normalPath = path.join(CHAR_DIR, `profession_${prof}.png`);
+        const activePath = path.join(CHAR_DIR, `profession_${prof}_active.png`);
+
+        const normalUri = getBase64DataUri(normalPath);
+        const activeUri = getBase64DataUri(activePath);
+
+        // 支援完整 key 與簡寫 key
+        icons[`profession_${prof}`] = normalUri;
+        icons[`profession_${prof}Active`] = activeUri;
+        icons[`profession_${prof}_active`] = activeUri;
+        icons[prof] = normalUri;
+        icons[`${prof}Active`] = activeUri;
+        icons[`${prof}_active`] = activeUri;
+    }
+
+    // 全部 (all)
+    const allPath = path.join(UI_DIR, 'all.png');
+    const allActivePath = path.join(UI_DIR, 'all_active.png');
+    const allUri = getBase64DataUri(allPath);
+    const allActiveUri = getBase64DataUri(allActivePath);
+
+    icons['all'] = allUri;
+    icons['allActive'] = allActiveUri;
+    icons['all_active'] = allActiveUri;
 
     professionIconCache = icons;
     return icons;
 }
 
-module.exports = { ELEMENT_ICONS, ELEMENT_COLORS, RARITY_COLORS, getProfessionIcons };
+/**
+ * 非同步獲取職業圖標字典，相容舊有 Promise 介面
+ */
+async function getProfessionIcons() {
+    return loadProfessionIcons();
+}
+
+module.exports = {
+    ELEMENT_ICONS,
+    ELEMENT_COLORS,
+    RARITY_COLORS,
+    getProfessionIcons,
+    loadProfessionIcons,
+    getBase64DataUri
+};
