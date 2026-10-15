@@ -5,17 +5,17 @@ const { ELEMENT_ICONS, ELEMENT_COLORS, RARITY_COLORS, getProfessionIcons } = req
 const { t } = require('./i18n');
 
 // ── 網格常數（與舊版 HTML 模板完全一致）──────────────────────────────
-const COLS     = 6;
-const CARD_W   = 96;
-const IMAGE_H  = 120;
-const NAME_H   = 26;
-const WEAPON_H = 36;
-const LINE_H   = 4;
-const GAP      = 8;
-const PADDING  = 16;
-const FOOTER_H = 28;
+const COLS      = 6;
+const CARD_W    = 96;
+const IMAGE_H   = 120;
+const NAME_H    = 26;
+const WEAPON_H  = 36;
+const LINE_H    = 4;
+const GAP       = 8;
+const PADDING   = 16;
+const FOOTER_H  = 28;
 const FOOTER_MT = 10;
-const SCALE    = 2;
+const SCALE     = 2;
 
 // ── 徽章常數 ─────────────────────────────────────────────────────────
 const BADGE_SIZE   = 15;
@@ -76,18 +76,55 @@ function roundRectPath(ctx, x, y, w, h, r) {
     ctx.closePath();
 }
 
-// ── 輔助：安全載入圖片（失敗不中斷流程）──────────────────────────────
-async function safeLoadImage(src) {
+// ── 輔助：安全載入圖片（支援快取，失敗不中斷流程）────────────────────
+async function safeLoadImage(src, cacheMap) {
     if (!src) return null;
-    try {
-        return await loadImage(src);
-    } catch {
-        return null;
+    if (cacheMap && cacheMap.has(src)) {
+        return cacheMap.get(src);
     }
+    const loadPromise = loadImage(src).catch(() => null);
+    if (cacheMap) {
+        cacheMap.set(src, loadPromise);
+    }
+    return loadPromise;
+}
+
+// ── 輔助：載入圖標並強制染成純白色（等價於 CSS brightness(0) invert(1)）──
+async function loadWhiteIcon(src, cacheMap) {
+    if (!src) return null;
+    const cacheKey = `white:${src}`;
+    if (cacheMap && cacheMap.has(cacheKey)) {
+        return cacheMap.get(cacheKey);
+    }
+
+    const tintPromise = (async () => {
+        const img = await safeLoadImage(src, cacheMap);
+        if (!img) return null;
+
+        const w = img.width || 64;
+        const h = img.height || 64;
+        const offCanvas = createCanvas(w, h);
+        const offCtx = offCanvas.getContext('2d');
+
+        // 1. 先繪製原始圖標
+        offCtx.drawImage(img, 0, 0, w, h);
+        // 2. 利用 source-in 保留原有 Alpha 透明度，並將顏色強制替換為純白
+        offCtx.globalCompositeOperation = 'source-in';
+        offCtx.fillStyle = '#ffffff';
+        offCtx.fillRect(0, 0, w, h);
+
+        return offCanvas;
+    })();
+
+    if (cacheMap) {
+        cacheMap.set(cacheKey, tintPromise);
+    }
+    return tintPromise;
 }
 
 // ── 輔助：繪製截斷文字（超出寬度加省略號）────────────────────────────
 function drawTruncatedText(ctx, text, x, y, maxWidth) {
+    if (maxWidth <= 0) return;
     const measured = ctx.measureText(text);
     if (measured.width <= maxWidth) {
         ctx.fillText(text, x, y);
@@ -112,7 +149,7 @@ function drawTruncatedText(ctx, text, x, y, maxWidth) {
  * @param {Object} opts 選項：uid, serverId, botName, lang
  * @returns {Promise<Buffer>} PNG Buffer
  */
-async function renderOperatorsCanvas(chars, { uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_Hant' } = {}) {
+async function renderOperatorsCanvas(chars = [], { uid = '', serverId = '', botName = '終末地簽到小助手', lang = 'zh_Hant' } = {}) {
     const professionIcons = await getProfessionIcons();
     const fontFamily = pickFontFamily(lang);
 
@@ -124,8 +161,8 @@ async function renderOperatorsCanvas(chars, { uid = '', serverId = '', botName =
         return rb - ra;
     });
 
-    // 計算畫布邏輯尺寸
-    const rows = Math.ceil(sorted.length / COLS);
+    // 計算畫布邏輯尺寸（保底至少 1 列避免空陣列時高度異常）
+    const rows = Math.max(1, Math.ceil(sorted.length / COLS));
     const CARD_H = IMAGE_H + NAME_H + WEAPON_H + LINE_H;
     const logicW = COLS * CARD_W + (COLS - 1) * GAP + PADDING * 2;
     const logicH = rows * CARD_H + (rows - 1) * GAP + PADDING * 2 + FOOTER_MT + FOOTER_H;
@@ -139,7 +176,10 @@ async function renderOperatorsCanvas(chars, { uid = '', serverId = '', botName =
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, logicW, logicH);
 
-    // 預先批次載入所有需要的遠端圖片
+    // 單次渲染共用圖片快取
+    const imgCache = new Map();
+
+    // 預先批次載入所有需要的遠端圖片（職業與元素圖標使用 loadWhiteIcon 轉為純白）
     const imageLoadPromises = sorted.map(async (char) => {
         const avatarUrl = char.charData?.avatarRtUrl || '';
         const profKey = char.charData?.profession?.key || '';
@@ -147,10 +187,10 @@ async function renderOperatorsCanvas(chars, { uid = '', serverId = '', botName =
         const weaponIconUrl = char.weapon?.weaponData?.iconUrl || '';
 
         const [avatarImg, profImg, elemImg, weaponImg] = await Promise.all([
-            safeLoadImage(avatarUrl),
-            safeLoadImage(professionIcons[profKey] || ''),
-            safeLoadImage(ELEMENT_ICONS[elementKey] || ''),
-            safeLoadImage(weaponIconUrl),
+            safeLoadImage(avatarUrl, imgCache),
+            loadWhiteIcon(professionIcons[profKey] || '', imgCache),
+            loadWhiteIcon(ELEMENT_ICONS[elementKey] || '', imgCache),
+            safeLoadImage(weaponIconUrl, imgCache),
         ]);
 
         return { char, avatarImg, profImg, elemImg, weaponImg, elementKey, profKey };
@@ -188,10 +228,12 @@ async function renderOperatorsCanvas(chars, { uid = '', serverId = '', botName =
         ctx.fill();
         ctx.restore();
 
-        // ── 頭像區域（帶圓角裁切）──
+        // ── 卡片整體圓角裁切 ──
         ctx.save();
-        roundRectPath(ctx, cardX, cardY, CARD_W, IMAGE_H, 3);
+        roundRectPath(ctx, cardX, cardY, CARD_W, CARD_H, 3);
         ctx.clip();
+
+        // ── 頭像區域 ──
         ctx.fillStyle = '#dadada';
         ctx.fillRect(cardX, cardY, CARD_W, IMAGE_H);
         if (avatarImg) {
@@ -207,7 +249,6 @@ async function renderOperatorsCanvas(chars, { uid = '', serverId = '', botName =
             }
             ctx.drawImage(avatarImg, sx, sy, sw, sh, cardX, cardY, CARD_W, IMAGE_H);
         }
-        ctx.restore();
 
         // ── 左上角職業徽章 ──
         const badgeX = cardX + 4;
@@ -362,6 +403,8 @@ async function renderOperatorsCanvas(chars, { uid = '', serverId = '', botName =
         const lineY = weaponY + WEAPON_H;
         ctx.fillStyle = rarityColor;
         ctx.fillRect(cardX, lineY, CARD_W, LINE_H);
+
+        ctx.restore(); // 結束卡片圓角裁切
     }
 
     // ── 頁腳 ──
