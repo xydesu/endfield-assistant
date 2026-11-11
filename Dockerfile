@@ -7,7 +7,7 @@ ENV NODE_ENV=production \
 # 設定工作目錄
 WORKDIR /app
 
-# 設定時區、安裝 canvas 運行時期所需的最小系統動態函式庫，並清除 apt 快取
+# 設定時區、安裝 canvas 運行時期所需的最小系統動態函式庫 (移除肥大的 librsvg2-2)，並清理 apt 快取
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -16,15 +16,17 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
         libpangocairo-1.0-0 \
         libjpeg62-turbo \
         libgif7 \
-        librsvg2-2 \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/*
 
 # 複製 package 定義檔以利用 Docker 快取層
 COPY package*.json ./
 
-# 安裝正式環境依賴 (canvas 與 sqlite3 均直接採用官方預編譯 binary) 並清除 npm 快取
-RUN npm ci --omit=dev && npm cache clean --force
+# 安裝正式依賴、清除快取並剔除 node_modules 中非執行的型別/文件/測試檔案以抑制 inode 與 block 膨脹
+RUN npm ci --omit=dev \
+    && npm cache clean --force \
+    && find node_modules -type d \( -name "test" -o -name "tests" -o -name "examples" -o -name "docs" \) -exec rm -rf {} + 2>/dev/null || true \
+    && find node_modules -type f \( -name "*.d.ts" -o -name "*.map" -o -name "*.md" -o -name "CHANGELOG*" \) -delete 2>/dev/null || true
 
 # 複製專案原始碼
 COPY . .

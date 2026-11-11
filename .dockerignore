@@ -14,4 +14,5 @@ LICENSE
 Dockerfile
 docker-compose.yml
 database/*.sqlite
+assets/images/dynamic/
 *.log
