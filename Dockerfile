@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim
+FROM node:20-trixie-slim
 
 # 設定環境變數
 ENV NODE_ENV=production \
@@ -7,7 +7,7 @@ ENV NODE_ENV=production \
 # 設定工作目錄
 WORKDIR /app
 
-# 設定時區、安裝 canvas 運行時期所需的最小系統動態函式庫 (移除肥大的 librsvg2-2)，並清理 apt 快取
+# 設定時區、安裝 canvas 運行時期所需的最小系統動態函式庫，並清理 apt 快取
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
