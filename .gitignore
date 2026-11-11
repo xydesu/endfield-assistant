@@ -1,8 +1,50 @@
-scripts
-.env
-node_modules
-*.sqlite
-.DS_Store
+# 依賴模組
+node_modules/
+
+# 環境變數與機密資訊
+.env*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+id_rsa*
+
+# 日誌與偵錯記錄
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# 本地資料與動態生成資源
 data/
 assets/images/dynamic/
+database/*.sqlite
+*.sqlite
+*.sqlite-journal
+*.sqlite3
+*.db
+*.db-journal
+
+# 本地腳本與開發工具
+scripts/
+!scripts/fetch_snapshot.js
 .agents/
+
+# 作業系統暫存檔案
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE 與編輯器設定
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
