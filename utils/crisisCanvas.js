@@ -1321,7 +1321,7 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
  */
 function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass, assets) {
     const weaponY = cy + 404;
-    const weaponH = 128;
+    const weaponH = 104;
     const weaponExtLeft = 12;
     const wx = cx - weaponExtLeft;
     const weaponBoxW = cw + weaponExtLeft;
@@ -1464,7 +1464,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     // 武器精煉（命座）圖示：放大至視覺寬度與下方等級數字同寬，並對齊左緣
     if (cardAssets.wRefineImg) {
         const wRefineSize = Math.round(Math.max(28, wLevelNumW) * 1.28);
-        drawImageWithShadow(ctx, cardAssets.wRefineImg, wLvX - 4, weaponY + 8, wRefineSize, wRefineSize, 'rgba(0, 0, 0, 0.92)', 6, 0);
+        drawImageWithShadow(ctx, cardAssets.wRefineImg, wLvX - 4, weaponY + 6, wRefineSize, wRefineSize, 'rgba(0, 0, 0, 0.92)', 6, 0);
     }
 
     ctx.save();
@@ -1472,22 +1472,22 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.shadowBlur = 5;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
     ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText('Lv.', wLvX, weaponY + 83);
+    ctx.fillText('Lv.', wLvX, weaponY + 63);
     ctx.fillStyle = '#ffffff';
     ctx.font = "900 28px 'Noto Sans TC', sans-serif";
-    ctx.fillText(String(wLevel), wLvX, weaponY + 111);
+    ctx.fillText(String(wLevel), wLvX, weaponY + 89);
     ctx.restore();
 
     // 武器下方稀有度色條（寬度固定為 3 位數字長度、對齊等級數值，並與底部邊框留出明確間距）
     ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
-    ctx.fillRect(wLvX, weaponY + 118, weaponBarW, 4);
+    ctx.fillRect(wLvX, weaponY + 95, weaponBarW, 4);
 
     // 武器基質（9/9/4）：三項各自獨立緊湊矩形，左端淡化至透明不渲染左上/左下角，右側圓角，底色同武器外框色，數字與橢圓圖標共用 #fff100
     if (terms.length > 0) {
         const termColor = '#fff100';
         const visibleCount = Math.min(terms.length, 3);
         const termItemH = 22;
-        const rowPitch = 32;
+        const rowPitch = 29;
         const totalTermsH = visibleCount * termItemH + (visibleCount - 1) * (rowPitch - termItemH);
         const startY = weaponY + Math.round((weaponH - totalTermsH) / 2);
 
