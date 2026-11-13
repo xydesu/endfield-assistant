@@ -854,22 +854,29 @@ async function drawPhase2LeftPanel(ctx, params) {
     const panelW = 620;
     const primaryColor = isPass ? '#e8f522' : '#e05b3f';
 
-    // 1. 行動時長橫條
+    // 1. 行動時長橫條（橢圓膠囊造型）
     const durY = 104;
     const durH = 44;
     const durGrad = ctx.createLinearGradient(panelX, durY, panelX + panelW, durY);
-    durGrad.addColorStop(0, 'rgba(255, 255, 255, 0.09)');
-    durGrad.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+    durGrad.addColorStop(0, 'rgba(255, 255, 255, 0.11)');
+    durGrad.addColorStop(1, 'rgba(255, 255, 255, 0.03)');
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(panelX, durY, panelW, durH, durH / 2);
     ctx.fillStyle = durGrad;
-    ctx.fillRect(panelX, durY, panelW, durH);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-    ctx.fillText(text.actionDuration, panelX + 18, durY + 29);
+    ctx.fillText(text.actionDuration, panelX + 24, durY + 29);
 
     ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
     const timeWidth = ctx.measureText(timeStr).width;
-    const timeX = panelX + panelW - 18 - timeWidth;
+    const timeX = panelX + panelW - 24 - timeWidth;
     if (assets.clockImg) {
         const tintedClock = tintIcon(assets.clockImg, '#ffffff', 24);
         ctx.drawImage(tintedClock, timeX - 34, durY + 10, 24, 24);
@@ -995,23 +1002,54 @@ async function drawPhase2LeftPanel(ctx, params) {
 
     drawPhase2ContractBadge(ctx, panelX + 2, afterGridY + 90, contractName, isPass);
 
-    // 6. 聖所評喻橫幅（1:1 還原實機左側光暈＋實心白 i 徽章與右側帶圖標方框分數）
+    // 6. 聖所評喻橫幅（左紅右黑漸層＋黑灰碳纖維斜紋＋實心白 i 徽章＋圓角分數框與超框大圖標）
     const ratingY = afterGridY + 156;
     const ratingH = 54;
     const ratingColors = getPhase2RatingColors(isPass, indicatorCount);
-    const bannerFill = 'rgba(20, 22, 26, 0.90)';
-    drawRoundedRect(ctx, panelX, ratingY, panelW, ratingH, 2, bannerFill, 'rgba(255, 255, 255, 0.14)', 1);
-
     const isHighRedTier = !isPass || indicatorCount >= 30;
     const accentStart = isHighRedTier ? '#f05a28' : ratingColors.start;
     const accentEnd = isHighRedTier ? '#d92f2f' : ratingColors.end;
 
-    // 左側柔光暈 + 豎立色條
-    const leftGlow = ctx.createLinearGradient(panelX, ratingY, panelX + 95, ratingY);
-    leftGlow.addColorStop(0, isHighRedTier ? 'rgba(235, 82, 42, 0.28)' : 'rgba(130, 120, 245, 0.25)');
-    leftGlow.addColorStop(1, 'rgba(20, 22, 26, 0)');
-    ctx.fillStyle = leftGlow;
-    ctx.fillRect(panelX + 1, ratingY + 1, 95, ratingH - 2);
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(panelX, ratingY, panelW, ratingH, 2);
+    ctx.clip();
+
+    // 左至右紅轉黑漸層底色
+    const bannerGrad = ctx.createLinearGradient(panelX, ratingY, panelX + panelW, ratingY);
+    bannerGrad.addColorStop(0, isHighRedTier ? 'rgba(138, 22, 26, 0.94)' : 'rgba(65, 52, 145, 0.92)');
+    bannerGrad.addColorStop(0.4, isHighRedTier ? 'rgba(54, 15, 19, 0.94)' : 'rgba(30, 26, 56, 0.92)');
+    bannerGrad.addColorStop(0.8, 'rgba(18, 20, 24, 0.94)');
+    bannerGrad.addColorStop(1, 'rgba(14, 16, 20, 0.95)');
+    ctx.fillStyle = bannerGrad;
+    ctx.fillRect(panelX, ratingY, panelW, ratingH);
+
+    // 45° 黑灰斜線條碳纖維紋理
+    const stripeStep = 8;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.34)';
+    ctx.beginPath();
+    for (let sx = panelX - ratingH; sx < panelX + panelW + ratingH; sx += stripeStep) {
+        ctx.moveTo(sx, ratingY + ratingH);
+        ctx.lineTo(sx + ratingH, ratingY);
+    }
+    ctx.stroke();
+
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.beginPath();
+    for (let sx = panelX - ratingH + 3; sx < panelX + panelW + ratingH; sx += stripeStep) {
+        ctx.moveTo(sx, ratingY + ratingH);
+        ctx.lineTo(sx + ratingH, ratingY);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(panelX, ratingY, panelW, ratingH, 2);
+    ctx.stroke();
 
     const barGrad = ctx.createLinearGradient(panelX, ratingY, panelX, ratingY + ratingH);
     barGrad.addColorStop(0, accentStart);
@@ -1034,30 +1072,26 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
     ctx.fillText(text.sanctumRating, panelX + 60, ratingY + 35);
 
-    // 右側 1:1 還原直角框體（貼齊內容寬高，暗紅底＋細紅框＋白字分數＋指標總計圖示）
-    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+    // 右側圓角框體（緊貼數字上下緣＋超出框線的大尺寸圖標）
+    ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
     const numW = ctx.measureText(scoreStr).width;
-    const iconSize = 19;
-    const tagPadX = 6;
-    const tagGap = 4;
+    const iconSize = 34;
+    const tagPadX = 7;
+    const tagGap = 3;
     const tagW = Math.ceil(tagPadX * 2 + numW + tagGap + iconSize);
-    const tagH = 24;
+    const tagH = 19;
     const tagX = panelX + panelW - tagW - 18;
     const tagY = ratingY + (ratingH - tagH) / 2;
 
-    const tagBg = isHighRedTier ? 'rgba(116, 22, 30, 0.75)' : 'rgba(54, 42, 95, 0.72)';
-    const tagBorder = isHighRedTier ? 'rgba(232, 86, 72, 0.85)' : ratingColors.end;
-    ctx.fillStyle = tagBg;
-    ctx.fillRect(tagX, tagY, tagW, tagH);
-    ctx.strokeStyle = tagBorder;
-    ctx.lineWidth = 1.4;
-    ctx.strokeRect(tagX, tagY, tagW, tagH);
+    const tagBg = isHighRedTier ? 'rgba(116, 22, 30, 0.80)' : 'rgba(54, 42, 95, 0.78)';
+    const tagBorder = isHighRedTier ? 'rgba(232, 86, 72, 0.90)' : ratingColors.end;
+    drawRoundedRect(ctx, tagX, tagY, tagW, tagH, 5, tagBg, tagBorder, 1.5);
 
     const contentW = numW + tagGap + iconSize;
     const contentStartX = tagX + (tagW - contentW) / 2;
     ctx.fillStyle = '#ffffff';
-    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-    ctx.fillText(scoreStr, contentStartX, tagY + 19);
+    ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
+    ctx.fillText(scoreStr, contentStartX, tagY + 17);
 
     if (assets.indTotalImg) {
         const whiteIndTotal = tintIcon(assets.indTotalImg, '#ffffff', iconSize);
@@ -1190,22 +1224,25 @@ function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
 /**
  * 局部重構：扁平工業風＋多層次錯位 2×2 裝備區塊（使用獨立局部座標隔離狀態）
  */
-function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, charObj, cardAssets, assets) {
+function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH, charObj, cardAssets, assets) {
     ctx.save();
     ctx.translate(sectionX, sectionY);
 
-    const slotSize = 66;
-    const slotGap = 22;
+    const slotSize = 72;
+    const slotGap = 10;
     const gridW = slotSize * 2 + slotGap;
+    const gridH = slotSize * 2 + slotGap;
     const gridX = Math.floor((sectionW - gridW) / 2);
     const railW = gridW + 8;
     const railX = gridX - 4;
+    const railH = 2.5;
 
     // 頂部分隔導軌（霧灰色橫槓，對齊裝備區左右邊界）
     ctx.fillStyle = '#4D4D4D';
-    ctx.fillRect(railX, 0, railW, 2.5);
+    ctx.fillRect(railX, 0, railW, railH);
 
-    const gridY = 13;
+    // 導軌底緣至第一排裝備頂緣，與第二排裝備底緣至卡片底線維持嚴格等寬
+    const gridY = railH + (sectionH - railH - gridH) / 2;
     const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
     const pendingBadges = [];
 
@@ -1225,19 +1262,15 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, charObj, 
                 continue;
             }
 
-            // Z-1 稀有度背景色塊（88% 尺寸垂直／水平置中，上與下保留相同內距；左至右 0~50% 實色，50%~75% 漸變至完全透明）
-            const innerSize = slotSize * 0.88;
-            const innerX = sx + (slotSize - innerSize) / 2;
-            const innerY = sy + (slotSize - innerSize) / 2;
+            // Z-1 稀有度背景色塊（完整填滿框線內側；由左至右 0~50% 漸變至完全透明）
             const blockColor = getRarityColor(eqObj, '#E6A800', EQUIP_BLOCK_RARITY_COLORS);
             const transparentColor = toTransparentRgba(blockColor);
-            const blockGrad = ctx.createLinearGradient(innerX, 0, innerX + innerSize, 0);
+            const blockGrad = ctx.createLinearGradient(sx, 0, sx + slotSize, 0);
             blockGrad.addColorStop(0, blockColor);
-            blockGrad.addColorStop(0.5, blockColor);
-            blockGrad.addColorStop(0.75, transparentColor);
+            blockGrad.addColorStop(0.5, transparentColor);
             blockGrad.addColorStop(1, transparentColor);
             ctx.fillStyle = blockGrad;
-            ctx.fillRect(innerX, innerY, innerSize, innerSize);
+            ctx.fillRect(sx, sy, slotSize, slotSize);
 
             // Z-2 裝備立繪（放大至 114% 並向右下角偏移 16%，僅於外框範圍內裁切渲染）
             const targetSize = slotSize * 1.14;
@@ -1415,7 +1448,9 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     }
 
     // (C) 2×2 裝備區塊（局部座標隔離＋扁平工業風多層次錯位渲染）
-    drawPhase2EquipmentSection(ctx, cx, weaponY + weaponH + 8, cw, charObj, cardAssets, assets);
+    const equipSectionY = weaponY + weaponH + 8;
+    const equipSectionH = cy + ch - 2 - equipSectionY;
+    drawPhase2EquipmentSection(ctx, cx, equipSectionY, cw, equipSectionH, charObj, cardAssets, assets);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
     ctx.fillRect(cx, cy + ch - 2, cw, 2);
