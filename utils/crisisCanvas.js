@@ -1044,18 +1044,21 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.fillStyle = barGrad;
     ctx.fillRect(panelX, ratingY + 1, 4, ratingH - 2);
 
-    // 左側白色實心圓形 i 圖示（放大並上下緊貼橫幅邊框）
+    // 左側白色實心圓形 i 圖示（放大並上下緊貼橫幅邊框，內部字元以實際邊界盒精確上下左右置中）
     const infoR = 16;
     const infoCx = panelX + 24;
+    const infoCy = ratingY + ratingH / 2;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(infoCx, ratingY + ratingH / 2, infoR, 0, Math.PI * 2);
+    ctx.arc(infoCx, infoCy, infoR, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#1b1d22';
     ctx.font = "900 21px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = 'center';
-    ctx.fillText('i', infoCx, ratingY + ratingH / 2 + 7);
     ctx.textAlign = 'left';
+    const infoMetrics = ctx.measureText('i');
+    const infoTextX = infoCx - (infoMetrics.actualBoundingBoxLeft + infoMetrics.actualBoundingBoxRight) / 2;
+    const infoTextY = infoCy + (infoMetrics.actualBoundingBoxAscent - infoMetrics.actualBoundingBoxDescent) / 2;
+    ctx.fillText('i', infoTextX, infoTextY);
 
     ctx.fillStyle = '#e5e8ec';
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
