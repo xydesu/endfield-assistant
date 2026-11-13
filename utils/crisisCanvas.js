@@ -1415,6 +1415,167 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 }
 
 /**
+ * 計算由螢幕座標 (x, y) 映射回單位來源平面 [0, 1]×[0, 1] 之單應性逆矩陣
+ */
+function createHomographyToUnit(dstQuad) {
+    const [p0, p1, p2, p3] = dstQuad;
+    const dx1 = p1.x - p2.x;
+    const dx2 = p3.x - p2.x;
+    const sx = p0.x - p1.x + p2.x - p3.x;
+    const dy1 = p1.y - p2.y;
+    const dy2 = p3.y - p2.y;
+    const sy = p0.y - p1.y + p2.y - p3.y;
+
+    const det = dx1 * dy2 - dx2 * dy1 || 1e-6;
+    const g = (sx * dy2 - dx2 * sy) / det;
+    const h = (dx1 * sy - sx * dy1) / det;
+
+    const a = p1.x - p0.x + g * p1.x;
+    const b = p3.x - p0.x + h * p3.x;
+    const c = p0.x;
+    const d = p1.y - p0.y + g * p1.y;
+    const e = p3.y - p0.y + h * p3.y;
+    const f = p0.y;
+
+    // 伴隨矩陣 adj(H)，除法消去行列式常數因子
+    return [
+        e - f * h, c * h - b, b * f - c * e,
+        f * g - d, a - c * g, c * d - a * f,
+        d * h - e * g, b * g - a * h, a * e - b * d,
+    ];
+}
+
+/**
+ * 依指定視平線與縮放參數產生向畫面中央傾斜的 3D 透視目標四邊形 [TL, TR, BR, BL]
+ */
+function buildInwardPerspectiveQuad(box, side, options = {}) {
+    const {
+        horizonY = 495,
+        nearScale = 1.02,
+        farScale = 0.86,
+        widthCompression = 0.94,
+    } = options;
+
+    const scaleY = (y, s) => horizonY + (y - horizonY) * s;
+    const isLeft = side === 'left';
+    const leftX = isLeft ? box.x : box.x + box.w - box.w * widthCompression;
+    const rightX = isLeft ? box.x + box.w * widthCompression : box.x + box.w;
+    const sLeft = isLeft ? nearScale : farScale;
+    const sRight = isLeft ? farScale : nearScale;
+
+    return [
+        { x: leftX, y: scaleY(box.y, sLeft) },
+        { x: rightX, y: scaleY(box.y, sRight) },
+        { x: rightX, y: scaleY(box.y + box.h, sRight) },
+        { x: leftX, y: scaleY(box.y + box.h, sLeft) },
+    ];
+}
+
+/**
+ * 以 Premultiplied Alpha 雙線性採樣＋2×2 超採樣抗鋸齒將離屏畫布 3D 透視投影到目標畫布
+ */
+function drawPerspectiveQuad(dstCtx, srcCanvas, dstQuad) {
+    const sw = srcCanvas.width;
+    const sh = srcCanvas.height;
+    const srcCtx = srcCanvas.getContext('2d');
+    const srcRaw = srcCtx.getImageData(0, 0, sw, sh).data;
+
+    // 預先轉成預乘 Alpha 浮點緩衝區，確保透明邊緣混合不產生黑邊 halo
+    const premul = new Float32Array(sw * sh * 4);
+    for (let i = 0; i < srcRaw.length; i += 4) {
+        const a = srcRaw[i + 3];
+        if (a === 0) continue;
+        const af = a / 255;
+        premul[i] = srcRaw[i] * af;
+        premul[i + 1] = srcRaw[i + 1] * af;
+        premul[i + 2] = srcRaw[i + 2] * af;
+        premul[i + 3] = a;
+    }
+
+    const xs = dstQuad.map(p => p.x);
+    const ys = dstQuad.map(p => p.y);
+    const minX = Math.floor(Math.min(...xs));
+    const minY = Math.floor(Math.min(...ys));
+    const maxX = Math.ceil(Math.max(...xs));
+    const maxY = Math.ceil(Math.max(...ys));
+    const outW = Math.max(1, maxX - minX);
+    const outH = Math.max(1, maxY - minY);
+
+    const outCanvas = createCanvas(outW, outH);
+    const outCtx = outCanvas.getContext('2d');
+    const outImg = outCtx.createImageData(outW, outH);
+    const out = outImg.data;
+
+    const [m00, m01, m02, m10, m11, m12, m20, m21, m22] = createHomographyToUnit(dstQuad);
+    const maxSx = sw - 1;
+    const maxSy = sh - 1;
+    const subOffsets = [
+        [0.25, 0.25],
+        [0.75, 0.25],
+        [0.25, 0.75],
+        [0.75, 0.75],
+    ];
+
+    for (let py = 0; py < outH; py++) {
+        const gyBase = minY + py;
+        const rowOff = py * outW;
+
+        for (let px = 0; px < outW; px++) {
+            const gxBase = minX + px;
+            let sumR = 0;
+            let sumG = 0;
+            let sumB = 0;
+            let sumA = 0;
+
+            for (let s = 0; s < 4; s++) {
+                const gx = gxBase + subOffsets[s][0];
+                const gy = gyBase + subOffsets[s][1];
+                const w = m20 * gx + m21 * gy + m22;
+                if (Math.abs(w) < 1e-6) continue;
+
+                const u = (m00 * gx + m01 * gy + m02) / w;
+                const v = (m10 * gx + m11 * gy + m12) / w;
+                if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+
+                const fx = u * maxSx;
+                const fy = v * maxSy;
+                const x0 = Math.min(maxSx - 1, Math.max(0, fx | 0));
+                const y0 = Math.min(maxSy - 1, Math.max(0, fy | 0));
+                const wx = fx - x0;
+                const wy = fy - y0;
+                const w00 = (1 - wx) * (1 - wy);
+                const w10 = wx * (1 - wy);
+                const w01 = (1 - wx) * wy;
+                const w11 = wx * wy;
+
+                const idx00 = (y0 * sw + x0) * 4;
+                const idx10 = idx00 + 4;
+                const idx01 = idx00 + sw * 4;
+                const idx11 = idx01 + 4;
+
+                sumR += premul[idx00] * w00 + premul[idx10] * w10 + premul[idx01] * w01 + premul[idx11] * w11;
+                sumG += premul[idx00 + 1] * w00 + premul[idx10 + 1] * w10 + premul[idx01 + 1] * w01 + premul[idx11 + 1] * w11;
+                sumB += premul[idx00 + 2] * w00 + premul[idx10 + 2] * w10 + premul[idx01 + 2] * w01 + premul[idx11 + 2] * w11;
+                sumA += premul[idx00 + 3] * w00 + premul[idx10 + 3] * w10 + premul[idx01 + 3] * w01 + premul[idx11 + 3] * w11;
+            }
+
+            const avgA = sumA * 0.25;
+            if (avgA <= 0.5) continue;
+
+            const outIdx = (rowOff + px) * 4;
+            const invA = 255 / sumA;
+            out[outIdx] = Math.min(255, Math.round(sumR * invA));
+            out[outIdx + 1] = Math.min(255, Math.round(sumG * invA));
+            out[outIdx + 2] = Math.min(255, Math.round(sumB * invA));
+            out[outIdx + 3] = Math.min(255, Math.round(avgA));
+        }
+    }
+
+    outCtx.putImageData(outImg, 0, 0);
+    dstCtx.drawImage(outCanvas, minX, minY);
+}
+
+/**
  * 繪製 Phase 2（浸藍測試作戰等新版）黃綠風格結算圖卡
  */
 async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractName = '危機合約', lang = 'zh_Hant', options = {}) {
@@ -1490,29 +1651,54 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
 
     drawPhase2Background(ctx, WIDTH, HEIGHT, bgImg, isPass);
 
-    await drawPhase2LeftPanel(ctx, {
-        text,
-        indicatorCount,
-        timeStr,
-        isPass,
-        isBest,
-        passWave,
-        selectedIndicators,
-        contractName,
-        assets,
+    const renderTiltedSection = async (box, side, drawFn) => {
+        const supersample = 2;
+        const offCanvas = createCanvas(box.w * supersample, box.h * supersample);
+        const offCtx = offCanvas.getContext('2d');
+        applyLangFont(offCtx, lang);
+        offCtx.save();
+        offCtx.scale(supersample, supersample);
+        offCtx.translate(-box.x, -box.y);
+        await drawFn(offCtx);
+        offCtx.restore();
+
+        const quad = buildInwardPerspectiveQuad(box, side, {
+            horizonY: 495,
+            nearScale: 1.02,
+            farScale: 0.86,
+            widthCompression: 0.94,
+        });
+        drawPerspectiveQuad(ctx, offCanvas, quad);
+    };
+
+    // 左側作戰結算資訊欄（向畫面中央右傾之 3D 透視平面）
+    await renderTiltedSection({ x: 96, y: 96, w: 650, h: 760 }, 'left', async (offCtx) => {
+        await drawPhase2LeftPanel(offCtx, {
+            text,
+            indicatorCount,
+            timeStr,
+            isPass,
+            isBest,
+            passWave,
+            selectedIndicators,
+            contractName,
+            assets,
+        });
     });
 
-    // 右側 4 位幹員卡片（循序繪製以確保裁切區域互不干擾）
+    // 右側 4 位幹員卡片群組（向畫面中央左傾之 3D 透視平面）
     const charStartX = 1098;
     const charY = 122;
     const charW = 178;
     const charH = 740;
     const charGap = 10;
 
-    for (let i = 0; i < 4; i++) {
-        const cx = charStartX + i * (charW + charGap);
-        drawPhase2OperatorCard(ctx, cx, charY, charW, charH, charsData[i] || null, cardAssetsList[i], isPass, assets);
-    }
+    await renderTiltedSection({ x: 1088, y: 112, w: 762, h: 760 }, 'right', (offCtx) => {
+        for (let i = 0; i < 4; i++) {
+            const cx = charStartX + i * (charW + charGap);
+            drawPhase2OperatorCard(offCtx, cx, charY, charW, charH, charsData[i] || null, cardAssetsList[i], isPass, assets);
+        }
+    });
 
     // 底部浮水印資訊
     ctx.textAlign = 'left';
