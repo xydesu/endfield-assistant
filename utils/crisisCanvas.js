@@ -1316,7 +1316,22 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
  * 繪製 Phase 2 單張幹員出戰卡片（同步繪製以隔離 ctx.clip() 狀態）
  */
 function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass, assets) {
+    const weaponY = cy + 404;
+    const weaponH = 128;
+    const weaponExtLeft = 12;
+    const wx = cx - weaponExtLeft;
+    const weaponBoxW = cw + weaponExtLeft;
+    const wBoxRadius = 8;
+
+    // 繪製卡片主體外框與灰黑底色；若存在武器外框，以 evenodd 裁切挖空該區域避免原本角色外框線與底色穿透武器外框
+    ctx.save();
+    if (charObj && cardAssets) {
+        traceRoundedRectPath(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius);
+        ctx.rect(cx - 4, cy - 4, cw + 8, ch + 8);
+        ctx.clip('evenodd');
+    }
     drawRoundedRect(ctx, cx, cy, cw, ch, 2, 'rgba(30, 31, 35, 0.90)', 'rgba(255, 255, 255, 0.10)', 1);
+    ctx.restore();
 
     // 幹員頂部色條依據幹員 rarity 著色，缺乏資料時退回通關/失敗主題色
     const topAccent = getRarityColor(charObj, isPass ? '#d8e622' : '#b34b33');
@@ -1395,13 +1410,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         drawImageWithShadow(ctx, cardAssets.potImg, cx + 8, potY, 44, 44, 'rgba(0, 0, 0, 0.95)', 9, 1);
     }
 
-    // (B) 武器區域（向左延伸超出卡片左緣、圓角外框與 0→70% 漸變至透明框線）
-    const weaponY = cy + 404;
-    const weaponH = 128;
-    const weaponExtLeft = 12;
-    const wx = cx - weaponExtLeft;
-    const weaponBoxW = cw + weaponExtLeft;
-    const wBoxRadius = 8;
+    // (B) 武器區域（沿用上方定義之向左延伸圓角外框座標與 0→70% 漸變至透明框線）
 
     // 武器圖片再度放大（1.25× 框高）並限制裁切於原本角色卡片位置內（cx ~ cx + cw），不超過原本卡片左緣與外框上下邊界
     if (cardAssets.wIconImg) {
