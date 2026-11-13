@@ -143,15 +143,17 @@ async function runTests() {
     const passSanctumWhite = await countBrightPixels(bufP2Pass, 100, 675, 55, 55);
     assert(passSanctumWhite > 200, `Phase 2 通關時應顯示聖所評喻白色徽章 (white=${passSanctumWhite})`);
 
-    // 驗證聖所右側數字方框依分數對應 Rarity 色表變色（18 分 Rarity 3 藍色 vs 36 分 Rarity 6 橘紅色）
-    const base18 = JSON.parse(JSON.stringify(phase2PassBase));
-    base18.data.crisisContract.history.bestRecord.indicatorCount = 18;
-    const detail18 = JSON.parse(JSON.stringify(phase2PassDetail));
-    detail18.data.recordDetail.indicatorCount = 18;
-    const bufP2Score18 = await drawCrisisUI(base18, detail18, '400000001', '2', '危機合約 浸藍測試作戰', 'zh_Hant', {
-        originalId: 'indie_contract002',
-        charMetaMap,
-    });
+    // 驗證聖所右側數字方框依實機已確認門檻變色（9 分灰、20 分金、30 分紅）
+    const renderWithScore = async (score) => {
+        const b = JSON.parse(JSON.stringify(phase2PassBase));
+        b.data.crisisContract.history.bestRecord.indicatorCount = score;
+        const d = JSON.parse(JSON.stringify(phase2PassDetail));
+        d.data.recordDetail.indicatorCount = score;
+        return drawCrisisUI(b, d, '400000001', '2', '危機合約 浸藍測試作戰', 'zh_Hant', {
+            originalId: 'indie_contract002',
+            charMetaMap,
+        });
+    };
     const readRegion = async (pngBuf, x, y, w, h) => {
         const img = await loadImage(pngBuf);
         const cvs = createCanvas(img.width, img.height);
@@ -159,25 +161,28 @@ async function runTests() {
         ctx.drawImage(img, 0, 0);
         return ctx.getImageData(x, y, w, h).data;
     };
-    const px36 = await readRegion(bufP2Pass, 600, 620, 140, 110);
-    const px18 = await readRegion(bufP2Score18, 600, 620, 140, 110);
-    let diffCnt = 0;
-    let sumR18 = 0;
-    let sumB18 = 0;
-    let sumR36 = 0;
-    let sumB36 = 0;
-    for (let i = 0; i < px36.length; i += 4) {
-        if (Math.abs(px36[i] - px18[i]) + Math.abs(px36[i + 2] - px18[i + 2]) > 40) {
-            diffCnt++;
-            sumR18 += px18[i];
-            sumB18 += px18[i + 2];
-            sumR36 += px36[i];
-            sumB36 += px36[i + 2];
+    const [px9, px20, px30] = await Promise.all([
+        readRegion(await renderWithScore(9), 600, 620, 140, 110),
+        readRegion(await renderWithScore(20), 600, 620, 140, 110),
+        readRegion(await renderWithScore(30), 600, 620, 140, 110),
+    ]);
+    let cnt20 = 0; let r9 = 0; let g9 = 0; let b9 = 0; let r20 = 0; let g20 = 0; let b20 = 0;
+    let cnt30 = 0; let r30 = 0; let g30 = 0; let b30 = 0;
+    for (let i = 0; i < px9.length; i += 4) {
+        if (Math.abs(px20[i] - px9[i]) + Math.abs(px20[i + 1] - px9[i + 1]) + Math.abs(px20[i + 2] - px9[i + 2]) > 50) {
+            cnt20++;
+            r9 += px9[i]; g9 += px9[i + 1]; b9 += px9[i + 2];
+            r20 += px20[i]; g20 += px20[i + 1]; b20 += px20[i + 2];
+        }
+        if (Math.abs(px30[i] - px9[i]) + Math.abs(px30[i + 1] - px9[i + 1]) + Math.abs(px30[i + 2] - px9[i + 2]) > 50) {
+            cnt30++;
+            r30 += px30[i]; g30 += px30[i + 1]; b30 += px30[i + 2];
         }
     }
-    assert(diffCnt > 200, `聖所分數方框隨分數變色差異像素應顯著 (diffCnt=${diffCnt})`);
-    assert(sumB18 > sumR18, `18 分 (Rarity 3) 聖所數字框應為藍色系 (R=${sumR18}, B=${sumB18})`);
-    assert(sumR36 > sumB36, `36 分 (Rarity 6) 聖所數字框應為橘紅色系 (R=${sumR36}, B=${sumB36})`);
+    assert(cnt20 > 200 && cnt30 > 200, `聖所分數方框隨分數變色差異像素應顯著 (cnt20=${cnt20}, cnt30=${cnt30})`);
+    assert(Math.abs(r9 - g9) / cnt20 < 15 && Math.abs(g9 - b9) / cnt20 < 15, '9 分應呈現中性灰色');
+    assert(r20 > b20 * 2 && g20 > b20 * 2, `20 分應呈現金色 (R=${r20}, G=${g20}, B=${b20})`);
+    assert(r30 > g30 * 1.5 && r30 > b30 * 1.5, `30 分應呈現紅色 (R=${r30}, G=${g30}, B=${b30})`);
     console.log(`   通過 (${bufP2Pass.length} bytes)`);
 
     console.log('3. 測試 Phase 2 失敗／殘缺資料容錯渲染（22 指標／缺武器裝備）...');

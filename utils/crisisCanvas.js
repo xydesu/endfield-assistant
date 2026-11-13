@@ -199,7 +199,11 @@ function parseRgbTuple(rgbaStr) {
 }
 
 /**
- * 依指標總分（0~30+）對應 Rarity 1~6 色表產生 Phase 2 聖所評喻漸層配色（30 分即達最高 Rarity 6）
+ * 依指標總分對應 Rarity 評喻配色：
+ * - <10（含 3、9）：灰色 (Rarity 1)
+ * - 10~14 / 15~19：藍色 / 紫色（過渡補間，待更多實機分數樣本確認後可微調）
+ * - 20~29：金色 (Rarity 5)
+ * - >=30：紅色 (Max Rarity 6)
  */
 function getPhase2RatingColors(isPass, indicatorCount) {
     if (!isPass) {
@@ -218,23 +222,25 @@ function getPhase2RatingColors(isPass, indicatorCount) {
     const score = Number(indicatorCount) || 0;
     let rarity = '1';
     if (score >= 30) rarity = '6';
-    else if (score >= 25) rarity = '5';
-    else if (score >= 20) rarity = '4';
-    else if (score >= 15) rarity = '3';
-    else if (score >= 10) rarity = '2';
+    else if (score >= 20) rarity = '5';
+    else if (score >= 15) rarity = '4';
+    else if (score >= 10) rarity = '3';
 
-    const [r, g, b] = parseRgbTuple(RARITY_COLORS[rarity]);
+    // 30+ 實機最高階呈現紅色品質（而非橘色），其餘對齊 RARITY_COLORS 色相
+    const [r, g, b] = rarity === '6'
+        ? [226, 48, 42]
+        : parseRgbTuple(RARITY_COLORS[rarity]);
     const scaleRgba = (factor, alpha) => (
         `rgba(${Math.round(r * factor)}, ${Math.round(g * factor)}, ${Math.round(b * factor)}, ${alpha})`
     );
 
     return {
         rarity,
-        start: `rgba(${r}, ${g}, ${b}, 1)`,
-        end: scaleRgba(0.72, 1),
-        glow: `rgba(${r}, ${g}, ${b}, 0.34)`,
-        tagStart: scaleRgba(0.65, 0.95),
-        tagMid: scaleRgba(0.30, 0.92),
+        start: rarity === '6' ? '#f05a28' : `rgba(${r}, ${g}, ${b}, 1)`,
+        end: rarity === '6' ? '#d92f2f' : scaleRgba(0.72, 1),
+        glow: `rgba(${r}, ${g}, ${b}, 0.36)`,
+        tagStart: scaleRgba(0.80, 0.95),
+        tagMid: scaleRgba(0.38, 0.92),
         tagEnd: 'rgba(14, 15, 18, 0.95)',
         tagBorder: `rgba(${r}, ${g}, ${b}, 0.90)`,
     };
