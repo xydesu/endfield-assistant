@@ -1403,10 +1403,11 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     const weaponBoxW = cw + weaponExtLeft;
     const wBoxRadius = 8;
 
+    // 底層微弱灰白底色（與邊框色同色調）
     const wBaseGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW, weaponY);
-    wBaseGrad.addColorStop(0, 'rgba(34, 35, 39, 0.94)');
-    wBaseGrad.addColorStop(0.7, 'rgba(32, 33, 37, 0.80)');
-    wBaseGrad.addColorStop(1, 'rgba(30, 31, 35, 0.40)');
+    wBaseGrad.addColorStop(0, 'rgba(255, 255, 255, 0.14)');
+    wBaseGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.05)');
+    wBaseGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
     drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBaseGrad, null, 0);
 
@@ -1426,14 +1427,14 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         ctx.restore();
     }
 
-    // 外框左至右整體淡化漸變層與 0→70% 漸隱框線（層級大於武器圖片、小於 Lv 與命座）
-    const wOverlayGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW, weaponY);
-    wOverlayGrad.addColorStop(0, 'rgba(38, 40, 44, 0.62)');
-    wOverlayGrad.addColorStop(0.55, 'rgba(32, 34, 38, 0.28)');
-    wOverlayGrad.addColorStop(1, 'rgba(30, 31, 35, 0)');
+    // 外框左至右整體漸變（與邊框色一致之灰白色系，層級大於武器圖片、小於 Lv 與命座）與 0→70% 漸隱框線
+    const wOverlayGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.85, weaponY);
+    wOverlayGrad.addColorStop(0, 'rgba(255, 255, 255, 0.34)');
+    wOverlayGrad.addColorStop(0.55, 'rgba(255, 255, 255, 0.12)');
+    wOverlayGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
     const wStrokeGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
-    wStrokeGrad.addColorStop(0, 'rgba(255, 255, 255, 0.52)');
+    wStrokeGrad.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
     wStrokeGrad.addColorStop(0.65, 'rgba(255, 255, 255, 0.24)');
     wStrokeGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
