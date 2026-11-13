@@ -1,40 +1,17 @@
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
-const { createCanvas, registerFont, loadImage } = require('canvas');
+const { createCanvas, loadImage } = require('canvas');
 const path = require('path');
 const fs = require('fs');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
+const { ensureFontsRegistered } = require('../../utils/fonts');
 
 // ==========================================
 // 初始化：動態註冊多語言字體 (TC, SC, JP)
 // ==========================================
-function registerLangFont(langCode, familyName) {
-    const weights = [
-        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
-        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
-        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' }
-    ];
-    
-    for (const { file, weight } of weights) {
-        const fontPath = path.resolve(__dirname, `../../assets/font/${file}`);
-        if (fs.existsSync(fontPath)) {
-            registerFont(fontPath, { family: familyName, weight });
-        } else {
-            console.warn(`[Canvas] ⚠️ 找不到字體文件: ${file}，對應語言可能出現亂碼或缺字。`);
-        }
-    }
-}
-
-try {
-    registerLangFont('TC', 'Noto Sans TC');
-    registerLangFont('SC', 'Noto Sans SC');
-    registerLangFont('JP', 'Noto Sans JP');
-    console.warn('[Canvas] ✅ 成功載入多語言 Noto Sans 字體');
-} catch (error) {
-    console.error('[Canvas] ⚠️ 載入字體時發生錯誤，將降級使用系統預設字體！', error.message);
-}
+ensureFontsRegistered();
 
 // ==========================================
 // 輔助繪圖函數與調色盤
@@ -326,6 +303,9 @@ module.exports = {
             const discordId = interaction.user.id;
             const user = await User.findByPk(discordId);
             lang = user?.language || 'zh_Hant';
+            if (user?.serverId === '1' || user?.serverId === '57') {
+                lang = 'zh_Hans';
+            }
 
             // 尚未綁定
             if (!user) {
@@ -368,8 +348,8 @@ module.exports = {
                     name: authorName,
                     iconURL: interaction.user.displayAvatarURL()
                 })
-                .setImage('attachment://endfield_profile.png') 
-                .setFooter({ text: t(lang, 'bot_name'), iconURL: 'https://example.com/logo.png' })
+                .setImage('attachment://endfield_profile.png')
+                .setFooter({ text: t(lang, 'bot_name') })
                 .setTimestamp();
 
             // 4. 同時發送 Embed 和 Files 附件

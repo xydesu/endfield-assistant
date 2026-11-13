@@ -15,6 +15,22 @@ const { t } = require('../../utils/i18n');
 // 儲存各面板的會話狀態以實現多使用者獨立操作及自動逾時清理
 const helpViewState = new Map();
 const HELP_VIEW_TTL_MS = 60 * 1000;
+const MAX_HELP_VIEWS = 500;
+
+function setHelpViewState(messageId, state) {
+    const existing = helpViewState.get(messageId);
+    if (existing?.timeoutId) {
+        clearTimeout(existing.timeoutId);
+    }
+    while (helpViewState.size >= MAX_HELP_VIEWS) {
+        const oldestKey = helpViewState.keys().next().value;
+        if (!oldestKey) break;
+        const oldest = helpViewState.get(oldestKey);
+        if (oldest?.timeoutId) clearTimeout(oldest.timeoutId);
+        helpViewState.delete(oldestKey);
+    }
+    helpViewState.set(messageId, state);
+}
 
 // 提供選單元件在各語言環境下的客製化翻譯文字
 const menuLabels = {
@@ -77,13 +93,13 @@ function buildHelpPayload(category, lang, client) {
         .setTimestamp();
 
     if (category === 'home') {
+        const homeIntroFn = t(lang, 'help_home_welcome');
+        const homeIntro = typeof homeIntroFn === 'function'
+            ? homeIntroFn(client.user.username)
+            : `**${client.user.username}**`;
         embed.setTitle(t(lang, 'help_title'))
              .setDescription(
-                 `👋 **歡迎使用 ${client.user.username}**！\n` +
-                 `這是一個專為《明日方舟：終末地》設計的簽到與遊戲資訊助手。\n\n` +
-                 `請使用下方的 **下拉選單** 切換指令分類瀏覽詳細說明，\n` +
-                 `或點選下方按鈕取得機器人的相關連結。\n\n` +
-                 `**📁 指令分類：**\n` +
+                 `${homeIntro}\n` +
                  `▫️ ${labels.general}\n` +
                  `▫️ ${labels.attendance}\n` +
                  `▫️ ${labels.game}\n` +
@@ -201,8 +217,9 @@ module.exports = {
             }
             helpViewState.delete(message.id);
         }, HELP_VIEW_TTL_MS);
+        timeoutId.unref?.();
 
-        helpViewState.set(message.id, {
+        setHelpViewState(message.id, {
             userId: interaction.user.id,
             lang,
             timeoutId,
@@ -236,7 +253,6 @@ module.exports = {
         const payload = buildHelpPayload(selectedCategory, lang, interaction.client);
 
         // 每次操作皆重置計時器以順延面板有效時間
-        clearTimeout(state.timeoutId);
         const timeoutId = setTimeout(async () => {
             try {
                 const expiredPayload = buildExpiredPayload(payload.embeds[0], lang);
@@ -246,8 +262,9 @@ module.exports = {
             }
             helpViewState.delete(interaction.message.id);
         }, HELP_VIEW_TTL_MS);
+        timeoutId.unref?.();
 
-        helpViewState.set(interaction.message.id, {
+        setHelpViewState(interaction.message.id, {
             ...state,
             timeoutId,
             embed: payload.embeds[0]

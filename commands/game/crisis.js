@@ -15,10 +15,11 @@ const { EMBED_COLOR } = require('../../utils/constants');
 
 const VIEW_TTL_MS = 15 * 60 * 1000;
 const MAX_SELECT_OPTIONS = 25;
+const MAX_CACHED_CRISIS_VIEWS = 500;
 const crisisViewState = new Map();
 
 /**
- * 清理過期的危機合約互動狀態，避免記憶體累積
+ * 清理過期或超額的危機合約互動狀態，避免記憶體累積
  */
 function pruneExpiredStates() {
     const now = Date.now();
@@ -27,6 +28,19 @@ function pruneExpiredStates() {
             crisisViewState.delete(msgId);
         }
     }
+    while (crisisViewState.size >= MAX_CACHED_CRISIS_VIEWS) {
+        const oldestKey = crisisViewState.keys().next().value;
+        if (!oldestKey) break;
+        crisisViewState.delete(oldestKey);
+    }
+}
+
+function resolveUserLang(user) {
+    let lang = user?.language || 'zh_Hant';
+    if (user?.serverId === '1' || user?.serverId === '57') {
+        lang = 'zh_Hans';
+    }
+    return lang;
 }
 
 /**
@@ -58,7 +72,7 @@ function sortCrisisContracts(list) {
 /**
  * 依合約清單與選中索引建構 Embed、圖片附件與期數切換選單
  */
-async function buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, lang) {
+async function buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, lang, notice = '') {
     const { uid, serverId } = user;
     const clampedIdx = Math.max(0, Math.min(selectedIndex, crisisList.length - 1));
     const contractObj = crisisList[clampedIdx];
@@ -67,7 +81,13 @@ async function buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, 
 
     const components = [];
     if (crisisList.length > 1) {
-        const options = crisisList.slice(0, MAX_SELECT_OPTIONS).map((c, idx) => {
+        let startIdx = 0;
+        if (crisisList.length > MAX_SELECT_OPTIONS && clampedIdx >= MAX_SELECT_OPTIONS) {
+            startIdx = Math.min(crisisList.length - MAX_SELECT_OPTIONS, Math.max(0, clampedIdx - Math.floor(MAX_SELECT_OPTIONS / 2)));
+        }
+        const windowedContracts = crisisList.slice(startIdx, startIdx + MAX_SELECT_OPTIONS);
+        const options = windowedContracts.map((c, offset) => {
+            const idx = startIdx + offset;
             const descFn = t(lang, 'crisis_season_desc');
             const description = typeof descFn === 'function'
                 ? descFn(c.highest ?? 0, c.challengeCount ?? 0)
@@ -94,7 +114,7 @@ async function buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, 
             .setTitle(t(lang, 'query_failed_title'))
             .setDescription(summaryResult.message)
             .setTimestamp();
-        return { embeds: [embed], files: [], components };
+        return { content: notice || null, embeds: [embed], files: [], components };
     }
 
     const bestRecord = summaryResult.data?.crisisContract?.history?.bestRecord;
@@ -107,7 +127,7 @@ async function buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, 
             .setColor(EMBED_COLOR)
             .setTitle(t(lang, 'crisis_no_record_title'))
             .setDescription(noRecordDesc);
-        return { embeds: [embed], files: [], components };
+        return { content: notice || null, embeds: [embed], files: [], components };
     }
 
     const detailResult = await getCrisisDetail(user, bestRecord.id, currentContractId);
@@ -117,7 +137,7 @@ async function buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, 
             .setTitle(t(lang, 'query_failed_title'))
             .setDescription(detailResult.message)
             .setTimestamp();
-        return { embeds: [embed], files: [], components };
+        return { content: notice || null, embeds: [embed], files: [], components };
     }
 
     const originalId = summaryResult.data?.crisisContract?.dungeon?.originalId || '';
@@ -136,7 +156,7 @@ async function buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, 
         .setTitle(embedTitle)
         .setImage(`attachment://${fileName}`);
 
-    return { embeds: [embed], files: [attachment], components };
+    return { content: notice || null, embeds: [embed], files: [attachment], components };
 }
 
 module.exports = {
@@ -158,12 +178,7 @@ module.exports = {
         let lang = 'zh_Hant';
         try {
             const user = await User.findOne({ where: { discordId: interaction.user.id } });
-            if (user) {
-                lang = user.language || 'zh_Hant';
-                if (user.serverId === '1' || user.serverId === '57') {
-                    lang = 'zh_Hans';
-                }
-            }
+            lang = resolveUserLang(user);
 
             if (!user || !user.cred || !user.uid) {
                 const embed = new EmbedBuilder()
@@ -197,6 +212,7 @@ module.exports = {
             const charMetaMap = buildCharMetaMap(detailResultData.detail?.chars);
 
             let selectedIndex = 0;
+            let notice = '';
             const seasonQuery = interaction.options.getString('season')?.trim();
             if (seasonQuery) {
                 const qLower = seasonQuery.toLowerCase();
@@ -206,17 +222,20 @@ module.exports = {
                 );
                 if (foundIdx !== -1) {
                     selectedIndex = foundIdx;
+                } else {
+                    const notFoundFn = t(lang, 'crisis_season_not_found');
+                    const fallbackName = crisisList[0]?.name || 'Crisis Contract';
+                    notice = typeof notFoundFn === 'function' ? notFoundFn(seasonQuery, fallbackName) : '';
                 }
             }
 
-            const payload = await buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, lang);
+            const payload = await buildCrisisPayload(user, crisisList, selectedIndex, charMetaMap, lang, notice);
             const message = await interaction.editReply(payload);
 
             if (crisisList.length > 1 && message?.id) {
                 pruneExpiredStates();
                 crisisViewState.set(message.id, {
                     userId: interaction.user.id,
-                    user,
                     crisisList,
                     charMetaMap,
                     lang,
@@ -229,7 +248,7 @@ module.exports = {
                 .setColor(EMBED_COLOR)
                 .setTitle(t(lang, 'error_title'))
                 .setDescription(error.message || t(lang, 'error_query'));
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ content: null, embeds: [embed], files: [], components: [] }).catch(() => {});
         }
     },
 
@@ -263,17 +282,31 @@ module.exports = {
         }
 
         await interaction.deferUpdate();
+        let activeLang = lang;
         try {
-            const payload = await buildCrisisPayload(state.user, state.crisisList, nextIndex, state.charMetaMap, state.lang);
+            const user = await User.findOne({ where: { discordId: interaction.user.id } });
+            activeLang = resolveUserLang(user);
+            state.lang = activeLang;
+
+            if (!user || !user.cred || !user.uid) {
+                crisisViewState.delete(interaction.message.id);
+                const embed = new EmbedBuilder()
+                    .setColor(EMBED_COLOR)
+                    .setTitle(t(activeLang, 'not_bound_title'))
+                    .setDescription(t(activeLang, 'not_bound_desc'));
+                return interaction.editReply({ content: null, embeds: [embed], files: [], components: [] });
+            }
+
+            const payload = await buildCrisisPayload(user, state.crisisList, nextIndex, state.charMetaMap, activeLang);
             state.expiresAt = Date.now() + VIEW_TTL_MS;
             await interaction.editReply(payload);
         } catch (error) {
             console.error('[Crisis Select Error]', error);
             const embed = new EmbedBuilder()
                 .setColor(EMBED_COLOR)
-                .setTitle(t(state.lang, 'error_title'))
-                .setDescription(error.message || t(state.lang, 'error_query'));
-            await interaction.editReply({ embeds: [embed], files: [] });
+                .setTitle(t(activeLang, 'error_title'))
+                .setDescription(error.message || t(activeLang, 'error_query'));
+            await interaction.editReply({ content: null, embeds: [embed], files: [], components: [] }).catch(() => {});
         }
     },
 };

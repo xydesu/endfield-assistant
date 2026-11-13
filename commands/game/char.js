@@ -111,8 +111,14 @@ module.exports = {
                 const rows = [new ActionRowBuilder().addComponents(selectMenu)];
 
                 if (totalPages > 1) {
-                    const buttonRow = new ActionRowBuilder();
-                    for (let p = 0; p < totalPages; p++) {
+                    let currentRow = new ActionRowBuilder();
+                    const maxButtons = 20; // 最多 4 列按鈕列 + 1 列下拉選單 = Discord 上限 5 列
+                    const pageCount = Math.min(totalPages, maxButtons);
+                    for (let p = 0; p < pageCount; p++) {
+                        if (p > 0 && p % 5 === 0) {
+                            rows.push(currentRow);
+                            currentRow = new ActionRowBuilder();
+                        }
                         const pStart = p * PAGE_SIZE + 1;
                         const pEnd = Math.min((p + 1) * PAGE_SIZE, sortedChars.length);
                         let label = `第 ${p + 1} 頁 (${pStart}~${pEnd})`;
@@ -124,7 +130,7 @@ module.exports = {
                             label = `ページ ${p + 1} (${pStart}~${pEnd})`;
                         }
 
-                        buttonRow.addComponents(
+                        currentRow.addComponents(
                             new ButtonBuilder()
                                 .setCustomId(`char:page:${p}`)
                                 .setLabel(label)
@@ -132,7 +138,7 @@ module.exports = {
                                 .setDisabled(p === page)
                         );
                     }
-                    rows.push(buttonRow);
+                    rows.push(currentRow);
                 }
 
                 return rows;
@@ -240,7 +246,7 @@ module.exports = {
                 .setTitle(t(lang, 'error_title'))
                 .setDescription(t(lang, 'error_query'))
                 .setTimestamp();
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed], components: [] }).catch(() => {});
         }
     },
 };

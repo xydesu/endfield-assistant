@@ -9,7 +9,7 @@ const {
     ButtonBuilder,
     ButtonStyle,
 } = require('discord.js');
-const { createCanvas, registerFont, loadImage } = require('canvas');
+const { createCanvas, loadImage } = require('canvas');
 const path = require('path');
 const fs = require('fs');
 const User = require('../../models/User');
@@ -17,6 +17,8 @@ const { getIndieHardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
 const { ELEMENT_ICONS, ELEMENT_COLORS, RARITY_COLORS } = require('../../utils/operatorEnums');
+const { ensureFontsRegistered, getFontFamily } = require('../../utils/fonts');
+const { LruCache, loadCachedImage: loadHttpCachedImage } = require('../../utils/httpCache');
 
 // 儲存各使用者面板的互動狀態，防呆並定時清理
 const monumentViewState = new Map();
@@ -24,48 +26,19 @@ const MONUMENT_VIEW_TTL_MS = 10 * 60 * 1000; // 面板會話最大生存時間 (
 const MONUMENT_COMPONENT_LIFETIME_MS = 60 * 1000; // 按鈕與選單等組件有效時間 (60 秒)
 const MAX_CACHED_MONUMENT_VIEWS = 500; // 記憶體中最大快取面板數量
 
-// 全局圖片快取，避免重複下載
-const imageCache = new Map();
+// 全局有限圖片快取，避免重複下載並限制記憶體上限
+const imageCache = new LruCache(250, 30 * 60 * 1000);
 
 async function loadCachedImage(url) {
     if (!url) return null;
-    if (imageCache.has(url)) {
-        return imageCache.get(url);
+    const img = await loadHttpCachedImage(url, { cache: imageCache });
+    if (!img) {
+        console.error(`[Canvas] ⚠️ 載入圖片失敗: ${url}`);
     }
-    try {
-        const img = await loadImage(url);
-        imageCache.set(url, img);
-        return img;
-    } catch (e) {
-        console.error(`[Canvas] ⚠️ 載入圖片失敗: ${url}`, e.message);
-        return null;
-    }
+    return img;
 }
 
-function registerLangFont(langCode, familyName) {
-    const weights = [
-        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
-        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
-        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' }
-    ];
-
-    for (const { file, weight } of weights) {
-        const fontPath = path.resolve(__dirname, `../../assets/font/${file}`);
-        if (fs.existsSync(fontPath)) {
-            registerFont(fontPath, { family: familyName, weight });
-        } else {
-            console.warn(`[Canvas] ⚠️ Missing font file: ${file}`);
-        }
-    }
-}
-
-try {
-    registerLangFont('TC', 'Noto Sans TC');
-    registerLangFont('SC', 'Noto Sans SC');
-    registerLangFont('JP', 'Noto Sans JP');
-} catch (error) {
-    console.error('[Canvas] ⚠️ Failed to load monument fonts', error.message);
-}
+ensureFontsRegistered();
 
 const colors = {
     bg: '#FFFFFF',
@@ -83,16 +56,6 @@ const colors = {
     green: '#2ecc71',
     red: '#e74c3c'
 };
-
-function getFontFamily(lang) {
-    switch (lang) {
-        case 'zh_Hans': return 'Noto Sans SC';
-        case 'ja': return 'Noto Sans JP';
-        case 'zh_Hant':
-        case 'en':
-        default: return 'Noto Sans TC';
-    }
-}
 
 function getText(lang, key, fallback) {
     const translated = t(lang, key);
@@ -328,12 +291,21 @@ function formatTimestamp(ts) {
 // 動態建構選單與按鈕組件
 function buildMonumentComponents(groups, currentIndex, difficulty, lang) {
     const disableSwitch = groups.length <= 1;
-    
-    const options = groups.map((g, index) => ({
-        label: (g?.name || `Series ${index + 1}`).substring(0, 100),
-        value: `${index}`,
-        default: index === currentIndex,
-    }));
+    const maxOptions = 25;
+    let startIdx = 0;
+    if (groups.length > maxOptions && currentIndex >= maxOptions) {
+        startIdx = Math.min(groups.length - maxOptions, Math.max(0, currentIndex - Math.floor(maxOptions / 2)));
+    }
+    const windowedGroups = groups.slice(startIdx, startIdx + maxOptions);
+
+    const options = windowedGroups.map((g, offset) => {
+        const index = startIdx + offset;
+        return {
+            label: (g?.name || `Series ${index + 1}`).substring(0, 100),
+            value: `${index}`,
+            default: index === currentIndex,
+        };
+    });
 
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId('monument:selectGroup')

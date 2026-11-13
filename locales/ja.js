@@ -269,5 +269,9 @@ module.exports = {
     crisis_panel_expired: 'この危機契約パネルは期限切れです。もう一度 /crisis を実行してください。',
     crisis_panel_owner_only: 'コマンド実行者のみがこのパネルを操作できます。',
     crisis_panel_invalid_option: '無効なシーズン選択です。',
+    crisis_season_not_found: (query, fallbackName) => `「${query}」に一致する契約シーズンが見つかりませんでした。「${fallbackName}」を表示しています。`,
     crisis_embed_title: (name) => `📊 ${name} 作戦記録`,
+
+    // ─── help ─────────────────────────────────────────────────────────────────
+    help_home_welcome: (botName) => `👋 **${botName} へようこそ！**\n\n『アークナイツ：エンドフィールド』専用の自動ログイン＆ゲームデータ照会アシスタントです。\n下の **ドロップダウンメニュー** からコマンド分類を選択して、詳細な説明と使用例を確認できます。\n\n**📁 コマンド分類：**`,
 };

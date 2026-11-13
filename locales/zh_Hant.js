@@ -269,5 +269,9 @@ module.exports = {
     crisis_panel_expired: '此危機合約面板已過期，請重新執行 /crisis。',
     crisis_panel_owner_only: '只有指令使用者可以操作此面板。',
     crisis_panel_invalid_option: '無效的期數選項。',
+    crisis_season_not_found: (query, fallbackName) => `找不到包含「${query}」的合約期數，已為您顯示「${fallbackName}」。`,
     crisis_embed_title: (name) => `📊 ${name} 作戰紀錄`,
+
+    // ─── help ─────────────────────────────────────────────────────────────────
+    help_home_welcome: (botName) => `👋 **歡迎使用 ${botName}！**\n\n這是一個專為《明日方舟：終末地》打造的森空島 / SKPORT 簽到與遊戲資料查詢助手。\n請使用下方的 **下拉選單** 切換不同指令分類，以查看詳細說明與使用範例。\n\n**📁 指令分類：**`,
 };

@@ -1,52 +1,16 @@
 const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
-const { createCanvas, loadImage, registerFont } = require('canvas');
-const https = require('https');
-const { URL } = require('url');
-const fs = require('fs');
-const path = require('path');
+const { createCanvas } = require('canvas');
 
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
+const { ensureFontsRegistered, getFontFamily } = require('../../utils/fonts');
+const { LruCache, fetchBufferWithLimit, loadCachedImage } = require('../../utils/httpCache');
 
 // ─── 字體載入與設定 ──────────────────────────────────────────────────────────
 
-function registerLangFont(langCode, familyName) {
-    const weights = [
-        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
-        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
-        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' }
-    ];
-    
-    for (const { file, weight } of weights) {
-        const fontPath = path.resolve(__dirname, `../../assets/font/${file}`);
-        if (fs.existsSync(fontPath)) {
-            registerFont(fontPath, { family: familyName, weight });
-        } else {
-            console.warn(`[Canvas] ⚠️ 找不到字體文件: ${file}，對應語言可能出現亂碼或缺字。`);
-        }
-    }
-}
-
-try {
-    registerLangFont('TC', 'Noto Sans TC');
-    registerLangFont('SC', 'Noto Sans SC');
-    registerLangFont('JP', 'Noto Sans JP');
-    console.warn('[Canvas] ✅ 成功載入多語言 Noto Sans 字體');
-} catch (error) {
-    console.error('[Canvas] ⚠️ 載入字體時發生錯誤，將降級使用系統預設字體！', error.message);
-}
-
-function getFontFamily(lang) {
-    switch (lang) {
-        case 'zh_Hans': return 'Noto Sans SC';
-        case 'ja': return 'Noto Sans JP';
-        case 'zh_Hant':
-        case 'en':
-        default: return 'Noto Sans TC';
-    }
-}
+ensureFontsRegistered();
 
 // ─── 資源與設定值 ──────────────────────────────────────────────────────────
 
@@ -61,36 +25,14 @@ const SERVER_ID_TO_NAME = {
     '3': 'Americas/Europe',
 };
 
-const imageCache = new Map();
+const imageCache = new LruCache(250, 30 * 60 * 1000);
 let cssContentCache = null;
 
 // ─── 輔助函式與繪圖邏輯 ────────────────────────────────────────────────────────
 
-function fetchBuffer(url) {
-    return new Promise((resolve, reject) => {
-        const u = new URL(url);
-        const options = {
-            hostname: u.hostname,
-            path: u.pathname + u.search,
-            method: 'GET',
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-        };
-        const req = https.request(options, (res) => {
-            if (res.statusCode < 200 || res.statusCode >= 300) {
-                res.resume();
-                return reject(new Error(`HTTP ${res.statusCode} fetching ${url}`));
-            }
-            const chunks = [];
-            res.on('data', (c) => chunks.push(c));
-            res.on('end', () => resolve(Buffer.concat(chunks)));
-        });
-        req.on('error', reject);
-        req.end();
-    });
-}
-
 async function fetchText(url) {
-    return (await fetchBuffer(url)).toString('utf8');
+    const buffer = await fetchBufferWithLimit(url, { timeoutMs: 10000, maxBytes: 2 * 1024 * 1024 });
+    return buffer.toString('utf8');
 }
 
 async function getCssContent() {
@@ -114,24 +56,12 @@ function extractUrlFromCss(css, className) {
 
 async function getCanvasImage(url) {
     if (!url) return null;
-    if (imageCache.has(url)) {
-        return imageCache.get(url);
-    }
-    try {
-        let img;
-        if (url.startsWith('data:')) {
-            img = await loadImage(url);
-        } else {
-            const buffer = await fetchBuffer(url);
-            img = await loadImage(buffer);
-        }
-        imageCache.set(url, img);
-        return img;
-    } catch (error) {
+    const img = await loadCachedImage(url, { cache: imageCache });
+    if (!img) {
         const displayUrl = url.length > 100 ? url.slice(0, 100) + '...' : url;
-        console.error(`Failed to load image from URL: ${displayUrl}`, error);
-        return null;
+        console.error(`Failed to load image from URL: ${displayUrl}`);
     }
+    return img;
 }
 
 function getEffectiveLevel(medal) {
@@ -383,6 +313,9 @@ module.exports = {
             const discordId = interaction.user.id;
             const user = await User.findByPk(discordId);
             lang = user?.language || 'zh_Hant';
+            if (user?.serverId === '1' || user?.serverId === '57') {
+                lang = 'zh_Hans';
+            }
 
             if (!user) {
                 const embed = new EmbedBuilder()

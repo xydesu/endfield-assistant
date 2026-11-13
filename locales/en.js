@@ -269,5 +269,9 @@ module.exports = {
     crisis_panel_expired: 'This Crisis Contract panel has expired. Please run /crisis again.',
     crisis_panel_owner_only: 'Only the command user can interact with this panel.',
     crisis_panel_invalid_option: 'Invalid season option.',
+    crisis_season_not_found: (query, fallbackName) => `No Crisis Contract season matching "${query}" was found. Showing "${fallbackName}" instead.`,
     crisis_embed_title: (name) => `📊 ${name} Battle Record`,
+
+    // ─── help ─────────────────────────────────────────────────────────────────
+    help_home_welcome: (botName) => `👋 **Welcome to ${botName}!**\n\nAn Arknights: Endfield assistant for automated SKPORT / Skland daily sign-ins and real-time game data lookup.\nUse the **dropdown menu** below to switch command categories for detailed instructions and examples.\n\n**📁 Command Categories:**`,
 };

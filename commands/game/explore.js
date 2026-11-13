@@ -9,44 +9,20 @@ const {
     ButtonBuilder,
     ButtonStyle,
 } = require('discord.js');
-const { createCanvas, registerFont } = require('canvas');
-const path = require('path');
-const fs = require('fs');
+const { createCanvas } = require('canvas');
 const User = require('../../models/User');
 const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
+const { ensureFontsRegistered, getFontFamily } = require('../../utils/fonts');
 
 const exploreViewState = new Map();
 const EXPLORE_VIEW_TTL_MS = 10 * 60 * 1000;
-const EXPLORE_COMPONENT_LIFETIME_MS = 10 * 1000;
+const EXPLORE_COMPONENT_LIFETIME_MS = 120 * 1000;
 const MAX_DOMAIN_OPTIONS = 25; // Discord String Select Menu max options
 const MAX_CACHED_EXPLORE_VIEWS = 500;
 
-function registerLangFont(langCode, familyName) {
-    const weights = [
-        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
-        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
-        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' }
-    ];
-
-    for (const { file, weight } of weights) {
-        const fontPath = path.resolve(__dirname, `../../assets/font/${file}`);
-        if (fs.existsSync(fontPath)) {
-            registerFont(fontPath, { family: familyName, weight });
-        } else {
-            console.warn(`[Canvas] ⚠️ Missing font file: ${file}`);
-        }
-    }
-}
-
-try {
-    registerLangFont('TC', 'Noto Sans TC');
-    registerLangFont('SC', 'Noto Sans SC');
-    registerLangFont('JP', 'Noto Sans JP');
-} catch (error) {
-    console.error('[Canvas] ⚠️ Failed to load explore fonts', error.message);
-}
+ensureFontsRegistered();
 
 const colors = {
     bg: '#FFFFFF',
@@ -61,16 +37,6 @@ const colors = {
     textLight: '#B0B0B5',
     progressBg: '#DADADA'
 };
-
-function getFontFamily(lang) {
-    switch (lang) {
-        case 'zh_Hans': return 'Noto Sans SC';
-        case 'ja': return 'Noto Sans JP';
-        case 'zh_Hant':
-        case 'en':
-        default: return 'Noto Sans TC';
-    }
-}
 
 function getText(lang, key, fallback) {
     const translated = t(lang, key);
@@ -328,6 +294,10 @@ async function buildExplorePayload(domains, index, lang, page = 0) {
         card = targetDomain.cachedCards[cacheKey];
     } else {
         card = await generateExploreImage(targetDomain, lang, currentPage);
+        // 限制單一區域於記憶體中的卡片快取數量，避免反覆切換語言造成膨脹
+        if (Object.keys(targetDomain.cachedCards).length >= 8) {
+            targetDomain.cachedCards = {};
+        }
         targetDomain.cachedCards[cacheKey] = card;
     }
 
@@ -678,19 +648,23 @@ module.exports = {
             return;
         }
 
-        const payload = await buildExplorePayload(state.domains, nextIndex, state.lang, nextSubpage);
-        setExploreState(interaction.message.id, {
-            ...state,
-            currentIndex: payload.currentIndex,
-            currentPage: payload.currentPage,
-        });
-        await interaction.update({
-            embeds: [payload.embed],
-            files: [payload.attachment],
-            components: payload.components,
-        });
-        
-        refreshControlsTimer(interaction.message);
+        try {
+            const payload = await buildExplorePayload(state.domains, nextIndex, state.lang, nextSubpage);
+            setExploreState(interaction.message.id, {
+                ...state,
+                currentIndex: payload.currentIndex,
+                currentPage: payload.currentPage,
+            });
+            await interaction.update({
+                embeds: [payload.embed],
+                files: [payload.attachment],
+                components: payload.components,
+            });
+
+            refreshControlsTimer(interaction.message);
+        } catch (error) {
+            console.error('[explore button]', error);
+        }
     },
     async handleSelectMenu(interaction, action) {
         if (action !== 'selectDomain') return;
@@ -719,19 +693,23 @@ module.exports = {
             });
         }
 
-        const payload = await buildExplorePayload(state.domains, selected, state.lang, 0);
-        setExploreState(interaction.message.id, {
-            ...state,
-            currentIndex: payload.currentIndex,
-            currentPage: payload.currentPage,
-        });
-        await interaction.update({
-            embeds: [payload.embed],
-            files: [payload.attachment],
-            components: payload.components,
-        });
-        
-        refreshControlsTimer(interaction.message);
+        try {
+            const payload = await buildExplorePayload(state.domains, selected, state.lang, 0);
+            setExploreState(interaction.message.id, {
+                ...state,
+                currentIndex: payload.currentIndex,
+                currentPage: payload.currentPage,
+            });
+            await interaction.update({
+                embeds: [payload.embed],
+                files: [payload.attachment],
+                components: payload.components,
+            });
+
+            refreshControlsTimer(interaction.message);
+        } catch (error) {
+            console.error('[explore select]', error);
+        }
     },
     _generateExploreImage: generateExploreImage,
 };
