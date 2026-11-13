@@ -1228,7 +1228,7 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
     ctx.save();
     ctx.translate(sectionX, sectionY);
 
-    const slotSize = 72;
+    const slotSize = 66;
     const slotGap = 10;
     const gridW = slotSize * 2 + slotGap;
     const gridH = slotSize * 2 + slotGap;
@@ -1332,10 +1332,11 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     if (cardAssets.avatarImg) {
         const avatarImg = cardAssets.avatarImg;
-        const scale = Math.max((cw + 40) / avatarImg.width, portraitH / avatarImg.height);
-        const dw = avatarImg.width * scale;
-        const dh = avatarImg.height * scale;
-        ctx.drawImage(avatarImg, cx + (cw - dw) / 2, cy + 16, dw, dh);
+        const baseScale = Math.max((cw + 40) / avatarImg.width, portraitH / avatarImg.height);
+        const closeupScale = baseScale * 1.48;
+        const dw = avatarImg.width * closeupScale;
+        const dh = avatarImg.height * closeupScale;
+        ctx.drawImage(avatarImg, cx + (cw - dw) / 2, cy - 12, dw, dh);
     } else {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
         ctx.fillRect(cx, cy + 5, cw, portraitH);
@@ -1393,9 +1394,10 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.fillRect(cx, weaponY, cw, 1);
 
+    const weaponIconMaxW = Math.min(116, cw - 54);
     if (cardAssets.wIconImg) {
         const wIconImg = cardAssets.wIconImg;
-        const maxW = 116;
+        const maxW = weaponIconMaxW;
         const maxH = 112;
         const scale = Math.min(maxW / wIconImg.width, maxH / wIconImg.height);
         const ww = wIconImg.width * scale;
@@ -1422,7 +1424,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     // 武器下方稀有度色條（依據 weapon.rarity 變色）
     ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
-    ctx.fillRect(cx + 4, weaponY + weaponH - 4, 114, 4);
+    ctx.fillRect(cx + 4, weaponY + weaponH - 4, Math.min(114, cw - 54), 4);
 
     // 武器詞條（/9 /9 /4 樣式＋貼合字體寬高之斜切幾何背景底塊）
     const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
@@ -1723,14 +1725,14 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
         });
     });
 
-    // 右側 4 位幹員卡片群組（向畫面中央左傾之 3D 透視平面）
-    const charStartX = 1098;
+    // 右側 4 位幹員卡片群組（縮窄寬度並拉大卡片間距，向畫面中央左傾之 3D 透視平面）
+    const charStartX = 1106;
     const charY = 122;
-    const charW = 178;
+    const charW = 160;
     const charH = 740;
-    const charGap = 10;
+    const charGap = 28;
 
-    await renderTiltedSection({ x: 1088, y: 112, w: 762, h: 760 }, 'right', (offCtx) => {
+    await renderTiltedSection({ x: 1094, y: 112, w: 748, h: 760 }, 'right', (offCtx) => {
         for (let i = 0; i < 4; i++) {
             const cx = charStartX + i * (charW + charGap);
             drawPhase2OperatorCard(offCtx, cx, charY, charW, charH, charsData[i] || null, cardAssetsList[i], isPass, assets);
