@@ -780,44 +780,52 @@ function drawPhase2ContractBadge(ctx, x, y, contractName, isPass) {
     ctx.save();
     const isIndigo = !contractName || /浸藍|浸蓝|INDIGO/i.test(contractName);
 
+    // 左側使用較細字重（normal），並將第二行 CONTRACT 右緣切齊第一行 CONTINGENCY 右緣
+    const leftFont = "normal 19px 'Noto Sans TC', sans-serif";
+    ctx.font = leftFont;
+    const contW = ctx.measureText('CONTINGENCY').width;
+    const contractW = ctx.measureText('CONTRACT').width;
+    const barGap = 5;
+    const barW = Math.max(20, Math.floor(contW - contractW - barGap));
+
     ctx.fillStyle = '#ffffff';
-    ctx.font = "900 20px 'Noto Sans TC', sans-serif";
     ctx.fillText('CONTINGENCY', x, y + 18);
 
-    // 洋紅＋亮綠雙色識別條
+    // 洋紅＋亮綠雙色識別條（位於 CONTRACT 左側）
     ctx.fillStyle = '#eb00ff';
-    ctx.fillRect(x, y + 25, 30, 7);
+    ctx.fillRect(x, y + 25, barW, 6.5);
     ctx.fillStyle = '#00ff38';
-    ctx.fillRect(x, y + 32, 30, 7);
+    ctx.fillRect(x, y + 31.5, barW, 6.5);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = "900 20px 'Noto Sans TC', sans-serif";
-    ctx.fillText('CONTRACT', x + 38, y + 39);
+    ctx.fillText('CONTRACT', x + barW + barGap, y + 38);
 
-    // 右側邊框徽章（框體寬高貼齊文字內容，無過多留白）
-    const boxX = x + 168;
-    const boxY = y + 4;
+    // 右側白底黑字白色邊框徽章（緊貼 CONTINGENCY 右側無明顯間隔）
+    const boxX = Math.ceil(x + contW + 3);
+    const boxY = y + 3;
     const mainTag = isIndigo ? 'INDIGO' : (contractName || 'OPERATION').slice(0, 18);
     const subTag = 'EXPERIMENTAL OPERATION';
 
     ctx.font = "bold 17px 'Noto Sans TC', sans-serif";
     const mainTagW = ctx.measureText(mainTag).width;
-    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
+    ctx.font = "bold 11.5px 'Noto Sans TC', sans-serif";
     const subTagW = ctx.measureText(subTag).width;
 
-    const boxW = Math.ceil(Math.max(mainTagW, subTagW)) + 10;
+    const boxW = Math.ceil(Math.max(mainTagW, subTagW)) + 12;
     const boxH = 34;
-    ctx.strokeStyle = isPass ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 160, 140, 0.6)';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(boxX, boxY, boxW, boxH);
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#111317';
     ctx.font = "bold 17px 'Noto Sans TC', sans-serif";
-    ctx.fillText(mainTag, boxX + 5, boxY + 16);
+    ctx.fillText(mainTag, boxX + 6, boxY + 16);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText(subTag, boxX + 5, boxY + 30);
+    ctx.fillStyle = '#111317';
+    ctx.font = "bold 11.5px 'Noto Sans TC', sans-serif";
+    ctx.fillText(subTag, boxX + 6, boxY + 30);
     ctx.restore();
 }
 
