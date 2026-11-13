@@ -200,8 +200,7 @@ function parseRgbTuple(rgbaStr) {
 
 /**
  * 依指標總分對應 Rarity 評喻配色：
- * - <10（含 3、9）：灰色 (Rarity 1)
- * - 10~14 / 15~19：藍色 / 紫色（過渡補間，待更多實機分數樣本確認後可微調）
+ * - 0~19：灰色 (Rarity 1)
  * - 20~29：金色 (Rarity 5)
  * - >=30：紅色 (Max Rarity 6)
  */
@@ -223,8 +222,6 @@ function getPhase2RatingColors(isPass, indicatorCount) {
     let rarity = '1';
     if (score >= 30) rarity = '6';
     else if (score >= 20) rarity = '5';
-    else if (score >= 15) rarity = '4';
-    else if (score >= 10) rarity = '3';
 
     // 30+ 實機最高階呈現紅色品質（而非橘色），其餘對齊 RARITY_COLORS 色相
     const [r, g, b] = rarity === '6'

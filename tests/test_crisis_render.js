@@ -143,7 +143,7 @@ async function runTests() {
     const passSanctumWhite = await countBrightPixels(bufP2Pass, 100, 675, 55, 55);
     assert(passSanctumWhite > 200, `Phase 2 通關時應顯示聖所評喻白色徽章 (white=${passSanctumWhite})`);
 
-    // 驗證聖所右側數字方框依實機已確認門檻變色（9 分灰、20 分金、30 分紅）
+    // 驗證聖所右側數字方框依實機確認門檻變色（0~19 分灰、20~29 分金、30+ 分紅）
     const renderWithScore = async (score) => {
         const b = JSON.parse(JSON.stringify(phase2PassBase));
         b.data.crisisContract.history.bestRecord.indicatorCount = score;
@@ -161,26 +161,26 @@ async function runTests() {
         ctx.drawImage(img, 0, 0);
         return ctx.getImageData(x, y, w, h).data;
     };
-    const [px9, px20, px30] = await Promise.all([
-        readRegion(await renderWithScore(9), 600, 620, 140, 110),
+    const [px19, px20, px30] = await Promise.all([
+        readRegion(await renderWithScore(19), 600, 620, 140, 110),
         readRegion(await renderWithScore(20), 600, 620, 140, 110),
         readRegion(await renderWithScore(30), 600, 620, 140, 110),
     ]);
-    let cnt20 = 0; let r9 = 0; let g9 = 0; let b9 = 0; let r20 = 0; let g20 = 0; let b20 = 0;
+    let cnt20 = 0; let r19 = 0; let g19 = 0; let b19 = 0; let r20 = 0; let g20 = 0; let b20 = 0;
     let cnt30 = 0; let r30 = 0; let g30 = 0; let b30 = 0;
-    for (let i = 0; i < px9.length; i += 4) {
-        if (Math.abs(px20[i] - px9[i]) + Math.abs(px20[i + 1] - px9[i + 1]) + Math.abs(px20[i + 2] - px9[i + 2]) > 50) {
+    for (let i = 0; i < px19.length; i += 4) {
+        if (Math.abs(px20[i] - px19[i]) + Math.abs(px20[i + 1] - px19[i + 1]) + Math.abs(px20[i + 2] - px19[i + 2]) > 50) {
             cnt20++;
-            r9 += px9[i]; g9 += px9[i + 1]; b9 += px9[i + 2];
+            r19 += px19[i]; g19 += px19[i + 1]; b19 += px19[i + 2];
             r20 += px20[i]; g20 += px20[i + 1]; b20 += px20[i + 2];
         }
-        if (Math.abs(px30[i] - px9[i]) + Math.abs(px30[i + 1] - px9[i + 1]) + Math.abs(px30[i + 2] - px9[i + 2]) > 50) {
+        if (Math.abs(px30[i] - px19[i]) + Math.abs(px30[i + 1] - px19[i + 1]) + Math.abs(px30[i + 2] - px19[i + 2]) > 50) {
             cnt30++;
             r30 += px30[i]; g30 += px30[i + 1]; b30 += px30[i + 2];
         }
     }
     assert(cnt20 > 200 && cnt30 > 200, `聖所分數方框隨分數變色差異像素應顯著 (cnt20=${cnt20}, cnt30=${cnt30})`);
-    assert(Math.abs(r9 - g9) / cnt20 < 15 && Math.abs(g9 - b9) / cnt20 < 15, '9 分應呈現中性灰色');
+    assert(Math.abs(r19 - g19) / cnt20 < 15 && Math.abs(g19 - b19) / cnt20 < 15, '19 分應呈現中性灰色');
     assert(r20 > b20 * 2 && g20 > b20 * 2, `20 分應呈現金色 (R=${r20}, G=${g20}, B=${b20})`);
     assert(r30 > g30 * 1.5 && r30 > b30 * 1.5, `30 分應呈現紅色 (R=${r30}, G=${g30}, B=${b30})`);
     console.log(`   通過 (${bufP2Pass.length} bytes)`);
