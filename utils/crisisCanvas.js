@@ -1221,14 +1221,19 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, charObj, 
             ctx.fillStyle = blockGrad;
             ctx.fillRect(innerX, innerY, innerSize, innerSize);
 
-            // Z-2 裝備立繪（放大至 114% 並向右下角偏移 16%，左上進入徽章覆蓋區、右下跨出外框線）
+            // Z-2 裝備立繪（放大至 114% 並向右下角偏移 16%，僅於外框範圍內裁切渲染）
             const targetSize = slotSize * 1.14;
             const scale = Math.min(targetSize / eqImg.width, targetSize / eqImg.height);
             const ew = eqImg.width * scale;
             const eh = eqImg.height * scale;
             const offsetX = slotSize * 0.16;
             const offsetY = slotSize * 0.16;
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(sx, sy, slotSize, slotSize);
+            ctx.clip();
             ctx.drawImage(eqImg, sx + (slotSize - ew) / 2 + offsetX, sy + (slotSize - eh) / 2 + offsetY, ew, eh);
+            ctx.restore();
 
             // Z-3 最外層定位線框（淺灰銳角實線框壓在色塊與裝備立繪之上，使框線覆蓋跨線的裝備圖標）
             ctx.strokeStyle = '#6E6E6E';
