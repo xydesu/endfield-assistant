@@ -145,34 +145,6 @@ async function safeLoadImage(source) {
 }
 
 /**
- * 將帶有深色底色的單色武器類型圖示去背並保留亮色圖形
- */
-function extractWhiteGlyph(img, size) {
-    const off = createCanvas(size, size);
-    const octx = off.getContext('2d');
-    const scale = Math.min(size / img.width, size / img.height);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    octx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
-    const imgData = octx.getImageData(0, 0, size, size);
-    const d = imgData.data;
-    for (let i = 0; i < d.length; i += 4) {
-        const lum = (d[i] + d[i + 1] + d[i + 2]) / 3;
-        if (d[i + 3] < 20 || lum < 110) {
-            d[i + 3] = 0;
-        } else {
-            const alpha = Math.min(255, Math.round(((lum - 110) / 145) * 255));
-            d[i] = 235;
-            d[i + 1] = 238;
-            d[i + 2] = 242;
-            d[i + 3] = Math.round((d[i + 3] / 255) * alpha);
-        }
-    }
-    octx.putImageData(imgData, 0, 0);
-    return off;
-}
-
-/**
  * 將單色透明圖示重新著色為指定顏色，確保在深色背景上的可視性
  */
 function tintIcon(img, color, size) {
@@ -186,40 +158,6 @@ function tintIcon(img, color, size) {
     octx.fillStyle = color;
     octx.fillRect(0, 0, size, size);
     return off;
-}
-
-/**
- * 將反白鏤空方塊遮罩（外實內透）反轉為指定顏色的透明無框符號（用於 SKPort 武器類型圖標）
- */
-function extractCutoutGlyph(img, size, rgb = [255, 255, 255]) {
-    const srcW = img.width;
-    const srcH = img.height;
-    const srcCanvas = createCanvas(srcW, srcH);
-    const sctx = srcCanvas.getContext('2d');
-    sctx.drawImage(img, 0, 0);
-    const imgData = sctx.getImageData(0, 0, srcW, srcH);
-    const d = imgData.data;
-
-    for (let y = 0; y < srcH; y++) {
-        for (let x = 0; x < srcW; x++) {
-            const idx = (y * srcW + x) * 4;
-            const inCorner = (x < 6 || x >= srcW - 6) && (y < 6 || y >= srcH - 6);
-            const invAlpha = inCorner ? 0 : Math.max(0, 255 - d[idx + 3]);
-            d[idx] = rgb[0];
-            d[idx + 1] = rgb[1];
-            d[idx + 2] = rgb[2];
-            d[idx + 3] = invAlpha;
-        }
-    }
-    sctx.putImageData(imgData, 0, 0);
-
-    const out = createCanvas(size, size);
-    const octx = out.getContext('2d');
-    const scale = Math.min(size / srcW, size / srcH);
-    const dw = srcW * scale;
-    const dh = srcH * scale;
-    octx.drawImage(srcCanvas, (size - dw) / 2, (size - dh) / 2, dw, dh);
-    return out;
 }
 
 /**
@@ -295,23 +233,6 @@ function getRarityColor(obj, fallback = 'rgba(255,255,255,0.2)') {
         }
     }
     return fallback;
-}
-
-/**
- * 依武器 ID 或幹員查表取得武器類型圖示鍵值（如 lance, sword, wand, pistol, claymore）
- */
-function resolveWeaponTypeKey(charObj, charMeta) {
-    const metaKey = charMeta?.weaponType?.key;
-    if (metaKey) {
-        return metaKey === 'weapon_type_claymores' ? 'weapon_type_claymore' : metaKey;
-    }
-    const wpnId = charObj?.weapon?.id || '';
-    const m = wpnId.match(/^wpn_([a-z]+)_/i);
-    if (m) {
-        const raw = m[1].toLowerCase();
-        return `weapon_type_${raw === 'claymores' ? 'claymore' : raw}`;
-    }
-    return null;
 }
 
 /**
@@ -763,38 +684,95 @@ function drawPhase2Background(ctx, WIDTH, HEIGHT, bgImg, isPass) {
         ctx.fillRect(rightFadeStart, 0, WIDTH - rightFadeStart, HEIGHT);
     }
 
-    // 左側深色遮罩確保文字可讀性
-    const leftOverlay = ctx.createLinearGradient(0, 0, WIDTH * 0.55, 0);
-    leftOverlay.addColorStop(0, 'rgba(10, 11, 14, 0.85)');
-    leftOverlay.addColorStop(0.65, 'rgba(10, 11, 14, 0.35)');
+    // 左側深色遮罩確保文字可讀性（避免過度遮蔽中央全息基地光柱）
+    const leftOverlay = ctx.createLinearGradient(0, 0, WIDTH * 0.44, 0);
+    leftOverlay.addColorStop(0, 'rgba(10, 11, 14, 0.72)');
+    leftOverlay.addColorStop(0.6, 'rgba(10, 11, 14, 0.22)');
     leftOverlay.addColorStop(1, 'rgba(10, 11, 14, 0)');
     ctx.fillStyle = leftOverlay;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    // 底部氛圍光暈（全寬度）
-    const bottomGlow = ctx.createLinearGradient(0, HEIGHT - 220, 0, HEIGHT);
-    bottomGlow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    bottomGlow.addColorStop(1, isPass ? 'rgba(220, 232, 34, 0.34)' : 'rgba(179, 75, 51, 0.30)');
-    ctx.fillStyle = bottomGlow;
-    ctx.fillRect(0, HEIGHT - 220, WIDTH, 220);
-
-    // 右上角科技裝飾線框
+    // 左側背景淡灰大型幾何底紋（大圓環與斜線徽章輪廓）
     ctx.save();
-    ctx.strokeStyle = isPass ? 'rgba(228, 240, 38, 0.38)' : 'rgba(190, 90, 65, 0.35)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(140, 560, 290, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(140, 560, 200, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(40, 320);
+    ctx.lineTo(390, 560);
+    ctx.lineTo(40, 800);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+
+    // 左中側微妙斜射虹彩光束（還原實機圖左側紫藍光暈）
+    if (isPass) {
+        const prismGrad = ctx.createLinearGradient(0, 740, 520, 790);
+        prismGrad.addColorStop(0, 'rgba(190, 45, 210, 0.18)');
+        prismGrad.addColorStop(0.5, 'rgba(65, 165, 255, 0.14)');
+        prismGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = prismGrad;
+        ctx.fillRect(0, 725, 520, 55);
+    }
+
+    // 底部氛圍光暈（高亮度黃綠光暈）
+    const bottomGlow = ctx.createLinearGradient(0, HEIGHT - 300, 0, HEIGHT);
+    bottomGlow.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    bottomGlow.addColorStop(0.55, isPass ? 'rgba(218, 232, 34, 0.22)' : 'rgba(179, 75, 51, 0.20)');
+    bottomGlow.addColorStop(1, isPass ? 'rgba(232, 238, 38, 0.52)' : 'rgba(185, 72, 46, 0.45)');
+    ctx.fillStyle = bottomGlow;
+    ctx.fillRect(0, HEIGHT - 300, WIDTH, 300);
+
+    // 右上角與幹員區上方黃綠幾何線框裝飾
+    const accentStroke = isPass ? 'rgba(222, 236, 38, 0.48)' : 'rgba(190, 90, 65, 0.40)';
+    const accentFill = isPass ? 'rgba(218, 232, 36, 0.34)' : 'rgba(190, 90, 65, 0.28)';
+    ctx.save();
+    ctx.strokeStyle = accentStroke;
+    ctx.lineWidth = 1.6;
     for (let i = 0; i < 4; i++) {
-        const ox = 1580 + i * 52;
+        const ox = 1588 + i * 48;
         ctx.beginPath();
         ctx.moveTo(ox, 48);
-        ctx.lineTo(ox + 34, 48);
-        ctx.lineTo(ox + 17, 78);
+        ctx.lineTo(ox + 32, 48);
+        ctx.lineTo(ox + 16, 76);
         ctx.closePath();
         ctx.stroke();
     }
     ctx.beginPath();
-    ctx.moveTo(1560, 92);
-    ctx.lineTo(1830, 92);
+    ctx.moveTo(1560, 90);
+    ctx.lineTo(1836, 90);
     ctx.stroke();
+
+    // 幹員區下方大倒三角形裝飾＋點陣 x 與 RGB 色塊（1:1 還原實機圖右側底部）
+    const triX = 1272;
+    const triY = 835;
+    ctx.fillStyle = accentFill;
+    ctx.beginPath();
+    ctx.moveTo(triX, triY);
+    ctx.lineTo(triX + 215, triY);
+    ctx.lineTo(triX + 107.5, triY + 185);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+    ctx.font = "bold 11px 'Noto Sans TC', sans-serif";
+    ctx.fillText('x x x x x x x', 1324, 922);
+    ctx.fillText('x x x x x x x', 1324, 936);
+    ctx.fillText('x x x x x x x', 1324, 950);
+
+    // 右側斜下方微小色彩校正方塊（CMYK 工業標籤）
+    const chipY = 964;
+    const chipStartX = 1782;
+    const chipColors = ['#00e5ff', '#ff2a85', '#ffe600'];
+    for (let c = 0; c < chipColors.length; c++) {
+        ctx.fillStyle = chipColors[c];
+        ctx.fillRect(chipStartX + c * 11, chipY, 8, 8);
+    }
     ctx.restore();
 }
 
@@ -942,9 +920,12 @@ async function drawPhase2LeftPanel(ctx, params) {
         ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
         const badgeTextW = ctx.measureText(text.newRecord).width;
         const badgeW = badgeTextW + 16;
-        ctx.fillStyle = '#e8eaed';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
         ctx.fillRect(badgeX, badgeY, badgeW, 24);
-        ctx.fillStyle = '#181a1c';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(badgeX, badgeY, badgeW, 24);
+        ctx.fillStyle = '#ffffff';
         ctx.fillText(text.newRecord, badgeX + 8, badgeY + 17);
     }
 
@@ -1068,25 +1049,23 @@ async function drawPhase2LeftPanel(ctx, params) {
 }
 
 /**
- * 繪製 Phase 2 單張幹員出戰卡片
- */
-/**
  * 預先並行載入單張幹員卡片所需的遠端與本地圖片，避免繪製時交錯操作 ctx.clip()
  */
 async function preloadPhase2CardAssets(charObj, charMeta) {
     if (!charObj) return null;
 
     const profKey = charMeta?.profession?.key;
-    const potLevel = Number.isFinite(Number(charObj.potentialLevel)) ? Number(charObj.potentialLevel) : 0;
-    const weaponTypeKey = resolveWeaponTypeKey(charObj, charMeta);
+    const rawPot = Number(charObj.potentialLevel);
+    const potLevel = Number.isFinite(rawPot) ? Math.max(0, Math.min(5, rawPot)) : 0;
+    const rawRefine = Number(charObj.weapon?.refineLevel);
+    const refineLevel = Number.isFinite(rawRefine) ? Math.max(0, Math.min(5, rawRefine)) : 0;
     const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
 
-    const [avatarImg, profImg, potImg, skportWTypeImg, fallbackWTypeImg, wIconImg, ...eqImgs] = await Promise.all([
+    const [avatarImg, profImg, potImg, wRefineImg, wIconImg, ...eqImgs] = await Promise.all([
         safeLoadImage(charObj.avatarUrl),
         profKey ? safeLoadImage(path.join(__dirname, '../assets/images/character', `${profKey}.png`)) : Promise.resolve(null),
         safeLoadImage(path.join(__dirname, '../assets/images/character', `potential_${potLevel}.png`)),
-        weaponTypeKey ? safeLoadImage(path.join(__dirname, '../assets/images/ui/phase2', `${weaponTypeKey}.png`)) : Promise.resolve(null),
-        weaponTypeKey ? safeLoadImage(path.join(__dirname, '../assets/images/weapon', `${weaponTypeKey}.png`)) : Promise.resolve(null),
+        safeLoadImage(path.join(__dirname, '../assets/images/character', `potential_${refineLevel}.png`)),
         safeLoadImage(charObj.weapon?.icon),
         ...eqKeys.map(k => safeLoadImage(charObj.equips?.[k]?.icon)),
     ]);
@@ -1095,8 +1074,7 @@ async function preloadPhase2CardAssets(charObj, charMeta) {
         avatarImg,
         profImg,
         potImg,
-        wTypeImg: skportWTypeImg || fallbackWTypeImg,
-        isSkportWeaponType: Boolean(skportWTypeImg),
+        wRefineImg,
         wIconImg,
         eqImgs
     };
@@ -1115,7 +1093,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     if (!charObj || !cardAssets) return;
 
-    const portraitH = 385;
+    const portraitH = 388;
 
     // (A) 幹員半身立繪
     ctx.save();
@@ -1146,22 +1124,19 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = fadeGrad;
     ctx.fillRect(cx, cy + portraitH - 110, cw, 120);
 
-    // 左上角職業圖標（無外框，純白放大並加陰影確保清晰）
+    // 左上角職業圖標（無外框，貼合圖標大小的深色半透明純背景 + 純白職業符號）
     if (cardAssets.profImg) {
-        const whiteProf = tintIcon(cardAssets.profImg, '#ffffff', 40);
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.90)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetY = 1;
-        ctx.drawImage(whiteProf, cx + 10, cy + 12, 40, 40);
-        ctx.restore();
+        ctx.fillStyle = 'rgba(10, 12, 16, 0.78)';
+        ctx.fillRect(cx + 10, cy + 12, 38, 38);
+        const whiteProf = tintIcon(cardAssets.profImg, '#ffffff', 34);
+        ctx.drawImage(whiteProf, cx + 12, cy + 14, 34, 34);
     }
 
     // 右上細微角標
     ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
     ctx.fillRect(cx + cw - 12, cy + 13, 4, 26);
 
-    // 等級與潛能（命座）星芒（無外框，放大並加陰影確保清晰可辨）
+    // 等級與潛能（命座）星芒（無外框，放大圖示並加陰影確保清晰）
     const lvTopY = cy + 72;
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
@@ -1179,15 +1154,15 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     if (cardAssets.potImg) {
         const potY = lvTopY + 42;
         ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.92)';
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = 9;
         ctx.shadowOffsetY = 1;
-        ctx.drawImage(cardAssets.potImg, cx + 8, potY, 38, 38);
+        ctx.drawImage(cardAssets.potImg, cx + 8, potY, 44, 44);
         ctx.restore();
     }
 
     // (B) 武器區域
-    const weaponY = cy + 402;
+    const weaponY = cy + 404;
     const weaponH = 128;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
     ctx.fillRect(cx, weaponY, cw, weaponH);
@@ -1196,23 +1171,20 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     if (cardAssets.wIconImg) {
         const wIconImg = cardAssets.wIconImg;
-        const maxW = 110;
-        const maxH = 94;
+        const maxW = 116;
+        const maxH = 112;
         const scale = Math.min(maxW / wIconImg.width, maxH / wIconImg.height);
         const ww = wIconImg.width * scale;
         const wh = wIconImg.height * scale;
-        ctx.drawImage(wIconImg, cx + 6 + (maxW - ww) / 2, weaponY + 8 + (maxH - wh) / 2, ww, wh);
+        ctx.drawImage(wIconImg, cx + 4 + (maxW - ww) / 2, weaponY + 4 + (maxH - wh) / 2, ww, wh);
     }
 
-    // 武器類型圖標（轉換為與幹員類型一致的純白無框符號）
-    if (cardAssets.wTypeImg) {
-        const wTypeGlyph = cardAssets.isSkportWeaponType
-            ? extractCutoutGlyph(cardAssets.wTypeImg, 28, [255, 255, 255])
-            : extractWhiteGlyph(cardAssets.wTypeImg, 28);
+    // 武器精煉等級圖示（與幹員命座同款，無外框加陰影）
+    if (cardAssets.wRefineImg) {
         ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-        ctx.shadowBlur = 5;
-        ctx.drawImage(wTypeGlyph, cx + 8, weaponY + 8, 28, 28);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.92)';
+        ctx.shadowBlur = 6;
+        ctx.drawImage(cardAssets.wRefineImg, cx + 8, weaponY + 8, 30, 30);
         ctx.restore();
     }
 
@@ -1231,13 +1203,13 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = '#f5b800';
     ctx.fillRect(cx + 10, weaponY + 120, 68, 3);
 
-    // 武器詞條（/9 /9 /4 樣式＋顯眼斜切幾何背景底塊）
+    // 武器詞條（/9 /9 /4 樣式＋斜切幾何背景底塊）
     const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
     for (let t = 0; t < Math.min(terms.length, 3); t++) {
         const ty = weaponY + 14 + t * 34;
-        const tx = cx + cw - 52;
-        drawSkewedRect(ctx, tx - 9, ty - 2, 55, 27, 5, 'rgba(255, 255, 255, 0.22)');
-        drawSkewedRect(ctx, tx - 9, ty - 2, 3, 27, 5, 'rgba(232, 245, 34, 0.85)');
+        const tx = cx + cw - 48;
+        drawSkewedRect(ctx, tx - 8, ty - 2, 50, 27, 5, 'rgba(255, 255, 255, 0.22)');
+        drawSkewedRect(ctx, tx - 8, ty - 2, 3, 27, 5, 'rgba(232, 245, 34, 0.85)');
         if (assets.termSlashImg) {
             ctx.drawImage(assets.termSlashImg, tx, ty + 2, 13, 18);
         } else {
@@ -1247,7 +1219,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         }
         ctx.fillStyle = '#ffffff';
         ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-        ctx.fillText(String(terms[t]), tx + 16, ty + 18);
+        ctx.fillText(String(terms[t]), tx + 15, ty + 18);
     }
 
     // (C) 2×2 裝備網格
@@ -1389,11 +1361,11 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
     });
 
     // 右側 4 位幹員卡片（循序繪製以確保裁切區域互不干擾）
-    const charStartX = 1090;
-    const charY = 128;
-    const charW = 176;
-    const charH = 735;
-    const charGap = 14;
+    const charStartX = 1098;
+    const charY = 122;
+    const charW = 178;
+    const charH = 740;
+    const charGap = 10;
 
     for (let i = 0; i < 4; i++) {
         const cx = charStartX + i * (charW + charGap);
