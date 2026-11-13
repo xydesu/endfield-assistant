@@ -98,8 +98,8 @@ module.exports = {
             return interaction.editReply({ embeds: [embed] });
         }
 
-        // 建立角色選單選項，並標記當前選取之角色
-        const options = roles.map(role => {
+        // 建立角色選單選項，並標記當前選取之角色（受限 Discord 單一選單最多 25 項）
+        const options = roles.slice(0, 25).map(role => {
             const sid = resolveServerId(role);
             const isCurrent = (role.roleId === user.uid && sid === user.serverId);
             const currentLabelSuffix = isCurrent 
@@ -139,6 +139,15 @@ module.exports = {
             const user = await User.findByPk(userId);
             const lang = user?.language || 'zh_Hant';
 
+            if (!user) {
+                const embed = new EmbedBuilder()
+                    .setColor(EMBED_COLOR)
+                    .setTitle(t(lang, 'not_bound_title'))
+                    .setDescription(t(lang, 'not_bound_desc'))
+                    .setTimestamp();
+                return interaction.editReply({ embeds: [embed], components: [] });
+            }
+
             const selectedValue = interaction.values[0];
             const lastUnderscore = selectedValue.lastIndexOf('_');
             if (lastUnderscore === -1) {
@@ -166,18 +175,29 @@ module.exports = {
                 const updateData = {
                     uid: roleId,
                     serverId: serverId,
+                    staminaNotified: false,
+                    dailyNotified: false,
+                    lastSignDate: null,
                 };
+                let replyLang = lang;
                 // 官服強制將語言變更為簡體中文
                 if (serverId === '1' || serverId === '57') {
                     updateData.language = 'zh_Hans';
+                    replyLang = 'zh_Hans';
                 }
                 // 更新使用者資料庫中當前選用的角色與伺服器資訊
                 await user.update(updateData);
 
+                const scheduler = require('../../utils/scheduler');
+                if (user.autoSignTime) scheduler.scheduleUser(user, interaction.client);
+                if (user.dailyNotify && user.dailyNotifyTime) {
+                    scheduler.scheduleDailyNotifyUser(user, interaction.client);
+                }
+
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle(t(lang, 'switch_server_success_title'))
-                    .setDescription(t(lang, 'switch_server_success_desc')(roleId, serverId))
+                    .setTitle(t(replyLang, 'switch_server_success_title'))
+                    .setDescription(t(replyLang, 'switch_server_success_desc')(roleId, serverId))
                     .setTimestamp();
 
                 // 切換完成後移除選單以防止重複操作

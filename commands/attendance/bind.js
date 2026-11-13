@@ -4,10 +4,13 @@ const { encrypt } = require('../../utils/encryption');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
 const { getBindingList } = require('../../utils/attendance');
+const scheduler = require('../../utils/scheduler');
 
 // Temporarily hold raw cred while user is choosing a role (TTL: 10 minutes)
 const pendingCredentials = new Map();
 const PENDING_TTL_MS = 10 * 60 * 1000;
+const MAX_PENDING_CREDENTIALS = 500;
+const MAX_SELECT_OPTIONS = 25;
 
 // 映射伺服器展示名稱至數值 ID（備援映射）
 const SERVER_NAME_TO_ID = {
@@ -60,7 +63,7 @@ module.exports = {
                 { name: t(lang, 'bind_step1_label'), value: t(lang, 'bind_step1') },
                 { name: t(lang, 'bind_step2_label'), value: t(lang, 'bind_step2') },
                 { name: t(lang, 'bind_step3_label'), value: t(lang, 'bind_step3') },
-                { name: t(lang, 'bind_script_label'), value: '```javascript\n(async()=>{try{const r=await fetch("https://gist.githubusercontent.com/xydesu/e77a5769292b80801fa246a4e068af47/raw/e0fa110679e6164efda76cfb87d12cfcce287ddb/cred.js");const t=await r.text();Function(t)();}catch(e){console.error(e);}})()\n```' },
+                { name: t(lang, 'bind_script_label'), value: '```javascript\n(()=>{const c=localStorage.getItem("SK_OAUTH_CRED_KEY")||localStorage.getItem("cred");console.log(c?JSON.stringify({cred:c}):"Not found in localStorage");})();\n```' },
                 { name: t(lang, 'bind_step4_label'), value: t(lang, 'bind_step4') },
                 { name: t(lang, 'bind_step5_label'), value: t(lang, 'bind_step5') }
             )
@@ -160,16 +163,22 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            // Store cred temporarily while user picks a role (encrypted at rest)
-            const userId = interaction.user.id;
-            pendingCredentials.set(userId, { encryptedCred: encrypt(cred), expiresAt: Date.now() + PENDING_TTL_MS });
-
-            // Prune expired entries
+            // Prune expired entries and enforce bounded cache size
+            const now = Date.now();
             for (const [k, v] of pendingCredentials) {
-                if (v.expiresAt < Date.now()) pendingCredentials.delete(k);
+                if (v.expiresAt < now) pendingCredentials.delete(k);
+            }
+            while (pendingCredentials.size >= MAX_PENDING_CREDENTIALS) {
+                const oldestKey = pendingCredentials.keys().next().value;
+                if (!oldestKey) break;
+                pendingCredentials.delete(oldestKey);
             }
 
-            const options = roles.map(role => {
+            // Store cred temporarily while user picks a role (encrypted at rest)
+            const userId = interaction.user.id;
+            pendingCredentials.set(userId, { encryptedCred: encrypt(cred), expiresAt: now + PENDING_TTL_MS });
+
+            const options = roles.slice(0, MAX_SELECT_OPTIONS).map(role => {
                 const sid = resolveServerId(role);
                 return {
                     label: `${role.serverName} | ${role.nickname}`.substring(0, 100),
@@ -242,18 +251,31 @@ module.exports = {
                     cred: pending.encryptedCred,
                     uid: roleId,
                     serverId: serverId,
+                    staminaNotified: false,
+                    dailyNotified: false,
+                    lastSignDate: null,
                 };
+                let replyLang = lang;
                 // 官服強制綁定簡體中文
                 if (serverId === '1' || serverId === '57') {
                     upsertData.language = 'zh_Hans';
+                    replyLang = 'zh_Hans';
                 }
                 await User.upsert(upsertData);
                 pendingCredentials.delete(userId);
 
+                const updatedUser = await User.findByPk(userId);
+                if (updatedUser) {
+                    if (updatedUser.autoSignTime) scheduler.scheduleUser(updatedUser, interaction.client);
+                    if (updatedUser.dailyNotify && updatedUser.dailyNotifyTime) {
+                        scheduler.scheduleDailyNotifyUser(updatedUser, interaction.client);
+                    }
+                }
+
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
-                    .setTitle(t(lang, 'bind_success_title'))
-                    .setDescription(t(lang, 'bind_success_desc')(roleId, serverId))
+                    .setTitle(t(replyLang, 'bind_success_title'))
+                    .setDescription(t(replyLang, 'bind_success_desc')(roleId, serverId))
                     .setTimestamp();
                 await interaction.update({ embeds: [embed], components: [] });
             } catch (error) {

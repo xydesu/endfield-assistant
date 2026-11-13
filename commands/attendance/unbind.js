@@ -26,6 +26,7 @@ module.exports = {
             }
 
             scheduler.cancelUser(discordId);
+            scheduler.cancelDailyNotifyUser(discordId);
             await user.destroy();
 
             const embed = new EmbedBuilder()

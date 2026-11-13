@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, InteractionContextType } = require('discord.js');
 const Server = require('../../models/Server');
 const User = require('../../models/User');
 const { EMBED_COLOR } = require('../../utils/constants');
@@ -13,11 +13,15 @@ module.exports = {
                 .setDescription('選擇通知頻道 / Select notification channel')
                 .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .setContexts(InteractionContextType.Guild),
 
     async execute(interaction) {
         const user = await User.findByPk(interaction.user.id);
         const lang = user?.language || 'zh_Hant';
+        if (!interaction.guild) {
+            return interaction.reply({ content: t(lang, 'notify_fail_title'), ephemeral: true });
+        }
         const channel = interaction.options.getChannel('channel');
 
         try {

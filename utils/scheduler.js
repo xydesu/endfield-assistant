@@ -1,6 +1,7 @@
 const schedule = require('node-schedule');
 const { EmbedBuilder } = require('discord.js');
 const User = require('../models/User');
+const Server = require('../models/Server');
 const { signIn, buildAttendanceEmbed, getCardDetail } = require('./attendance');
 const { EMBED_COLOR } = require('./constants');
 const { t } = require('./i18n');
@@ -8,8 +9,68 @@ const { t } = require('./i18n');
 const jobs = new Map();
 const dailyJobs = new Map();
 
-const ASIA_SERVER_ID = '2';
 const AMERICAS_EUROPE_SERVER_ID = '3';
+const STAMINA_CONCURRENCY = 5;
+let isCheckingStamina = false;
+
+/**
+ * 取得有設定通知頻道的伺服器查表（GuildId -> ChannelId）
+ */
+async function loadNotifyChannelMap() {
+    const servers = await Server.findAll();
+    const map = new Map();
+    for (const s of servers) {
+        if (s?.guildId && s?.notifyChannelId) {
+            map.set(s.guildId, s.notifyChannelId);
+        }
+    }
+    return map;
+}
+
+/**
+ * 共用的伺服器頻道通知分發邏輯，支援指定單一伺服器或查表過濾共屬伺服器
+ */
+async function dispatchGuildNotification(user, client, buildMessage, serverChannelMap = null) {
+    let discordUser = null;
+    try {
+        discordUser = await client.users.fetch(user.discordId);
+    } catch {
+        // 無法取得 Discord 使用者時，僅略過標題使用者標記
+    }
+
+    const channelMap = serverChannelMap || await loadNotifyChannelMap();
+    const targetGuildIds = user.notifyGuildId
+        ? [user.notifyGuildId]
+        : Array.from(channelMap.keys());
+
+    for (const guildId of targetGuildIds) {
+        const notifyChannelId = channelMap.get(guildId);
+        if (!notifyChannelId) continue;
+
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) continue;
+
+        try {
+            await guild.members.fetch(user.discordId);
+        } catch {
+            // 使用者不在此伺服器內，略過
+            continue;
+        }
+
+        try {
+            let channel = guild.channels.cache.get(notifyChannelId);
+            if (!channel) {
+                channel = await guild.channels.fetch(notifyChannelId).catch(() => null);
+            }
+            if (!channel || typeof channel.send !== 'function') continue;
+
+            const payload = buildMessage(discordUser);
+            await channel.send(payload);
+        } catch (err) {
+            console.error(`[Scheduler] Failed sending notification to guild=${guildId} user=${user.discordId}:`, err.message);
+        }
+    }
+}
 
 async function runSignIn(userId, client) {
     const user = await User.findByPk(userId);
@@ -18,7 +79,6 @@ async function runSignIn(userId, client) {
 
     console.warn(`[Scheduler] Running auto sign-in for ${user.discordId}`);
 
-    // 開發測試模式防風控：如果 SKIP_AUTO_SIGNIN 設為 true 則不真正調用 API 簽到
     if (process.env.SKIP_AUTO_SIGNIN === 'true') {
         console.warn(`[Scheduler] [Dev Mode] Skipped actual sign-in request for ${user.discordId}`);
         return;
@@ -26,79 +86,59 @@ async function runSignIn(userId, client) {
 
     const result = await signIn(user);
 
-    // Notify user via DM - DISABLED per user request (Only guild channel)
-    // try {
-    //     const discordUser = await client.users.fetch(userId);
-    //     if (discordUser) {
-    //         await discordUser.send(`【自動簽到報告】\n${result.message}\n獲得獎勵: ${result.data ? JSON.stringify(result.data) : '無'}`);
-    //     }
-    // } catch (e) {
-    //     console.error(`Failed to DM user ${userId}:`, e);
-    // }
-
-    // Notify servers
     try {
-        const Server = require('../models/Server');
-        const guilds = client.guilds.cache;
-
-        let discordUser = null;
-        try {
-            discordUser = await client.users.fetch(userId);
-        } catch (e) {
-            // If fetch fails, author field will simply be omitted
-        }
-
-        for (const [guildId, guild] of guilds) {
-            try {
-                // Check if user scoped notifications to a specific guild
-                if (user.notifyGuildId && user.notifyGuildId !== guildId) {
-                    continue; // Skip if this is not the target guild
-                }
-
-                const serverConfig = await Server.findByPk(guildId);
-                if (serverConfig && serverConfig.notifyChannelId) {
-                    try {
-                        await guild.members.fetch(userId);
-                        const channel = guild.channels.cache.get(serverConfig.notifyChannelId);
-                        if (channel) {
-                            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, t(lang, 'scheduler_auto_report'), result, discordUser, lang);
-
-                            const content = (!result.success || user.isTag) ? `<@${userId}>` : '';
-                            await channel.send({ content: content, embeds: [embed] });
-                        }
-                    } catch (memberErr) {
-                        // User not in guild, ignore
-                    }
-                }
-            } catch (err) {
-                console.error(`Error processing guild notification for ${guildId}:`, err);
-            }
-        }
+        await dispatchGuildNotification(user, client, (discordUser) => {
+            const embed = buildAttendanceEmbed(EmbedBuilder, EMBED_COLOR, t(lang, 'scheduler_auto_report'), result, discordUser, lang);
+            const content = (!result.success || user.isTag) ? `<@${userId}>` : '';
+            return { content, embeds: [embed] };
+        });
     } catch (e) {
         console.error('Failed to process server notifications:', e);
     }
 }
 
+function parseTimeParts(timeStr) {
+    if (typeof timeStr !== 'string') return null;
+    const match = timeStr.trim().match(/^([0-1]?\d|2[0-3]):([0-5]\d)$/);
+    if (!match) return null;
+    return {
+        hour: Number.parseInt(match[1], 10),
+        minute: Number.parseInt(match[2], 10),
+    };
+}
+
 function scheduleUser(user, client) {
     if (jobs.has(user.discordId)) {
-        jobs.get(user.discordId).cancel();
+        const oldJob = jobs.get(user.discordId);
+        if (oldJob) oldJob.cancel();
+        jobs.delete(user.discordId);
     }
 
     if (!user.autoSignTime) return;
 
-    const [hour, minute] = user.autoSignTime.split(':');
+    const parts = parseTimeParts(user.autoSignTime);
+    if (!parts) {
+        console.warn(`[Scheduler] Invalid autoSignTime "${user.autoSignTime}" for ${user.discordId}`);
+        return;
+    }
+
     const rule = new schedule.RecurrenceRule();
-    rule.hour = parseInt(hour, 10);
-    rule.minute = parseInt(minute, 10);
+    rule.hour = parts.hour;
+    rule.minute = parts.minute;
 
     const job = schedule.scheduleJob(rule, () => runSignIn(user.discordId, client));
+    if (!job) {
+        console.warn(`[Scheduler] Failed to create sign-in job for ${user.discordId}`);
+        return;
+    }
     jobs.set(user.discordId, job);
     console.warn(`[Scheduler] Scheduled job for ${user.discordId} at ${user.autoSignTime}`);
 }
 
 function cancelUser(userId) {
     if (jobs.has(userId)) {
-        jobs.get(userId).cancel();
+        const job = jobs.get(userId);
+        if (job) job.cancel();
         jobs.delete(userId);
         console.warn(`[Scheduler] Cancelled job for ${userId}`);
     }
@@ -113,59 +153,40 @@ async function checkAndSendDailyNotification(userId, client) {
         const result = await getCardDetail(user);
         if (!result.success) return;
 
-        const { dailyMission } = result.detail;
+        const { dailyMission } = result.detail || {};
         if (!dailyMission) return;
 
-        const isComplete = parseInt(dailyMission.dailyActivation, 10) >= parseInt(dailyMission.maxDailyActivation, 10);
-        if (isComplete) return;
+        const curActivation = Number.parseInt(dailyMission.dailyActivation, 10);
+        const maxActivation = Number.parseInt(dailyMission.maxDailyActivation, 10);
+        if (!Number.isFinite(curActivation) || !Number.isFinite(maxActivation) || maxActivation <= 0) return;
 
-        await sendDailyNotification(user, dailyMission.dailyActivation, dailyMission.maxDailyActivation, client);
+        if (curActivation >= maxActivation) return;
+
+        await sendDailyNotification(user, curActivation, maxActivation, client);
         await user.update({ dailyNotified: true });
-        console.warn(`[DailyNotify] Notified ${userId} (${dailyMission.dailyActivation}/${dailyMission.maxDailyActivation})`);
+        console.warn(`[DailyNotify] Notified ${userId} (${curActivation}/${maxActivation})`);
     } catch (e) {
         console.error(`[DailyNotify] Error checking daily mission for ${userId}:`, e);
     }
 }
 
-async function sendDailyNotification(user, curActivation, maxActivation, client) {
+async function sendDailyNotification(user, curActivation, maxActivation, client, serverChannelMap = null) {
     const lang = user.language || 'zh_Hant';
     try {
-        const Server = require('../models/Server');
-        const guilds = client.guilds.cache;
-
-        let discordUser = null;
-        try {
-            discordUser = await client.users.fetch(user.discordId);
-        } catch (e) {
-            // If fetch fails, author field will simply be omitted
-        }
-
-        for (const [guildId, guild] of guilds) {
-            try {
-                if (user.notifyGuildId && user.notifyGuildId !== guildId) continue;
-
-                const serverConfig = await Server.findByPk(guildId);
-                if (serverConfig && serverConfig.notifyChannelId) {
-                    try {
-                        await guild.members.fetch(user.discordId);
-                        const channel = guild.channels.cache.get(serverConfig.notifyChannelId);
-                        if (channel) {
-                            const embed = new EmbedBuilder()
-                                .setColor(EMBED_COLOR)
-                                .setTitle(t(lang, 'scheduler_daily_title'))
-                                .setDescription(t(lang, 'scheduler_daily_desc')(curActivation, maxActivation))
-                                .setTimestamp();
-                            const content = user.isDailyTag ? `<@${user.discordId}>` : '';
-                            await channel.send({ content, embeds: [embed] });
-                        }
-                    } catch (memberErr) {
-                        // User not in guild, ignore
-                    }
-                }
-            } catch (err) {
-                console.error(`[DailyNotify] Error notifying guild ${guildId} for ${user.discordId}:`, err);
-            }
-        }
+        await dispatchGuildNotification(
+            user,
+            client,
+            () => {
+                const embed = new EmbedBuilder()
+                    .setColor(EMBED_COLOR)
+                    .setTitle(t(lang, 'scheduler_daily_title'))
+                    .setDescription(t(lang, 'scheduler_daily_desc')(curActivation, maxActivation))
+                    .setTimestamp();
+                const content = user.isDailyTag ? `<@${user.discordId}>` : '';
+                return { content, embeds: [embed] };
+            },
+            serverChannelMap
+        );
     } catch (e) {
         console.error(`[DailyNotify] Failed to send notification for ${user.discordId}:`, e);
     }
@@ -173,25 +194,37 @@ async function sendDailyNotification(user, curActivation, maxActivation, client)
 
 function scheduleDailyNotifyUser(user, client) {
     if (dailyJobs.has(user.discordId)) {
-        dailyJobs.get(user.discordId).cancel();
+        const oldJob = dailyJobs.get(user.discordId);
+        if (oldJob) oldJob.cancel();
+        dailyJobs.delete(user.discordId);
     }
 
     if (!user.dailyNotify || !user.dailyNotifyTime) return;
 
-    const [hour, minute] = user.dailyNotifyTime.split(':');
+    const parts = parseTimeParts(user.dailyNotifyTime);
+    if (!parts) {
+        console.warn(`[DailyNotify] Invalid dailyNotifyTime "${user.dailyNotifyTime}" for ${user.discordId}`);
+        return;
+    }
+
     const rule = new schedule.RecurrenceRule();
-    rule.hour = parseInt(hour, 10);
-    rule.minute = parseInt(minute, 10);
+    rule.hour = parts.hour;
+    rule.minute = parts.minute;
     rule.tz = 'UTC';
 
     const job = schedule.scheduleJob(rule, () => checkAndSendDailyNotification(user.discordId, client));
+    if (!job) {
+        console.warn(`[DailyNotify] Failed to create notify job for ${user.discordId}`);
+        return;
+    }
     dailyJobs.set(user.discordId, job);
     console.warn(`[DailyNotify] Scheduled notify job for ${user.discordId} at ${user.dailyNotifyTime} UTC`);
 }
 
 function cancelDailyNotifyUser(userId) {
     if (dailyJobs.has(userId)) {
-        dailyJobs.get(userId).cancel();
+        const job = dailyJobs.get(userId);
+        if (job) job.cancel();
         dailyJobs.delete(userId);
         console.warn(`[DailyNotify] Cancelled notify job for ${userId}`);
     }
@@ -221,14 +254,11 @@ async function initScheduler(client) {
     }
     console.warn(`[Scheduler] Initialized ${jobs.size} sign-in jobs and ${dailyJobs.size} daily notify jobs.`);
 
-    // Check stamina every 30 minutes (at :00 and :30 of each hour)
     const staminaRule = new schedule.RecurrenceRule();
     staminaRule.minute = [0, 30];
     schedule.scheduleJob(staminaRule, () => checkStamina(client));
     console.warn('[Scheduler] Stamina check scheduled every 30 minutes.');
 
-    // Reset dailyNotified at each server's daily reset time (04:00 server time):
-    // Asia (UTC+8) & China Mainland (UTC+8): 04:00 UTC+8 = 20:00 UTC
     const cnAsiaResetRule = new schedule.RecurrenceRule();
     cnAsiaResetRule.hour = 20;
     cnAsiaResetRule.minute = 0;
@@ -248,75 +278,84 @@ async function initScheduler(client) {
     console.warn('[DailyNotify] Americas/Europe daily reset job scheduled at 09:00 UTC.');
 }
 
-async function sendStaminaNotification(user, curStamina, maxStamina, client) {
+async function sendStaminaNotification(user, curStamina, maxStamina, client, serverChannelMap = null) {
     const lang = user.language || 'zh_Hant';
     try {
-        const Server = require('../models/Server');
-        const guilds = client.guilds.cache;
-
-        let discordUser = null;
-        try {
-            discordUser = await client.users.fetch(user.discordId);
-        } catch (e) {
-            // If fetch fails, author field will simply be omitted
-        }
-
-        for (const [guildId, guild] of guilds) {
-            try {
-                if (user.notifyGuildId && user.notifyGuildId !== guildId) continue;
-
-                const serverConfig = await Server.findByPk(guildId);
-                if (serverConfig && serverConfig.notifyChannelId) {
-                    try {
-                        await guild.members.fetch(user.discordId);
-                        const channel = guild.channels.cache.get(serverConfig.notifyChannelId);
-                        if (channel) {
-                            const embed = new EmbedBuilder()
-                                .setColor(EMBED_COLOR)
-                                .setTitle(t(lang, 'scheduler_stamina_title'))
-                                .setDescription(t(lang, 'scheduler_stamina_desc')(curStamina, maxStamina))
-                                .setTimestamp();
-                            const content = user.isStaminaTag ? `<@${user.discordId}>` : '';
-                            await channel.send({ content, embeds: [embed] });
-                        }
-                    } catch (memberErr) {
-                        // User not in guild, ignore
-                    }
-                }
-            } catch (err) {
-                console.error(`[Stamina] Error notifying guild ${guildId} for ${user.discordId}:`, err);
-            }
-        }
+        await dispatchGuildNotification(
+            user,
+            client,
+            () => {
+                const embed = new EmbedBuilder()
+                    .setColor(EMBED_COLOR)
+                    .setTitle(t(lang, 'scheduler_stamina_title'))
+                    .setDescription(t(lang, 'scheduler_stamina_desc')(curStamina, maxStamina))
+                    .setTimestamp();
+                const content = user.isStaminaTag ? `<@${user.discordId}>` : '';
+                return { content, embeds: [embed] };
+            },
+            serverChannelMap
+        );
     } catch (e) {
         console.error(`[Stamina] Failed to send notification for ${user.discordId}:`, e);
     }
 }
 
 async function checkStamina(client) {
-    const users = await User.findAll({ where: { staminaNotify: true } });
-    for (const user of users) {
-        try {
-            const result = await getCardDetail(user);
-            if (!result.success) continue;
+    if (isCheckingStamina) {
+        console.warn('[Stamina] Previous stamina check is still running; skipping overlapping run.');
+        return;
+    }
 
-            const { dungeon } = result.detail;
-            const curStamina = parseInt(dungeon.curStamina);
-            const maxStamina = parseInt(dungeon.maxStamina);
-            const threshold = user.staminaThreshold ?? 80;
-            const isNearFull = curStamina >= Math.ceil(maxStamina * threshold / 100);
+    isCheckingStamina = true;
+    try {
+        const users = await User.findAll({ where: { staminaNotify: true } });
+        if (!users || users.length === 0) return;
 
-            if (isNearFull && !user.staminaNotified) {
-                await sendStaminaNotification(user, curStamina, maxStamina, client);
-                await user.update({ staminaNotified: true });
-                console.warn(`[Stamina] Notified ${user.discordId} (${curStamina}/${maxStamina})`);
-            } else if (!isNearFull && user.staminaNotified) {
-                // Stamina dropped below threshold — reset so the next peak triggers a new notification
-                await user.update({ staminaNotified: false });
+        const serverChannelMap = await loadNotifyChannelMap();
+        let cursor = 0;
+        const workerCount = Math.min(STAMINA_CONCURRENCY, users.length);
+
+        const workers = Array.from({ length: workerCount }, async () => {
+            while (cursor < users.length) {
+                const user = users[cursor++];
+                try {
+                    const result = await getCardDetail(user);
+                    if (!result.success) continue;
+
+                    const dungeon = result.detail?.dungeon;
+                    if (!dungeon) continue;
+
+                    const curStamina = Number.parseInt(dungeon.curStamina, 10);
+                    const maxStamina = Number.parseInt(dungeon.maxStamina, 10);
+                    if (!Number.isFinite(curStamina) || !Number.isFinite(maxStamina) || maxStamina <= 0) continue;
+
+                    const threshold = user.staminaThreshold ?? 80;
+                    const isNearFull = curStamina >= Math.ceil((maxStamina * threshold) / 100);
+
+                    if (isNearFull && !user.staminaNotified) {
+                        await sendStaminaNotification(user, curStamina, maxStamina, client, serverChannelMap);
+                        await user.update({ staminaNotified: true });
+                        console.warn(`[Stamina] Notified ${user.discordId} (${curStamina}/${maxStamina})`);
+                    } else if (!isNearFull && user.staminaNotified) {
+                        await user.update({ staminaNotified: false });
+                    }
+                } catch (e) {
+                    console.error(`[Stamina] Error checking stamina for ${user.discordId}:`, e);
+                }
             }
-        } catch (e) {
-            console.error(`[Stamina] Error checking stamina for ${user.discordId}:`, e);
-        }
+        });
+
+        await Promise.all(workers);
+    } finally {
+        isCheckingStamina = false;
     }
 }
 
-module.exports = { initScheduler, scheduleUser, cancelUser, scheduleDailyNotifyUser, cancelDailyNotifyUser };
+module.exports = {
+    initScheduler,
+    scheduleUser,
+    cancelUser,
+    scheduleDailyNotifyUser,
+    cancelDailyNotifyUser,
+    checkStamina,
+};
