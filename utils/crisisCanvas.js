@@ -1101,10 +1101,10 @@ async function preloadPhase2CardAssets(charObj, charMeta) {
  * 繪製 Z-4 裝備卡槽左上角懸浮升級徽章（深灰圓角投影底板＋亮天藍六角螺帽與右上三角形）
  */
 function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
-    const badgeSize = slotSize * 0.34;
+    const badgeSize = slotSize * 0.36;
     const badgeRadius = slotSize * 0.08;
-    const badgeX = sx - slotSize * 0.08;
-    const badgeY = sy - slotSize * 0.08;
+    const badgeX = sx - slotSize * 0.10;
+    const badgeY = sy - slotSize * 0.10;
 
     // 深灰圓角底板（獨立狀態與投影，畫完立刻清除）
     ctx.save();
@@ -1117,12 +1117,12 @@ function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
     ctx.fill();
     ctx.restore();
 
-    // 亮天藍幾何向量圖示（#29B6F6）
+    // 亮天藍幾何向量圖示（#29B6F6），隨底板尺寸等比例放大保持清晰輪廓
     ctx.save();
     const iconColor = '#29B6F6';
     const hexCx = badgeX + badgeSize * 0.40;
-    const hexCy = badgeY + badgeSize * 0.58;
-    const hexR = badgeSize * 0.24;
+    const hexCy = badgeY + badgeSize * 0.59;
+    const hexR = badgeSize * 0.26;
 
     ctx.strokeStyle = iconColor;
     ctx.lineWidth = Math.max(2.2, slotSize * 0.045);
@@ -1138,14 +1138,14 @@ function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
     ctx.closePath();
     ctx.stroke();
 
-    // 右上角外側緊鄰實心小三角形（尖端朝右上，與六角形保持清晰間距）
+    // 右上角外側緊鄰實心小三角形（尖端朝右上，與六角形保持獨立清晰間距）
     const tipX = badgeX + badgeSize * 0.90;
     const tipY = badgeY + badgeSize * 0.10;
     ctx.fillStyle = iconColor;
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
-    ctx.lineTo(tipX - badgeSize * 0.25, tipY + badgeSize * 0.07);
-    ctx.lineTo(tipX - badgeSize * 0.07, tipY + badgeSize * 0.25);
+    ctx.lineTo(tipX - badgeSize * 0.27, tipY + badgeSize * 0.07);
+    ctx.lineTo(tipX - badgeSize * 0.07, tipY + badgeSize * 0.27);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
