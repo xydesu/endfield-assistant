@@ -680,33 +680,46 @@ function drawPhase2Background(ctx, WIDTH, HEIGHT, bgImg, isPass) {
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     if (bgImg) {
-        const sy = Math.floor(bgImg.height * 0.44);
-        const sh = bgImg.height - sy;
-        const drawH = HEIGHT;
-        const drawW = Math.round((bgImg.width / sh) * drawH);
-        const drawX = Math.round((WIDTH - drawW) * 0.42);
+        const isWideBg = bgImg.width >= bgImg.height;
+        if (isWideBg) {
+            // 寬版實機景深圖：採 cover 等比鋪滿 1920×1080，保留完整左右構圖與自帶光效
+            const scale = Math.max(WIDTH / bgImg.width, HEIGHT / bgImg.height);
+            const drawW = Math.round(bgImg.width * scale);
+            const drawH = Math.round(bgImg.height * scale);
+            const drawX = Math.round((WIDTH - drawW) / 2);
+            const drawY = Math.round((HEIGHT - drawH) / 2);
+            ctx.drawImage(bgImg, drawX, drawY, drawW, drawH);
+        } else {
+            const sy = Math.floor(bgImg.height * 0.44);
+            const sh = bgImg.height - sy;
+            const drawH = HEIGHT;
+            const drawW = Math.round((bgImg.width / sh) * drawH);
+            const drawX = Math.round((WIDTH - drawW) * 0.42);
 
-        ctx.drawImage(bgImg, 0, sy, bgImg.width, sh, drawX, 0, drawW, drawH);
+            ctx.drawImage(bgImg, 0, sy, bgImg.width, sh, drawX, 0, drawW, drawH);
 
-        // 左右邊緣柔和融入底色，避免垂直截斷感
-        const leftFade = ctx.createLinearGradient(drawX, 0, drawX + 260, 0);
-        leftFade.addColorStop(0, '#0b0c0f');
-        leftFade.addColorStop(1, 'rgba(11, 12, 15, 0)');
-        ctx.fillStyle = leftFade;
-        ctx.fillRect(0, 0, drawX + 260, HEIGHT);
+            // 左右邊緣柔和融入底色，避免垂直截斷感
+            const leftFade = ctx.createLinearGradient(drawX, 0, drawX + 260, 0);
+            leftFade.addColorStop(0, '#0b0c0f');
+            leftFade.addColorStop(1, 'rgba(11, 12, 15, 0)');
+            ctx.fillStyle = leftFade;
+            ctx.fillRect(0, 0, drawX + 260, HEIGHT);
 
-        const rightFadeStart = drawX + drawW - 260;
-        const rightFade = ctx.createLinearGradient(rightFadeStart, 0, drawX + drawW, 0);
-        rightFade.addColorStop(0, 'rgba(11, 12, 15, 0)');
-        rightFade.addColorStop(1, '#0b0c0f');
-        ctx.fillStyle = rightFade;
-        ctx.fillRect(rightFadeStart, 0, WIDTH - rightFadeStart, HEIGHT);
+            const rightFadeStart = drawX + drawW - 260;
+            const rightFade = ctx.createLinearGradient(rightFadeStart, 0, drawX + drawW, 0);
+            rightFade.addColorStop(0, 'rgba(11, 12, 15, 0)');
+            rightFade.addColorStop(1, '#0b0c0f');
+            ctx.fillStyle = rightFade;
+            ctx.fillRect(rightFadeStart, 0, WIDTH - rightFadeStart, HEIGHT);
+        }
     }
 
-    // 左側深色遮罩確保文字可讀性（避免過度遮蔽中央全息基地光柱）
+    const usingWideBg = Boolean(bgImg && bgImg.width >= bgImg.height);
+
+    // 左側深色遮罩確保文字可讀性（寬版背景自帶深暗雲霧，降低遮罩強度避免壓暗景深細節）
     const leftOverlay = ctx.createLinearGradient(0, 0, WIDTH * 0.44, 0);
-    leftOverlay.addColorStop(0, 'rgba(10, 11, 14, 0.72)');
-    leftOverlay.addColorStop(0.6, 'rgba(10, 11, 14, 0.22)');
+    leftOverlay.addColorStop(0, usingWideBg ? 'rgba(10, 11, 14, 0.45)' : 'rgba(10, 11, 14, 0.72)');
+    leftOverlay.addColorStop(0.6, usingWideBg ? 'rgba(10, 11, 14, 0.14)' : 'rgba(10, 11, 14, 0.22)');
     leftOverlay.addColorStop(1, 'rgba(10, 11, 14, 0)');
     ctx.fillStyle = leftOverlay;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -729,23 +742,24 @@ function drawPhase2Background(ctx, WIDTH, HEIGHT, bgImg, isPass) {
     ctx.stroke();
     ctx.restore();
 
-    // 左中側微妙斜射虹彩光束（還原實機圖左側紫藍光暈）
-    if (isPass) {
-        const prismGrad = ctx.createLinearGradient(0, 740, 520, 790);
-        prismGrad.addColorStop(0, 'rgba(190, 45, 210, 0.18)');
-        prismGrad.addColorStop(0.5, 'rgba(65, 165, 255, 0.14)');
-        prismGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = prismGrad;
-        ctx.fillRect(0, 725, 520, 55);
-    }
+    // 窄版底圖補充紫藍光束與底部黃綠光暈；寬版背景已內建對應光效，避免重複過曝
+    if (!usingWideBg) {
+        if (isPass) {
+            const prismGrad = ctx.createLinearGradient(0, 740, 520, 790);
+            prismGrad.addColorStop(0, 'rgba(190, 45, 210, 0.18)');
+            prismGrad.addColorStop(0.5, 'rgba(65, 165, 255, 0.14)');
+            prismGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = prismGrad;
+            ctx.fillRect(0, 725, 520, 55);
+        }
 
-    // 底部氛圍光暈（高亮度黃綠光暈）
-    const bottomGlow = ctx.createLinearGradient(0, HEIGHT - 300, 0, HEIGHT);
-    bottomGlow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    bottomGlow.addColorStop(0.55, isPass ? 'rgba(218, 232, 34, 0.22)' : 'rgba(179, 75, 51, 0.20)');
-    bottomGlow.addColorStop(1, isPass ? 'rgba(232, 238, 38, 0.52)' : 'rgba(185, 72, 46, 0.45)');
-    ctx.fillStyle = bottomGlow;
-    ctx.fillRect(0, HEIGHT - 300, WIDTH, 300);
+        const bottomGlow = ctx.createLinearGradient(0, HEIGHT - 300, 0, HEIGHT);
+        bottomGlow.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        bottomGlow.addColorStop(0.55, isPass ? 'rgba(218, 232, 34, 0.22)' : 'rgba(179, 75, 51, 0.20)');
+        bottomGlow.addColorStop(1, isPass ? 'rgba(232, 238, 38, 0.52)' : 'rgba(185, 72, 46, 0.45)');
+        ctx.fillStyle = bottomGlow;
+        ctx.fillRect(0, HEIGHT - 300, WIDTH, 300);
+    }
 
     // 右上角與幹員區上方黃綠幾何線框裝飾
     const accentStroke = isPass ? 'rgba(222, 236, 38, 0.48)' : 'rgba(190, 90, 65, 0.40)';
@@ -1735,7 +1749,7 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
         charTopMaskImg,
         ...restImgs
     ] = await Promise.all([
-        safeLoadImage(path.join(phase2Dir, isPass ? 'success_bg.png' : 'fail_bg.png')),
+        safeLoadImage(path.join(phase2Dir, isPass ? 'success_bg_wide.jpg' : 'fail_bg.png')),
         safeLoadImage(path.join(phase2Dir, 'duration_clock.png')),
         safeLoadImage(path.join(phase2Dir, 'indicator_total.png')),
         safeLoadImage(path.join(phase2Dir, 'wave_fail.png')),
@@ -1811,15 +1825,21 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
         }
     });
 
-    // 底部浮水印資訊
+    // 底部浮水印資訊（加上深色陰影以維持在亮黃光暈背景上的可讀性）
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 1;
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
     ctx.font = "14px 'Noto Sans TC', sans-serif";
     const serverName = SERVER_ID_TO_NAME[serverId] || serverId || 'Asia';
     ctx.fillText(`UID: ${uid}   Server: ${serverName}`, 40, HEIGHT - 15);
 
     ctx.textAlign = 'right';
     ctx.fillText(text.assistant, WIDTH - 40, HEIGHT - 15);
+    ctx.restore();
     ctx.textAlign = 'left';
 
     return canvas.toBuffer('image/png');
