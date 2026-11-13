@@ -1225,7 +1225,7 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
     ctx.save();
     ctx.translate(sectionX, sectionY);
 
-    const slotSize = 66;
+    const slotSize = 58;
     const slotGap = 10;
     const gridW = slotSize * 2 + slotGap;
     const gridH = slotSize * 2 + slotGap;
@@ -1259,15 +1259,18 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
                 continue;
             }
 
-            // Z-1 稀有度背景色塊（完整填滿框線內側；由左至右 0~50% 漸變至完全透明）
+            // Z-1 稀有度背景色塊（91% 尺寸置中，保留色塊與框線間清晰微距；左至右 0~50% 漸變至完全透明）
+            const innerSize = slotSize * 0.91;
+            const innerX = sx + (slotSize - innerSize) / 2;
+            const innerY = sy + (slotSize - innerSize) / 2;
             const blockColor = getRarityColor(eqObj, '#E6A800', EQUIP_BLOCK_RARITY_COLORS);
             const transparentColor = toTransparentRgba(blockColor);
-            const blockGrad = ctx.createLinearGradient(sx, 0, sx + slotSize, 0);
+            const blockGrad = ctx.createLinearGradient(innerX, 0, innerX + innerSize, 0);
             blockGrad.addColorStop(0, blockColor);
             blockGrad.addColorStop(0.5, transparentColor);
             blockGrad.addColorStop(1, transparentColor);
             ctx.fillStyle = blockGrad;
-            ctx.fillRect(sx, sy, slotSize, slotSize);
+            ctx.fillRect(innerX, innerY, innerSize, innerSize);
 
             // Z-2 裝備立繪（放大至 114% 並向右下角偏移 16%，僅於外框範圍內裁切渲染）
             const targetSize = slotSize * 1.14;
