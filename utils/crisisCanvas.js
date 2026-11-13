@@ -1037,6 +1037,13 @@ async function drawPhase2LeftPanel(ctx, params) {
         ctx.lineTo(sx + ratingH, ratingY);
     }
     ctx.stroke();
+
+    // 開頭左側（驚嘆號區域）局部柔和漸層光暈
+    const leftGlow = ctx.createLinearGradient(panelX, ratingY, panelX + 120, ratingY);
+    leftGlow.addColorStop(0, isHighRedTier ? 'rgba(235, 72, 42, 0.36)' : 'rgba(130, 120, 245, 0.32)');
+    leftGlow.addColorStop(1, 'rgba(18, 20, 24, 0)');
+    ctx.fillStyle = leftGlow;
+    ctx.fillRect(panelX, ratingY, 120, ratingH);
     ctx.restore();
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
@@ -1051,20 +1058,21 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.fillStyle = barGrad;
     ctx.fillRect(panelX, ratingY + 1, 4, ratingH - 2);
 
-    // 左側白色實心圓形 i 圖示
+    // 左側白色實心圓形 i 圖示（緊靠左側邊框）
+    const infoCx = panelX + 22;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(panelX + 34, ratingY + ratingH / 2, 11, 0, Math.PI * 2);
+    ctx.arc(infoCx, ratingY + ratingH / 2, 11, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#1b1d22';
     ctx.font = "900 15px 'Noto Sans TC', sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText('i', panelX + 34, ratingY + ratingH / 2 + 5);
+    ctx.fillText('i', infoCx, ratingY + ratingH / 2 + 5);
     ctx.textAlign = 'left';
 
     ctx.fillStyle = '#e5e8ec';
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
-    ctx.fillText(text.sanctumRating, panelX + 60, ratingY + 35);
+    ctx.fillText(text.sanctumRating, panelX + 44, ratingY + 35);
 
     // 右側圓角框體（左紅右黑漸層底色＋緊貼數字上下緣＋超出框線的大尺寸圖標）
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
