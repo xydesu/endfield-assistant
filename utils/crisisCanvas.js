@@ -1421,8 +1421,8 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     // 武器外框背景色（層級高於武器圖片、低於 Lv 與命座；與邊框同色 rgb(165, 168, 175)，自左至右 35% 淡化結束）與 0→70% 漸隱框線
     const wBgGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.35, weaponY);
-    wBgGrad.addColorStop(0, 'rgba(165, 168, 175, 0.78)');
-    wBgGrad.addColorStop(0.60, 'rgba(165, 168, 175, 0.35)');
+    wBgGrad.addColorStop(0, 'rgba(165, 168, 175, 0.48)');
+    wBgGrad.addColorStop(0.60, 'rgba(165, 168, 175, 0.20)');
     wBgGrad.addColorStop(1, 'rgba(165, 168, 175, 0)');
 
     const wStrokeGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
