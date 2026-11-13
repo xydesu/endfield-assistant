@@ -1,70 +1,95 @@
-const { registerFont, createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
+const crypto = require('crypto');
 const { toTraditional: toTraditionalOrig } = require('./toTraditional');
+const { ensureFontsRegistered, applyLangFont } = require('./fonts');
+const { fetchBufferWithLimit } = require('./httpCache');
 const toTraditional = toTraditionalOrig;
 
-// 輔助函數：從網路下載檔案
-function downloadFile(url, dest) {
-    return new Promise((resolve, reject) => {
-        const dir = path.dirname(dest);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+ensureFontsRegistered();
+
+const DYNAMIC_ASSETS_DIR = path.resolve(__dirname, '..', 'assets', 'images', 'dynamic');
+const inFlightDownloads = new Map();
+
+/**
+ * 清理並驗證動態資源檔名，防止路徑遍歷或非法字元
+ * @param {string} urlOrPath
+ * @returns {string}
+ */
+function sanitizeDynamicFilename(urlOrPath) {
+    let rawName = '';
+    try {
+        const parsedUrl = new URL(urlOrPath);
+        rawName = path.posix.basename(parsedUrl.pathname || '');
+    } catch {
+        const cleanUrl = urlOrPath.split(/[?#]/)[0];
+        rawName = path.posix.basename(cleanUrl);
+    }
+
+    const baseName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    if (!baseName || baseName === '.' || baseName === '..' || !/[a-zA-Z0-9]/.test(baseName)) {
+        const hash = crypto.createHash('sha1').update(urlOrPath).digest('hex').slice(0, 12);
+        return `img_${hash}.png`;
+    }
+    return baseName;
+}
+
+// 輔助函數：從網路下載檔案（併發去重＋暫存檔原子寫入）
+async function downloadFile(url, dest) {
+    const resolvedDest = path.resolve(dest);
+    if (inFlightDownloads.has(resolvedDest)) {
+        return inFlightDownloads.get(resolvedDest);
+    }
+
+    const downloadPromise = (async () => {
+        const dir = path.dirname(resolvedDest);
+        await fs.promises.mkdir(dir, { recursive: true });
+
+        const tmpDest = `${resolvedDest}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
+        try {
+            const buffer = await fetchBufferWithLimit(url, { timeoutMs: 10000 });
+            if (!buffer || buffer.length === 0) {
+                throw new Error(`下載內容為空: ${url}`);
+            }
+            await fs.promises.writeFile(tmpDest, buffer);
+            await fs.promises.rename(tmpDest, resolvedDest);
+        } catch (err) {
+            await fs.promises.unlink(tmpDest).catch(() => {});
+            throw err;
+        } finally {
+            inFlightDownloads.delete(resolvedDest);
         }
-        const file = fs.createWriteStream(dest);
-        let isAborted = false;
+    })();
 
-        const request = https.get(url, (response) => {
-            if (response.statusCode !== 200) {
-                reject(new Error(`下載失敗，狀態碼: ${response.statusCode}`));
-                return;
-            }
-            response.pipe(file);
-            file.on('finish', () => {
-                file.close(resolve);
-            });
-        });
-
-        request.on('error', (err) => {
-            isAborted = true;
-            if (fs.existsSync(dest)) fs['unlink'](dest, () => reject(err));
-        });
-
-        request.setTimeout(10000, () => {
-            if (!isAborted) {
-                request.destroy();
-                reject(new Error('下載超時 (10s)'));
-            }
-        });
-    });
+    inFlightDownloads.set(resolvedDest, downloadPromise);
+    return downloadPromise;
 }
 
 // 輔助函數：解析圖片路徑 (自動處理網路 URL 下載快取，零硬編碼對接)
 async function resolveImagePath(urlOrPath) {
     if (!urlOrPath) return null;
-    
+
     // 如果是網路 URL
     if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
-        let filename;
-        try {
-            const parsedUrl = new URL(urlOrPath);
-            const pathname = parsedUrl.pathname;
-            filename = pathname.substring(pathname.lastIndexOf('/') + 1);
-        } catch (e) {
-            filename = urlOrPath.substring(urlOrPath.lastIndexOf('/') + 1);
+        const filename = sanitizeDynamicFilename(urlOrPath);
+        const localRelPath = `assets/images/dynamic/${filename}`;
+        const localAbsPath = path.resolve(DYNAMIC_ASSETS_DIR, filename);
+
+        if (!localAbsPath.startsWith(DYNAMIC_ASSETS_DIR + path.sep)) {
+            throw new Error(`非法資源路徑: ${localAbsPath}`);
         }
 
-        if (!filename) {
-            filename = `img_${Date.now()}`;
+        // 檢查本地檔案是否存在且非空，不存在或為空檔則重新下載
+        let hasValidLocalFile = false;
+        try {
+            const stat = fs.statSync(localAbsPath);
+            hasValidLocalFile = stat.isFile() && stat.size > 0;
+        } catch {
+            hasValidLocalFile = false;
         }
-        
-        // 所有動態資源皆平鋪放置於 assets/images/dynamic/
-        const localRelPath = `assets/images/dynamic/${filename}`;
-        const localAbsPath = path.join(__dirname, '..', localRelPath);
-        
-        // 檢查本地檔案是否存在，不存在則下載
-        if (!fs.existsSync(localAbsPath)) {
+
+        if (!hasValidLocalFile) {
             console.warn(`[下載中] 偵測到新資源，開始下載: ${urlOrPath}`);
             try {
                 await downloadFile(urlOrPath, localAbsPath);
@@ -76,35 +101,8 @@ async function resolveImagePath(urlOrPath) {
         }
         return localRelPath;
     }
-    
+
     return urlOrPath;
-}
-
-
-// 註冊本地多語言 Noto Sans 字型，確保字型與排版跨平台 100% 像素級一致
-function registerLangFont(langCode, familyName) {
-    const weights = [
-        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
-        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
-        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' }
-    ];
-    
-    for (const { file, weight } of weights) {
-        const fontPath = path.join(__dirname, '..', 'assets', 'font', file);
-        if (fs.existsSync(fontPath)) {
-            registerFont(fontPath, { family: familyName, weight });
-        } else {
-            console.warn(`[charRender] 找不到字體檔案: ${file}`);
-        }
-    }
-}
-
-try {
-    registerLangFont('TC', 'Noto Sans TC');
-    registerLangFont('SC', 'Noto Sans SC');
-    registerLangFont('JP', 'Noto Sans JP');
-} catch (error) {
-    console.error('[charRender] 載入字體時發生錯誤', error);
 }
 
 // 輔助函數：繪製圓角矩形
@@ -327,31 +325,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const ctx = canvas.getContext('2d');
 
     // 動態切換字型族，適配官服簡體中文 (zh_Hans) 與日文 (ja) 等
-    const fontMap = {
-        'zh_Hant': 'Noto Sans TC',
-        'zh_Hans': 'Noto Sans SC',
-        'ja': 'Noto Sans JP',
-        'en': 'Noto Sans TC'
-    };
-    const fontFamily = fontMap[lang] || 'Noto Sans TC';
-
-    if (fontFamily !== 'Noto Sans TC') {
-        const proto = Object.getPrototypeOf(ctx);
-        const desc = Object.getOwnPropertyDescriptor(proto, 'font');
-        if (desc && desc.set) {
-            Object.defineProperty(ctx, 'font', {
-                get() {
-                    return desc.get.call(ctx);
-                },
-                set(val) {
-                    const newVal = val.replace(/'Noto Sans TC'/g, `'${fontFamily}'`).replace(/"Noto Sans TC"/g, `"${fontFamily}"`);
-                    desc.set.call(ctx, newVal);
-                },
-                configurable: true,
-                enumerable: true
-            });
-        }
-    }
+    applyLangFont(ctx, lang);
 
     // 建立局部 toTraditional 覆寫，當語言為簡體中文時保留原文字串，避免官服數據被強制轉繁體
     const toTraditional = (str) => (lang === 'zh_Hans' ? str : toTraditionalOrig(str));
@@ -1473,5 +1447,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
 }
 
 module.exports = {
-    renderCharacter
+    renderCharacter,
+    downloadFile,
+    resolveImagePath,
 };

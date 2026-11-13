@@ -1,6 +1,9 @@
-const { registerFont, createCanvas, loadImage } = require('canvas');
-const fs = require('fs');
+const { createCanvas } = require('canvas');
 const path = require('path');
+const { ensureFontsRegistered, applyLangFont } = require('./fonts');
+const { loadCachedImage } = require('./httpCache');
+
+ensureFontsRegistered();
 
 const RARITY_COLORS = {
     '6': 'rgba(255,113,0,1)',    // dark_rank_orange
@@ -27,30 +30,6 @@ const SERVER_ID_TO_NAME = {
     '2': 'Asia',
     '3': 'Americas/Europe',
 };
-
-// 註冊思源黑體字型以防不同平台缺字型跑版
-function registerLangFont(langCode, familyName) {
-    const weights = [
-        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
-        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
-        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' }
-    ];
-    
-    for (const { file, weight } of weights) {
-        const fontPath = path.join(__dirname, '..', 'assets', 'font', file);
-        if (fs.existsSync(fontPath)) {
-            registerFont(fontPath, { family: familyName, weight });
-        }
-    }
-}
-
-try {
-    registerLangFont('TC', 'Noto Sans TC');
-    registerLangFont('SC', 'Noto Sans SC');
-    registerLangFont('JP', 'Noto Sans JP');
-} catch (error) {
-    console.error('[crisisCanvas] 載入字體時發生錯誤', error);
-}
 
 // 輔助函式：建立圓角矩形路徑（可獨立指定左側圓角半徑，設 0 則僅右側保留圓角）
 function traceRoundedRectPath(ctx, x, y, width, height, radius, leftRadius = radius) {
@@ -109,7 +88,6 @@ const UI_TEXT = {
         indicatorList: '指標一覽',
         actionSuccess: '行動成功',
         actionFail: '行動失敗',
-        newRecord: '新紀錄',
         sanctumRating: '聖所已予以您的評喻',
         assistant: '終末地簽到小助手',
     },
@@ -120,7 +98,6 @@ const UI_TEXT = {
         indicatorList: '指标一览',
         actionSuccess: '行动成功',
         actionFail: '行动失败',
-        newRecord: '新纪录',
         sanctumRating: '圣所已予以您的评喻',
         assistant: '终末地签到小助手',
     },
@@ -131,7 +108,6 @@ const UI_TEXT = {
         indicatorList: '指標一覧',
         actionSuccess: '行動成功',
         actionFail: '行動失敗',
-        newRecord: '新記録',
         sanctumRating: '聖所からの評価',
         assistant: 'エンドフィールドサインインアシスタント',
     },
@@ -142,25 +118,16 @@ const UI_TEXT = {
         indicatorList: 'Indicators',
         actionSuccess: 'OPERATION SUCCESS',
         actionFail: 'OPERATION FAILED',
-        newRecord: 'NEW RECORD',
         sanctumRating: 'Sanctum Assessment',
         assistant: 'Endfield Assistant',
     }
 };
 
 /**
- * 安全載入本地或遠端圖片，失敗時回傳 null 避免中斷整體渲染
+ * 安全載入本地或遠端圖片（具有限 LRU 快取、逾時與大小上限），失敗時回傳 null
  */
-async function safeLoadImage(source) {
-    if (!source) return null;
-    if (typeof source === 'string' && !source.startsWith('http') && !source.startsWith('data:') && !fs.existsSync(source)) {
-        return null;
-    }
-    try {
-        return await loadImage(source);
-    } catch (e) {
-        return null;
-    }
+function safeLoadImage(source) {
+    return loadCachedImage(source);
 }
 
 /**
@@ -208,37 +175,6 @@ function detectCrisisPhase(baseData, recordData, contractName = '', options = {}
         return 1;
     }
     return 2;
-}
-
-/**
- * 依傳入語言切換 Canvas 字型族
- */
-function applyLangFont(ctx, lang) {
-    const fontMap = {
-        'zh_Hant': 'Noto Sans TC',
-        'zh_Hans': 'Noto Sans SC',
-        'ja': 'Noto Sans JP',
-        'en': 'Noto Sans TC'
-    };
-    const fontFamily = fontMap[lang] || 'Noto Sans TC';
-
-    if (fontFamily !== 'Noto Sans TC') {
-        const proto = Object.getPrototypeOf(ctx);
-        const desc = Object.getOwnPropertyDescriptor(proto, 'font');
-        if (desc && desc.set) {
-            Object.defineProperty(ctx, 'font', {
-                get() {
-                    return desc.get.call(ctx);
-                },
-                set(val) {
-                    const newVal = val.replace(/'Noto Sans TC'/g, `'${fontFamily}'`).replace(/"Noto Sans TC"/g, `"${fontFamily}"`);
-                    desc.set.call(ctx, newVal);
-                },
-                configurable: true,
-                enumerable: true
-            });
-        }
-    }
 }
 
 /**
@@ -450,7 +386,7 @@ async function drawPhase1CrisisUI(baseData, recordData, uid, serverId, contractN
 
         let iconImg = null;
         if (ind.icon) {
-            try { iconImg = await loadImage(ind.icon); } catch (e) {}
+            iconImg = await safeLoadImage(ind.icon);
         }
 
         if (iconImg) {
@@ -499,7 +435,7 @@ async function drawPhase1CrisisUI(baseData, recordData, uid, serverId, contractN
 
         let avatarImg = null;
         if (charObj.avatarUrl) {
-            try { avatarImg = await loadImage(charObj.avatarUrl); } catch (e) {}
+            avatarImg = await safeLoadImage(charObj.avatarUrl);
         }
         if (avatarImg) {
             ctx.drawImage(avatarImg, cx - 50, charY + 20, 310, 400);
@@ -528,64 +464,59 @@ async function drawPhase1CrisisUI(baseData, recordData, uid, serverId, contractN
         const weaponY = charY + 480;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
         ctx.fillRect(cx, weaponY, charW, 110);
-        
-        const rLevel = charObj.weapon ? charObj.weapon.refineLevel : 0;
-        const potentialImgPath = path.join(__dirname, '../assets/images/character', `potential_${rLevel}.png`);
-        let pImg = null;
-        if (fs.existsSync(potentialImgPath)) {
-            try { pImg = await loadImage(potentialImgPath); } catch (e) {}
-        }
-        if (pImg) {
-            ctx.drawImage(pImg, cx + 5, weaponY + 10, 45, 45);
-        }
 
-        let wIconImg = null;
-        if (charObj.weapon && charObj.weapon.icon) {
-            try { wIconImg = await loadImage(charObj.weapon.icon); } catch (e) {}
-        }
-        
-        if (wIconImg) {
-            let wW = wIconImg.width;
-            let wH = wIconImg.height;
-            const maxW = 100;
-            const maxH = 80;
-            const wScale = Math.min(maxW / wW, maxH / wH);
-            wW = wW * wScale;
-            wH = wH * wScale;
-            const drawX = cx + charW - 60 - wW;
-            const drawY = weaponY + 15 + (maxH - wH) / 2;
-            ctx.drawImage(wIconImg, drawX, drawY, wW, wH);
-        }
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
-        ctx.fillText('Lv.', cx + 10, weaponY + 90);
-        ctx.font = "bold 32px 'Noto Sans TC', sans-serif";
-        const wLevel = charObj.weapon ? charObj.weapon.level : '1';
-        ctx.fillText(wLevel.toString(), cx + 32, weaponY + 90);
-        
-        ctx.fillStyle = '#ffb300';
-        ctx.fillRect(cx + 10, weaponY + 100, 70, 4);
+        if (charObj.weapon) {
+            const rLevel = charObj.weapon.refineLevel ?? 0;
+            const potentialImgPath = path.join(__dirname, '../assets/images/character', `potential_${rLevel}.png`);
+            const pImg = await safeLoadImage(potentialImgPath);
+            if (pImg) {
+                ctx.drawImage(pImg, cx + 5, weaponY + 10, 45, 45);
+            }
 
-        if (charObj.weapon && charObj.weapon.weaponTerms) {
-            const terms = charObj.weapon.weaponTerms;
-            for (let t = 0; t < terms.length; t++) {
-                let tw = 50;
-                let th = 22;
-                let tx = cx + charW - tw - 10;
-                let ty = weaponY + 12 + t * 28;
-                
-                drawSkewedRect(ctx, tx, ty, tw, th, -5, 'rgba(255, 255, 255, 0.15)');
-                
-                if (talentIconImg) {
-                    ctx.drawImage(talentIconImg, tx - 16, ty + 3, 45, 15);
+            const wIconImg = charObj.weapon.icon ? await safeLoadImage(charObj.weapon.icon) : null;
+            if (wIconImg) {
+                let wW = wIconImg.width;
+                let wH = wIconImg.height;
+                const maxW = 100;
+                const maxH = 80;
+                const wScale = Math.min(maxW / wW, maxH / wH);
+                wW = wW * wScale;
+                wH = wH * wScale;
+                const drawX = cx + charW - 60 - wW;
+                const drawY = weaponY + 15 + (maxH - wH) / 2;
+                ctx.drawImage(wIconImg, drawX, drawY, wW, wH);
+            }
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
+            ctx.fillText('Lv.', cx + 10, weaponY + 90);
+            ctx.font = "bold 32px 'Noto Sans TC', sans-serif";
+            const wLevel = charObj.weapon.level ?? 1;
+            ctx.fillText(wLevel.toString(), cx + 32, weaponY + 90);
+
+            ctx.fillStyle = getRarityColor(charObj.weapon, '#ffb300');
+            ctx.fillRect(cx + 10, weaponY + 100, 70, 4);
+
+            if (Array.isArray(charObj.weapon.weaponTerms)) {
+                const terms = charObj.weapon.weaponTerms;
+                for (let t = 0; t < terms.length; t++) {
+                    let tw = 50;
+                    let th = 22;
+                    let tx = cx + charW - tw - 10;
+                    let ty = weaponY + 12 + t * 28;
+
+                    drawSkewedRect(ctx, tx, ty, tw, th, -5, 'rgba(255, 255, 255, 0.15)');
+
+                    if (talentIconImg) {
+                        ctx.drawImage(talentIconImg, tx - 16, ty + 3, 45, 15);
+                    }
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
+                    ctx.textAlign = 'right';
+                    ctx.fillText(terms[t].toString(), tx + tw - 14, ty + 16);
+                    ctx.textAlign = 'left';
                 }
-
-                ctx.fillStyle = '#ffffff';
-                ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
-                ctx.textAlign = 'right';
-                ctx.fillText(terms[t].toString(), tx + tw - 14, ty + 16);
-                ctx.textAlign = 'left';
             }
         }
 
@@ -612,8 +543,7 @@ async function drawPhase1CrisisUI(baseData, recordData, uid, serverId, contractN
                 
                 if (eqObj) {
                     if (eqObj.icon) {
-                        let eqImg = null;
-                        try { eqImg = await loadImage(eqObj.icon); } catch (e) {}
+                        const eqImg = await safeLoadImage(eqObj.icon);
                         if (eqImg) {
                             let eW = eqImg.width;
                             let eH = eqImg.height;
@@ -866,7 +796,6 @@ async function drawPhase2LeftPanel(ctx, params) {
         indicatorCount,
         timeStr,
         isPass,
-        isBest,
         passWave,
         selectedIndicators,
         contractName,
@@ -974,7 +903,9 @@ async function drawPhase2LeftPanel(ctx, params) {
     const cols = 9;
     const cellSize = 60;
     const cellGap = 9;
-    const visibleIndicators = selectedIndicators.slice(0, 27);
+    const maxVisibleCells = 27;
+    const overflowCount = Math.max(0, selectedIndicators.length - maxVisibleCells);
+    const visibleIndicators = selectedIndicators.slice(0, maxVisibleCells);
     const indIconImgs = await Promise.all(visibleIndicators.map(ind => safeLoadImage(ind.icon)));
 
     for (let i = 0; i < visibleIndicators.length; i++) {
@@ -997,17 +928,33 @@ async function drawPhase2LeftPanel(ctx, params) {
             const dh = iconImg.height * scale;
             ctx.drawImage(iconImg, ix + (cellSize - dw) / 2, iy + (cellSize - dh) / 2, dw, dh);
         }
+
+        if (overflowCount > 0 && i === maxVisibleCells - 1) {
+            ctx.fillStyle = 'rgba(10, 12, 16, 0.78)';
+            ctx.fillRect(ix + 1, iy + 1, cellSize - 2, cellSize - 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+            ctx.textAlign = 'center';
+            ctx.fillText(`+${overflowCount}`, ix + cellSize / 2, iy + cellSize / 2 + 7);
+            ctx.textAlign = 'left';
+        }
     }
 
     // 依據實際指標列數推算下方主標題位置，避免 3 列指標時重疊
     const rowsUsed = Math.max(2, Math.ceil(visibleIndicators.length / cols));
     const afterGridY = gridY + rowsUsed * (cellSize + cellGap) + 30;
 
-    // 5. 行動成功 / 行動失敗 + CONTINGENCY CONTRACT INDIGO 徽章
+    // 5. 行動成功 / 行動失敗 + CONTINGENCY CONTRACT INDIGO 徽章（依 panelW 自適應縮放防止長英文截斷）
     const statusText = isPass ? text.actionSuccess : text.actionFail;
+    const baseStatusFontSize = 82;
+    ctx.font = `normal ${baseStatusFontSize}px 'Noto Sans TC', sans-serif`;
+    const measuredStatusW = ctx.measureText(statusText).width;
+    const statusFontSize = measuredStatusW > panelW
+        ? Math.max(36, Math.floor(baseStatusFontSize * (panelW / measuredStatusW)))
+        : baseStatusFontSize;
     ctx.fillStyle = primaryColor;
-    ctx.font = "normal 82px 'Noto Sans TC', sans-serif";
-    ctx.fillText(statusText, panelX - 2, afterGridY + 70);
+    ctx.font = `normal ${statusFontSize}px 'Noto Sans TC', sans-serif`;
+    ctx.fillText(statusText, panelX - 2, afterGridY + 70, panelW);
 
     drawPhase2ContractBadge(ctx, panelX + 2, afterGridY + 90, contractName, isPass);
 
@@ -1186,9 +1133,9 @@ function drawImageWithShadow(ctx, img, x, y, w, h, shadowColor, shadowBlur, shad
 }
 
 /**
- * 繪製 Z-4 裝備卡槽左上角懸浮升級徽章（深灰圓角投影底板＋亮天藍六角螺帽與右上三角形）
+ * 繪製 Z-4 裝備卡槽左上角懸浮升級徽章（優先使用 enhance_1/2/3.svg 區分階級，無資產時退回向量圖示）
  */
-function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
+function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize, enhanceCount = 1, enhanceImgs = []) {
     const badgeSize = slotSize * 0.36;
     const badgeRadius = slotSize * 0.08;
     const badgeX = sx - slotSize * 0.10;
@@ -1205,9 +1152,28 @@ function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
     ctx.fill();
     ctx.restore();
 
-    // 亮天藍幾何向量圖示（#29B6F6），隨底板尺寸等比例放大保持清晰輪廓
+    const idx = Math.max(0, Math.min(enhanceImgs.length - 1, Math.floor(enhanceCount) - 1));
+    const svgImg = Array.isArray(enhanceImgs) ? enhanceImgs[idx] : null;
+    if (svgImg) {
+        const pad = badgeSize * 0.14;
+        const maxW = badgeSize - pad * 2;
+        const maxH = badgeSize - pad * 2;
+        const scale = Math.min(maxW / svgImg.width, maxH / svgImg.height);
+        const dw = svgImg.width * scale;
+        const dh = svgImg.height * scale;
+        ctx.drawImage(
+            svgImg,
+            badgeX + (badgeSize - dw) / 2,
+            badgeY + (badgeSize - dh) / 2,
+            dw,
+            dh
+        );
+        return;
+    }
+
+    // 向量 Fallback（無 SVG 時依階級區分：+1 灰、+2 半藍、+3 全藍）
     ctx.save();
-    const iconColor = '#29B6F6';
+    const iconColor = enhanceCount >= 3 ? '#29B6F6' : enhanceCount === 2 ? '#80D8FF' : '#8E9299';
     const hexCx = badgeX + badgeSize * 0.40;
     const hexCy = badgeY + badgeSize * 0.59;
     const hexR = badgeSize * 0.26;
@@ -1226,10 +1192,9 @@ function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
     ctx.closePath();
     ctx.stroke();
 
-    // 右上角外側緊鄰實心小三角形（尖端朝右上，與六角形保持獨立清晰間距）
     const tipX = badgeX + badgeSize * 0.90;
     const tipY = badgeY + badgeSize * 0.10;
-    ctx.fillStyle = iconColor;
+    ctx.fillStyle = enhanceCount >= 2 ? '#29B6F6' : '#8E9299';
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
     ctx.lineTo(tipX - badgeSize * 0.27, tipY + badgeSize * 0.07);
@@ -1315,19 +1280,16 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
             ctx.lineWidth = 1.8;
             ctx.strokeRect(sx, sy, slotSize, slotSize);
 
-            // Z-4 記錄左上角懸浮升級徽章位置，統一於最高圖層繪製以覆蓋裝備圖標左上局部
+            // Z-4 記錄左上角懸浮升級徽章位置與階級，統一於最高圖層繪製以覆蓋裝備圖標左上局部
             const enhanceCount = Number(eqObj.enhanceStatus ?? eqObj.upgradeCount ?? 0);
-            const hasCachedEnhanceAsset = Array.isArray(assets.enhanceImgs)
-                && enhanceCount >= 1
-                && Boolean(assets.enhanceImgs[Math.min(enhanceCount, assets.enhanceImgs.length) - 1]);
-            if (enhanceCount >= 1 && (hasCachedEnhanceAsset || !assets.enhanceImgs?.length)) {
-                pendingBadges.push({ sx, sy });
+            if (enhanceCount >= 1) {
+                pendingBadges.push({ sx, sy, enhanceCount });
             }
         }
     }
 
-    for (const { sx, sy } of pendingBadges) {
-        drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize);
+    for (const { sx, sy, enhanceCount } of pendingBadges) {
+        drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize, enhanceCount, assets.enhanceImgs);
     }
 
     ctx.restore();
@@ -1472,32 +1434,41 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBgGrad, wStrokeGrad, 1.5);
 
+    const hasWeapon = Boolean(charObj.weapon);
     const wLevel = charObj.weapon?.level ?? 1;
     const wLvX = wx + 10;
     ctx.font = "900 28px 'Noto Sans TC', sans-serif";
     const wLevelNumW = ctx.measureText(String(wLevel)).width;
     const weaponBarW = Math.ceil(ctx.measureText('999').width);
 
-    // 武器精煉（命座）圖示：放大至視覺寬度與下方等級數字同寬，並對齊左緣
-    if (cardAssets.wRefineImg) {
-        const wRefineSize = Math.round(Math.max(28, wLevelNumW) * 1.28);
-        drawImageWithShadow(ctx, cardAssets.wRefineImg, wLvX - 4, weaponY + 6, wRefineSize, wRefineSize, 'rgba(0, 0, 0, 0.92)', 6, 0);
+    if (hasWeapon) {
+        // 武器精煉（命座）圖示：放大至視覺寬度與下方等級數字同寬，並對齊左緣
+        if (cardAssets.wRefineImg) {
+            const wRefineSize = Math.round(Math.max(28, wLevelNumW) * 1.28);
+            drawImageWithShadow(ctx, cardAssets.wRefineImg, wLvX - 4, weaponY + 6, wRefineSize, wRefineSize, 'rgba(0, 0, 0, 0.92)', 6, 0);
+        }
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 5;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+        ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
+        ctx.fillText('Lv.', wLvX, weaponY + 63);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = "900 28px 'Noto Sans TC', sans-serif";
+        ctx.fillText(String(wLevel), wLvX, weaponY + 89);
+        ctx.restore();
+
+        // 武器下方稀有度色條（寬度固定為 3 位數字長度、對齊等級數值，並與底部邊框留出明確間距）
+        ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
+        ctx.fillRect(wLvX, weaponY + 95, weaponBarW, 4);
+    } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = 'center';
+        ctx.fillText('—', wx + weaponBoxW / 2, weaponY + weaponH / 2 + 6);
+        ctx.textAlign = 'left';
     }
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-    ctx.shadowBlur = 5;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
-    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText('Lv.', wLvX, weaponY + 63);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = "900 28px 'Noto Sans TC', sans-serif";
-    ctx.fillText(String(wLevel), wLvX, weaponY + 89);
-    ctx.restore();
-
-    // 武器下方稀有度色條（寬度固定為 3 位數字長度、對齊等級數值，並與底部邊框留出明確間距）
-    ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
-    ctx.fillRect(wLvX, weaponY + 95, weaponBarW, 4);
 
     // 武器基質（9/9/4）：三項各自獨立緊湊矩形，左端淡化至透明不渲染左上/左下角，右側圓角，底色同武器外框色，數字與橢圓圖標共用 #fff100
     if (terms.length > 0) {
@@ -1602,7 +1573,7 @@ function buildInwardPerspectiveQuad(box, side, options = {}) {
 }
 
 /**
- * 以 Premultiplied Alpha 雙線性採樣＋2×2 超採樣抗鋸齒將離屏畫布 3D 透視投影到目標畫布
+ * 以 Premultiplied Alpha 雙線性採樣將 2× 超採樣離屏畫布 3D 透視投影到目標畫布
  */
 function drawPerspectiveQuad(dstCtx, srcCanvas, dstQuad) {
     const sw = srcCanvas.width;
@@ -1622,12 +1593,10 @@ function drawPerspectiveQuad(dstCtx, srcCanvas, dstQuad) {
         premul[i + 3] = a;
     }
 
-    const xs = dstQuad.map(p => p.x);
-    const ys = dstQuad.map(p => p.y);
-    const minX = Math.floor(Math.min(...xs));
-    const minY = Math.floor(Math.min(...ys));
-    const maxX = Math.ceil(Math.max(...xs));
-    const maxY = Math.ceil(Math.max(...ys));
+    const minX = Math.floor(Math.min(dstQuad[0].x, dstQuad[1].x, dstQuad[2].x, dstQuad[3].x));
+    const minY = Math.floor(Math.min(dstQuad[0].y, dstQuad[1].y, dstQuad[2].y, dstQuad[3].y));
+    const maxX = Math.ceil(Math.max(dstQuad[0].x, dstQuad[1].x, dstQuad[2].x, dstQuad[3].x));
+    const maxY = Math.ceil(Math.max(dstQuad[0].y, dstQuad[1].y, dstQuad[2].y, dstQuad[3].y));
     const outW = Math.max(1, maxX - minX);
     const outH = Math.max(1, maxY - minY);
 
@@ -1639,70 +1608,109 @@ function drawPerspectiveQuad(dstCtx, srcCanvas, dstQuad) {
     const [m00, m01, m02, m10, m11, m12, m20, m21, m22] = createHomographyToUnit(dstQuad);
     const maxSx = sw - 1;
     const maxSy = sh - 1;
-    const subOffsets = [
-        [0.25, 0.25],
-        [0.75, 0.25],
-        [0.25, 0.75],
-        [0.75, 0.75],
-    ];
+    const rowStride = sw * 4;
 
+    // 來源畫布已為 2× 超採樣，單點雙線性採樣即可涵蓋 2×2 子像素區域並保持平滑抗鋸齒
     for (let py = 0; py < outH; py++) {
-        const gyBase = minY + py;
+        const gy = minY + py + 0.5;
         const rowOff = py * outW;
+        const m01y = m01 * gy + m02;
+        const m11y = m11 * gy + m12;
+        const m21y = m21 * gy + m22;
 
         for (let px = 0; px < outW; px++) {
-            const gxBase = minX + px;
-            let sumR = 0;
-            let sumG = 0;
-            let sumB = 0;
-            let sumA = 0;
+            const gx = minX + px + 0.5;
+            const w = m20 * gx + m21y;
+            if (w > -1e-6 && w < 1e-6) continue;
 
-            for (let s = 0; s < 4; s++) {
-                const gx = gxBase + subOffsets[s][0];
-                const gy = gyBase + subOffsets[s][1];
-                const w = m20 * gx + m21 * gy + m22;
-                if (Math.abs(w) < 1e-6) continue;
+            const invW = 1 / w;
+            const u = (m00 * gx + m01y) * invW;
+            if (u < 0 || u > 1) continue;
+            const v = (m10 * gx + m11y) * invW;
+            if (v < 0 || v > 1) continue;
 
-                const u = (m00 * gx + m01 * gy + m02) / w;
-                const v = (m10 * gx + m11 * gy + m12) / w;
-                if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+            const fx = u * maxSx;
+            const fy = v * maxSy;
+            const x0 = fx >= maxSx - 1 ? maxSx - 1 : fx <= 0 ? 0 : fx | 0;
+            const y0 = fy >= maxSy - 1 ? maxSy - 1 : fy <= 0 ? 0 : fy | 0;
+            const wx = fx - x0;
+            const wy = fy - y0;
+            const omx = 1 - wx;
+            const omy = 1 - wy;
+            const w00 = omx * omy;
+            const w10 = wx * omy;
+            const w01 = omx * wy;
+            const w11 = wx * wy;
 
-                const fx = u * maxSx;
-                const fy = v * maxSy;
-                const x0 = Math.min(maxSx - 1, Math.max(0, fx | 0));
-                const y0 = Math.min(maxSy - 1, Math.max(0, fy | 0));
-                const wx = fx - x0;
-                const wy = fy - y0;
-                const w00 = (1 - wx) * (1 - wy);
-                const w10 = wx * (1 - wy);
-                const w01 = (1 - wx) * wy;
-                const w11 = wx * wy;
+            const idx00 = y0 * rowStride + x0 * 4;
+            const idx10 = idx00 + 4;
+            const idx01 = idx00 + rowStride;
+            const idx11 = idx01 + 4;
 
-                const idx00 = (y0 * sw + x0) * 4;
-                const idx10 = idx00 + 4;
-                const idx01 = idx00 + sw * 4;
-                const idx11 = idx01 + 4;
+            const sumA = premul[idx00 + 3] * w00 + premul[idx10 + 3] * w10 + premul[idx01 + 3] * w01 + premul[idx11 + 3] * w11;
+            if (sumA <= 0.5) continue;
 
-                sumR += premul[idx00] * w00 + premul[idx10] * w10 + premul[idx01] * w01 + premul[idx11] * w11;
-                sumG += premul[idx00 + 1] * w00 + premul[idx10 + 1] * w10 + premul[idx01 + 1] * w01 + premul[idx11 + 1] * w11;
-                sumB += premul[idx00 + 2] * w00 + premul[idx10 + 2] * w10 + premul[idx01 + 2] * w01 + premul[idx11 + 2] * w11;
-                sumA += premul[idx00 + 3] * w00 + premul[idx10 + 3] * w10 + premul[idx01 + 3] * w01 + premul[idx11 + 3] * w11;
-            }
-
-            const avgA = sumA * 0.25;
-            if (avgA <= 0.5) continue;
+            const sumR = premul[idx00] * w00 + premul[idx10] * w10 + premul[idx01] * w01 + premul[idx11] * w11;
+            const sumG = premul[idx00 + 1] * w00 + premul[idx10 + 1] * w10 + premul[idx01 + 1] * w01 + premul[idx11 + 1] * w11;
+            const sumB = premul[idx00 + 2] * w00 + premul[idx10 + 2] * w10 + premul[idx01 + 2] * w01 + premul[idx11 + 2] * w11;
 
             const outIdx = (rowOff + px) * 4;
             const invA = 255 / sumA;
             out[outIdx] = Math.min(255, Math.round(sumR * invA));
             out[outIdx + 1] = Math.min(255, Math.round(sumG * invA));
             out[outIdx + 2] = Math.min(255, Math.round(sumB * invA));
-            out[outIdx + 3] = Math.min(255, Math.round(avgA));
+            out[outIdx + 3] = Math.min(255, Math.round(sumA));
         }
     }
 
     outCtx.putImageData(outImg, 0, 0);
     dstCtx.drawImage(outCanvas, minX, minY);
+}
+
+let phase2StaticAssetsPromise = null;
+
+function getPhase2StaticAssets() {
+    if (!phase2StaticAssetsPromise) {
+        const phase2Dir = path.join(__dirname, '../assets/images/ui/phase2');
+        phase2StaticAssetsPromise = Promise.all([
+            safeLoadImage(path.join(phase2Dir, 'success_bg_wide.jpg')),
+            safeLoadImage(path.join(phase2Dir, 'fail_bg.png')),
+            safeLoadImage(path.join(phase2Dir, 'duration_clock.png')),
+            safeLoadImage(path.join(phase2Dir, 'indicator_total.png')),
+            safeLoadImage(path.join(phase2Dir, 'wave_fail.png')),
+            safeLoadImage(path.join(phase2Dir, 'weapon_term_slash.png')),
+            safeLoadImage(path.join(phase2Dir, 'char_top_mask.svg')),
+            safeLoadImage(path.join(phase2Dir, 'wave_1.png')),
+            safeLoadImage(path.join(phase2Dir, 'wave_2.png')),
+            safeLoadImage(path.join(phase2Dir, 'wave_3.png')),
+            safeLoadImage(path.join(phase2Dir, 'enhance_1.svg')),
+            safeLoadImage(path.join(phase2Dir, 'enhance_2.svg')),
+            safeLoadImage(path.join(phase2Dir, 'enhance_3.svg')),
+        ]).then(([
+            successBgImg,
+            failBgImg,
+            clockImg,
+            indTotalImg,
+            waveFailImg,
+            termSlashImg,
+            charTopMaskImg,
+            ...restImgs
+        ]) => ({
+            successBgImg,
+            failBgImg,
+            clockImg,
+            indTotalImg,
+            waveFailImg,
+            termSlashImg,
+            charTopMaskImg,
+            waveImgs: restImgs.slice(0, 3),
+            enhanceImgs: restImgs.slice(3, 6),
+        })).catch((err) => {
+            phase2StaticAssetsPromise = null;
+            throw err;
+        });
+    }
+    return phase2StaticAssetsPromise;
 }
 
 /**
@@ -1728,9 +1736,10 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
         : indicators;
 
     const indicatorCount = recordDetail.indicatorCount ?? bestRecordBase.indicatorCount ?? 0;
-    const isPass = recordDetail.isPass ?? bestRecordBase.isPass ?? true;
+    const passWaveRaw = recordDetail.passWave ?? bestRecordBase.passWave;
+    const isPass = recordDetail.isPass ?? bestRecordBase.isPass ?? (Number(passWaveRaw ?? 3) >= 3);
     const isBest = recordDetail.isBest ?? bestRecordBase.isBest ?? false;
-    const passWave = Number(recordDetail.passWave ?? bestRecordBase.passWave ?? (isPass ? 3 : 0));
+    const passWave = Number(passWaveRaw ?? (isPass ? 3 : 0));
     const timeStr = formatDuration(recordDetail.passTs ?? bestRecordBase.passTs ?? 0);
 
     const charMetaMap = options.charMetaMap || null;
@@ -1739,45 +1748,15 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
         return typeof charMetaMap.get === 'function' ? charMetaMap.get(charId) : charMetaMap[charId];
     };
 
-    const phase2Dir = path.join(__dirname, '../assets/images/ui/phase2');
-    const [
-        bgImg,
-        clockImg,
-        indTotalImg,
-        waveFailImg,
-        termSlashImg,
-        charTopMaskImg,
-        ...restImgs
-    ] = await Promise.all([
-        safeLoadImage(path.join(phase2Dir, isPass ? 'success_bg_wide.jpg' : 'fail_bg.png')),
-        safeLoadImage(path.join(phase2Dir, 'duration_clock.png')),
-        safeLoadImage(path.join(phase2Dir, 'indicator_total.png')),
-        safeLoadImage(path.join(phase2Dir, 'wave_fail.png')),
-        safeLoadImage(path.join(phase2Dir, 'weapon_term_slash.png')),
-        safeLoadImage(path.join(phase2Dir, 'char_top_mask.svg')),
-        safeLoadImage(path.join(phase2Dir, 'wave_1.png')),
-        safeLoadImage(path.join(phase2Dir, 'wave_2.png')),
-        safeLoadImage(path.join(phase2Dir, 'wave_3.png')),
-        safeLoadImage(path.join(phase2Dir, 'enhance_1.svg')),
-        safeLoadImage(path.join(phase2Dir, 'enhance_2.svg')),
-        safeLoadImage(path.join(phase2Dir, 'enhance_3.svg')),
+    const [assets, cardAssetsList] = await Promise.all([
+        getPhase2StaticAssets(),
+        Promise.all([0, 1, 2, 3].map(i => {
+            const charObj = charsData[i] || null;
+            const charMeta = charObj ? getCharMeta(charObj.charId) : null;
+            return preloadPhase2CardAssets(charObj, charMeta);
+        })),
     ]);
-
-    const cardAssetsList = await Promise.all([0, 1, 2, 3].map(i => {
-        const charObj = charsData[i] || null;
-        const charMeta = charObj ? getCharMeta(charObj.charId) : null;
-        return preloadPhase2CardAssets(charObj, charMeta);
-    }));
-
-    const assets = {
-        clockImg,
-        indTotalImg,
-        waveFailImg,
-        termSlashImg,
-        charTopMaskImg,
-        waveImgs: restImgs.slice(0, 3),
-        enhanceImgs: restImgs.slice(3, 6),
-    };
+    const bgImg = isPass ? assets.successBgImg : assets.failBgImg;
 
     drawPhase2Background(ctx, WIDTH, HEIGHT, bgImg, isPass);
 

@@ -1,8 +1,8 @@
-const { registerFont, createCanvas, loadImage } = require('canvas');
-const fs = require('fs');
-const path = require('path');
+const { createCanvas } = require('canvas');
 const { ELEMENT_ICONS, ELEMENT_COLORS, RARITY_COLORS, getProfessionIcons } = require('./operatorEnums');
 const { t } = require('./i18n');
+const { ensureFontsRegistered, getFontFamily } = require('./fonts');
+const { loadCachedImage } = require('./httpCache');
 
 // ── 網格常數（與舊版 HTML 模板完全一致）──────────────────────────────
 const COLS      = 6;
@@ -29,37 +29,9 @@ const SERVER_ID_TO_NAME = {
     '3': 'Americas/Europe',
 };
 
-// ── 字型註冊（模組載入時執行一次）──────────────────────────────────
-function registerLangFont(langCode, familyName) {
-    const weights = [
-        { file: `NotoSans${langCode}-Regular.ttf`, weight: 'normal' },
-        { file: `NotoSans${langCode}-Bold.ttf`, weight: 'bold' },
-        { file: `NotoSans${langCode}-Black.ttf`, weight: '900' },
-    ];
-    for (const { file, weight } of weights) {
-        const fontPath = path.join(__dirname, '..', 'assets', 'font', file);
-        if (fs.existsSync(fontPath)) {
-            registerFont(fontPath, { family: familyName, weight });
-        }
-    }
-}
+ensureFontsRegistered();
 
-try {
-    registerLangFont('TC', 'Noto Sans TC');
-    registerLangFont('SC', 'Noto Sans SC');
-    registerLangFont('JP', 'Noto Sans JP');
-} catch (err) {
-    console.error('[operatorsCanvas] 載入字體時發生錯誤', err);
-}
-
-// ── 選擇字型家族 ─────────────────────────────────────────────────────
-function pickFontFamily(lang) {
-    switch (lang) {
-        case 'zh_Hans': return 'Noto Sans SC';
-        case 'ja':      return 'Noto Sans JP';
-        default:        return 'Noto Sans TC';
-    }
-}
+const pickFontFamily = getFontFamily;
 
 // ── 輔助：繪製圓角矩形路徑 ───────────────────────────────────────────
 function roundRectPath(ctx, x, y, w, h, r) {
@@ -82,7 +54,7 @@ async function safeLoadImage(src, cacheMap) {
     if (cacheMap && cacheMap.has(src)) {
         return cacheMap.get(src);
     }
-    const loadPromise = loadImage(src).catch(() => null);
+    const loadPromise = loadCachedImage(src).catch(() => null);
     if (cacheMap) {
         cacheMap.set(src, loadPromise);
     }
