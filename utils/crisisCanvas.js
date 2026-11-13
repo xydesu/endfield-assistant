@@ -191,19 +191,53 @@ function getRarityColor(obj, fallback = 'rgba(255,255,255,0.2)', palette = RARIT
 }
 
 /**
- * Phase 2 評喻顏色（對應森空島官方等級區間）
+ * 將 rgba(...) / rgb(...) 字串解析為 [r, g, b] 數值陣列
+ */
+function parseRgbTuple(rgbaStr) {
+    const m = String(rgbaStr || '').match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [178, 178, 178];
+}
+
+/**
+ * 依指標總分（0~30+）對應 Rarity 1~6 色表產生 Phase 2 聖所評喻漸層配色（30 分即達最高 Rarity 6）
  */
 function getPhase2RatingColors(isPass, indicatorCount) {
     if (!isPass) {
-        return { start: '#b34b33', end: '#8f3924' };
+        return {
+            rarity: '1',
+            start: '#b34b33',
+            end: '#8f3924',
+            glow: 'rgba(179, 75, 51, 0.34)',
+            tagStart: 'rgba(115, 48, 32, 0.95)',
+            tagMid: 'rgba(54, 22, 16, 0.92)',
+            tagEnd: 'rgba(14, 15, 18, 0.95)',
+            tagBorder: 'rgba(179, 75, 51, 0.90)',
+        };
     }
-    if (indicatorCount >= 30) {
-        return { start: '#f471e6', end: '#f83f4d' };
-    }
-    if (indicatorCount >= 20) {
-        return { start: '#815ff2', end: '#cd54f9' };
-    }
-    return { start: '#4379f5', end: '#9e93f3' };
+
+    const score = Number(indicatorCount) || 0;
+    let rarity = '1';
+    if (score >= 30) rarity = '6';
+    else if (score >= 25) rarity = '5';
+    else if (score >= 20) rarity = '4';
+    else if (score >= 15) rarity = '3';
+    else if (score >= 10) rarity = '2';
+
+    const [r, g, b] = parseRgbTuple(RARITY_COLORS[rarity]);
+    const scaleRgba = (factor, alpha) => (
+        `rgba(${Math.round(r * factor)}, ${Math.round(g * factor)}, ${Math.round(b * factor)}, ${alpha})`
+    );
+
+    return {
+        rarity,
+        start: `rgba(${r}, ${g}, ${b}, 1)`,
+        end: scaleRgba(0.72, 1),
+        glow: `rgba(${r}, ${g}, ${b}, 0.34)`,
+        tagStart: scaleRgba(0.65, 0.95),
+        tagMid: scaleRgba(0.30, 0.92),
+        tagEnd: 'rgba(14, 15, 18, 0.95)',
+        tagBorder: `rgba(${r}, ${g}, ${b}, 0.90)`,
+    };
 }
 
 /**
@@ -964,9 +998,6 @@ async function drawPhase2LeftPanel(ctx, params) {
     const ratingY = afterGridY + 156;
     const ratingH = 44;
     const ratingColors = getPhase2RatingColors(isPass, indicatorCount);
-    const isHighRedTier = indicatorCount >= 30;
-    const accentStart = isHighRedTier ? '#f05a28' : ratingColors.start;
-    const accentEnd = isHighRedTier ? '#d92f2f' : ratingColors.end;
 
     ctx.save();
     ctx.beginPath();
@@ -998,7 +1029,7 @@ async function drawPhase2LeftPanel(ctx, params) {
 
     // 開頭左側（驚嘆號區域）局部柔和漸層光暈
     const leftGlow = ctx.createLinearGradient(panelX, ratingY, panelX + 120, ratingY);
-    leftGlow.addColorStop(0, isHighRedTier ? 'rgba(235, 72, 42, 0.36)' : 'rgba(130, 120, 245, 0.32)');
+    leftGlow.addColorStop(0, ratingColors.glow);
     leftGlow.addColorStop(1, 'rgba(18, 20, 24, 0)');
     ctx.fillStyle = leftGlow;
     ctx.fillRect(panelX, ratingY, 120, ratingH);
@@ -1011,8 +1042,8 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.stroke();
 
     const barGrad = ctx.createLinearGradient(panelX, ratingY, panelX, ratingY + ratingH);
-    barGrad.addColorStop(0, accentStart);
-    barGrad.addColorStop(1, accentEnd);
+    barGrad.addColorStop(0, ratingColors.start);
+    barGrad.addColorStop(1, ratingColors.end);
     ctx.fillStyle = barGrad;
     ctx.fillRect(panelX, ratingY + 1, 4, ratingH - 2);
 
@@ -1036,7 +1067,7 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
     ctx.fillText(text.sanctumRating, panelX + 50, ratingY + 30);
 
-    // 右側圓角框體（左紅右黑漸層底色＋緊貼數字上下緣＋超出框線的大尺寸圖標）
+    // 右側圓角框體（依分數對應 Rarity 漸層底色＋緊貼數字上下緣＋超出框線的大尺寸圖標）
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
     const numW = ctx.measureText(scoreStr).width;
     const iconSize = 34;
@@ -1048,11 +1079,10 @@ async function drawPhase2LeftPanel(ctx, params) {
     const tagY = ratingY + (ratingH - tagH) / 2;
 
     const tagGrad = ctx.createLinearGradient(tagX, tagY, tagX + tagW, tagY);
-    tagGrad.addColorStop(0, 'rgba(188, 34, 38, 0.95)');
-    tagGrad.addColorStop(0.5, 'rgba(92, 20, 24, 0.92)');
-    tagGrad.addColorStop(1, 'rgba(14, 15, 18, 0.95)');
-    const tagBorder = isHighRedTier ? 'rgba(232, 86, 72, 0.90)' : ratingColors.end;
-    drawRoundedRect(ctx, tagX, tagY, tagW, tagH, 5, tagGrad, tagBorder, 1.5);
+    tagGrad.addColorStop(0, ratingColors.tagStart);
+    tagGrad.addColorStop(0.5, ratingColors.tagMid);
+    tagGrad.addColorStop(1, ratingColors.tagEnd);
+    drawRoundedRect(ctx, tagX, tagY, tagW, tagH, 5, tagGrad, ratingColors.tagBorder, 1.5);
 
     const contentW = numW + tagGap + iconSize;
     const contentStartX = tagX + (tagW - contentW) / 2;
