@@ -1451,9 +1451,9 @@ function createHomographyToUnit(dstQuad) {
 function buildInwardPerspectiveQuad(box, side, options = {}) {
     const {
         horizonY = 495,
-        nearScale = 1.02,
-        farScale = 0.86,
-        widthCompression = 0.94,
+        nearScale = 1.0,
+        farScale = 0.93,
+        widthCompression = 0.975,
     } = options;
 
     const scaleY = (y, s) => horizonY + (y - horizonY) * s;
@@ -1662,12 +1662,7 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
         await drawFn(offCtx);
         offCtx.restore();
 
-        const quad = buildInwardPerspectiveQuad(box, side, {
-            horizonY: 495,
-            nearScale: 1.02,
-            farScale: 0.86,
-            widthCompression: 0.94,
-        });
+        const quad = buildInwardPerspectiveQuad(box, side);
         drawPerspectiveQuad(ctx, offCanvas, quad);
     };
 
