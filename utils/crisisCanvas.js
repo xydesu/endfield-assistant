@@ -1412,18 +1412,26 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     // (B) 武器區域（沿用上方定義之向左延伸圓角外框座標與 0→70% 漸變至透明框線）
 
-    // 武器圖片再度放大（1.25× 框高）並限制裁切於原本角色卡片位置內（cx ~ cx + cw），不超過原本卡片左緣與外框上下邊界
+    // 武器基質（詞條 9/9/4）右側純灰色圓角區塊幾何（先定義以便限制武器圖片不重疊至基質下方）
+    const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
+    const termBoxW = 46;
+    const termBoxX = cx + cw - termBoxW - 2;
+    const termBoxY = weaponY + 10;
+    const termBoxH = weaponH - 20;
+    const weaponClipW = terms.length > 0 ? Math.max(0, termBoxX - cx - 4) : cw;
+
+    // 武器圖片再度放大（1.25× 框高）並限制裁切於原本角色卡片位置與基質左側之間，不超出原本卡片左緣且不渲染到基質下方
     if (cardAssets.wIconImg) {
         const wIconImg = cardAssets.wIconImg;
         const scale = (weaponH * 1.25) / wIconImg.height;
         const wImgW = wIconImg.width * scale;
         const wImgH = wIconImg.height * scale;
-        const wImgX = cx + Math.round((cw - 32 - wImgW) / 2);
+        const wImgX = cx + Math.round((weaponClipW - wImgW) / 2);
         const wImgY = weaponY + Math.round((weaponH - wImgH) / 2);
 
         ctx.save();
         ctx.beginPath();
-        ctx.rect(cx, weaponY, cw, weaponH);
+        ctx.rect(cx, weaponY, weaponClipW, weaponH);
         ctx.clip();
         ctx.drawImage(wIconImg, wImgX, wImgY, wImgW, wImgH);
         ctx.restore();
@@ -1469,27 +1477,31 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
     ctx.fillRect(wLvX, weaponY + 118, weaponBarW, 4);
 
-    // 武器詞條（/9 /9 /4 樣式＋貼合字體寬高之斜切幾何背景底塊）
-    const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
-    for (let t = 0; t < Math.min(terms.length, 3); t++) {
-        const ty = weaponY + 14 + t * 34;
-        const tx = cx + cw - 42;
-        const termStr = String(terms[t]);
-        ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-        const numWidth = ctx.measureText(termStr).width;
-        const bgW = Math.ceil(22 + numWidth);
-        drawSkewedRect(ctx, tx - 5, ty, bgW, 21, 4, 'rgba(255, 255, 255, 0.22)');
-        drawSkewedRect(ctx, tx - 5, ty, 3, 21, 4, 'rgba(232, 245, 34, 0.85)');
-        if (assets.termSlashImg) {
-            ctx.drawImage(assets.termSlashImg, tx, ty + 2, 13, 18);
-        } else {
-            ctx.fillStyle = '#e8f522';
-            ctx.font = "900 18px 'Noto Sans TC', sans-serif";
-            ctx.fillText('/', tx, ty + 18);
+    // 武器基質（9/9/4）：純色灰色圓角方形外框，數字與斜橢圓圖標共用 #fff100 同色（層級於武器之上且不相重疊）
+    if (terms.length > 0) {
+        const termColor = '#fff100';
+        drawRoundedRect(ctx, termBoxX, termBoxY, termBoxW, termBoxH, 6, '#464950', null, 0);
+        const visibleCount = Math.min(terms.length, 3);
+        const rowPitch = 34;
+        const startY = termBoxY + Math.round((termBoxH - (visibleCount * 22 + (visibleCount - 1) * (rowPitch - 22))) / 2);
+        for (let t = 0; t < visibleCount; t++) {
+            const ty = startY + t * rowPitch;
+            const termStr = String(terms[t]);
+            ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+            const numWidth = ctx.measureText(termStr).width;
+            const itemW = 13 + 3 + numWidth;
+            const tx = termBoxX + Math.round((termBoxW - itemW) / 2);
+            if (assets.termSlashImg) {
+                ctx.drawImage(assets.termSlashImg, tx, ty + 2, 13, 18);
+            } else {
+                ctx.fillStyle = termColor;
+                ctx.font = "900 18px 'Noto Sans TC', sans-serif";
+                ctx.fillText('/', tx, ty + 18);
+            }
+            ctx.fillStyle = termColor;
+            ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+            ctx.fillText(termStr, tx + 16, ty + 18);
         }
-        ctx.fillStyle = '#ffffff';
-        ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-        ctx.fillText(termStr, tx + 14, ty + 18);
     }
 
     // (C) 2×2 裝備區塊（局部座標隔離＋扁平工業風多層次錯位渲染）
