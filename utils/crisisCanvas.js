@@ -1322,11 +1322,12 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     const portraitH = 388;
 
-    // (A) 幹員半身立繪
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(cx, cy + 5, cw, portraitH);
-    ctx.clip();
+    // (A) 幹員半身立繪（離屏渲染並於尾部加上平滑漸變至透明之 alpha 遮罩）
+    const transform = typeof ctx.getTransform === 'function' ? ctx.getTransform() : { a: 1, b: 0 };
+    const resScale = Math.max(1, Math.hypot(transform.a, transform.b));
+    const portraitCanvas = createCanvas(Math.ceil(cw * resScale), Math.ceil(portraitH * resScale));
+    const pCtx = portraitCanvas.getContext('2d');
+    pCtx.scale(resScale, resScale);
 
     if (cardAssets.avatarImg) {
         const avatarImg = cardAssets.avatarImg;
@@ -1334,23 +1335,28 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         const closeupScale = baseScale * 1.48;
         const dw = avatarImg.width * closeupScale;
         const dh = avatarImg.height * closeupScale;
-        ctx.drawImage(avatarImg, cx + (cw - dw) / 2, cy - 12, dw, dh);
+        pCtx.drawImage(avatarImg, (cw - dw) / 2, -17, dw, dh);
     } else {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-        ctx.fillRect(cx, cy + 5, cw, portraitH);
+        pCtx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        pCtx.fillRect(0, 0, cw, portraitH);
     }
 
     if (assets.charTopMaskImg) {
-        ctx.drawImage(assets.charTopMaskImg, cx, cy + 5, cw, 90);
+        pCtx.drawImage(assets.charTopMaskImg, 0, 0, cw, 90);
     }
-    ctx.restore();
 
-    // 立繪底部過渡漸層
-    const fadeGrad = ctx.createLinearGradient(cx, cy + portraitH - 110, cx, cy + portraitH + 10);
-    fadeGrad.addColorStop(0, 'rgba(13, 15, 19, 0)');
-    fadeGrad.addColorStop(1, 'rgba(13, 15, 19, 0.96)');
-    ctx.fillStyle = fadeGrad;
-    ctx.fillRect(cx, cy + portraitH - 110, cw, 120);
+    const fadeStartStop = Math.max(0, (portraitH - 125) / portraitH);
+    const fadeMidStop = Math.max(fadeStartStop, (portraitH - 55) / portraitH);
+    const alphaMask = pCtx.createLinearGradient(0, 0, 0, portraitH);
+    alphaMask.addColorStop(0, 'rgba(0, 0, 0, 1)');
+    alphaMask.addColorStop(fadeStartStop, 'rgba(0, 0, 0, 1)');
+    alphaMask.addColorStop(fadeMidStop, 'rgba(0, 0, 0, 0.45)');
+    alphaMask.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    pCtx.globalCompositeOperation = 'destination-in';
+    pCtx.fillStyle = alphaMask;
+    pCtx.fillRect(0, 0, cw, portraitH);
+
+    ctx.drawImage(portraitCanvas, cx, cy + 5, cw, portraitH);
 
     // 左上角職業圖標（無外框，圖標可視區域與深底大小貼合，無過多留白）
     if (cardAssets.profImg) {
