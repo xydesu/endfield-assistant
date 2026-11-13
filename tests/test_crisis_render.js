@@ -35,9 +35,9 @@ function makeChar(id, level, potentialLevel, weaponId, terms, rarityKey = 'rarit
             id: weaponId,
             icon: '',
             level: 90,
-            refineLevel: 0,
+            refineLevel: potentialLevel,
             weaponTerms: terms,
-            rarity: { key: 'rarity_6', value: '6' },
+            rarity: { key: rarityKey, value: rarityNum },
         },
         equips: {
             bodyEquip: { id: 'b1', icon: '', enhanceStatus: 3, rarity: { key: 'equip_rarity_5', value: '金色品質' } },

@@ -223,7 +223,7 @@ function applyLangFont(ctx, lang) {
 }
 
 /**
- * 依幹員或裝備稀有度鍵值取得對應色條顏色
+ * 依幹員、武器或裝備稀有度鍵值取得對應色條顏色
  */
 function getRarityColor(obj, fallback = 'rgba(255,255,255,0.2)') {
     if (obj?.rarity?.key) {
@@ -233,6 +233,23 @@ function getRarityColor(obj, fallback = 'rgba(255,255,255,0.2)') {
         }
     }
     return fallback;
+}
+
+/**
+ * 調整 rgba() 或 #rrggbb 顏色透明度，用於稀有度底光漸層
+ */
+function withAlpha(color, alpha) {
+    if (typeof color !== 'string') return `rgba(255,255,255,${alpha})`;
+    if (color.startsWith('rgba(')) {
+        return color.replace(/[\d.]+\)$/, `${alpha})`);
+    }
+    if (color.startsWith('#') && color.length === 7) {
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    }
+    return color;
 }
 
 /**
@@ -1207,8 +1224,9 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillText(String(wLevel), cx + 30, weaponY + 112);
     ctx.restore();
 
-    ctx.fillStyle = '#f5b800';
-    ctx.fillRect(cx + 10, weaponY + 120, 68, 3);
+    // 武器下方稀有度色條（依據 weapon.rarity 變色）
+    ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
+    ctx.fillRect(cx + 4, weaponY + weaponH - 4, 114, 4);
 
     // 武器詞條（/9 /9 /4 樣式＋貼合字體寬高之斜切幾何背景底塊）
     const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
@@ -1233,7 +1251,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         ctx.fillText(termStr, tx + 14, ty + 18);
     }
 
-    // (C) 2×2 裝備網格
+    // (C) 2×2 裝備網格（1:1 復刻實機深灰漸層磚底＋極細白線外框＋稀有度底條與微光）
     const equipY = weaponY + weaponH + 10;
     const eqSize = 82;
     const eqGap = 6;
@@ -1248,34 +1266,46 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
             const eqx = eqStartX + eqCol * (eqSize + eqGap);
             const eqy = equipY + eqRow * (eqSize + eqGap);
 
-            ctx.fillStyle = 'rgba(20, 24, 30, 0.85)';
+            const eqBgGrad = ctx.createLinearGradient(eqx, eqy, eqx, eqy + eqSize);
+            eqBgGrad.addColorStop(0, 'rgba(54, 58, 66, 0.72)');
+            eqBgGrad.addColorStop(1, 'rgba(22, 24, 28, 0.88)');
+            ctx.fillStyle = eqBgGrad;
             ctx.fillRect(eqx, eqy, eqSize, eqSize);
-            ctx.strokeStyle = 'rgba(130, 175, 220, 0.30)';
-            ctx.lineWidth = 1.2;
+
+            if (eqObj) {
+                const eqRarityColor = getRarityColor(eqObj);
+                const glowH = 22;
+                const rarityGlow = ctx.createLinearGradient(eqx, eqy + eqSize - glowH, eqx, eqy + eqSize - 4);
+                rarityGlow.addColorStop(0, withAlpha(eqRarityColor, 0));
+                rarityGlow.addColorStop(1, withAlpha(eqRarityColor, 0.24));
+                ctx.fillStyle = rarityGlow;
+                ctx.fillRect(eqx, eqy + eqSize - glowH, eqSize, glowH - 4);
+
+                const eqImg = cardAssets.eqImgs[idx];
+                if (eqImg) {
+                    const maxEq = eqSize - 4;
+                    const scale = Math.min(maxEq / eqImg.width, maxEq / eqImg.height);
+                    const ew = eqImg.width * scale;
+                    const eh = eqImg.height * scale;
+                    ctx.drawImage(eqImg, eqx + (eqSize - ew) / 2, eqy + (eqSize - eh) / 2, ew, eh);
+                }
+
+                const enhanceLvl = Number(eqObj.enhanceStatus);
+                if (enhanceLvl >= 1 && enhanceLvl <= 3 && assets.enhanceImgs[enhanceLvl - 1]) {
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+                    ctx.shadowBlur = 4;
+                    ctx.drawImage(assets.enhanceImgs[enhanceLvl - 1], eqx + 4, eqy + 5, 24, 17);
+                    ctx.restore();
+                }
+
+                ctx.fillStyle = eqRarityColor;
+                ctx.fillRect(eqx, eqy + eqSize - 4, eqSize, 4);
+            }
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+            ctx.lineWidth = 1;
             ctx.strokeRect(eqx, eqy, eqSize, eqSize);
-
-            if (!eqObj) continue;
-
-            const eqImg = cardAssets.eqImgs[idx];
-            if (eqImg) {
-                const maxEq = eqSize - 4;
-                const scale = Math.min(maxEq / eqImg.width, maxEq / eqImg.height);
-                const ew = eqImg.width * scale;
-                const eh = eqImg.height * scale;
-                ctx.drawImage(eqImg, eqx + (eqSize - ew) / 2, eqy + (eqSize - eh) / 2, ew, eh);
-            }
-
-            const enhanceLvl = Number(eqObj.enhanceStatus);
-            if (enhanceLvl >= 1 && enhanceLvl <= 3 && assets.enhanceImgs[enhanceLvl - 1]) {
-                ctx.save();
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-                ctx.shadowBlur = 4;
-                ctx.drawImage(assets.enhanceImgs[enhanceLvl - 1], eqx + 4, eqy + 5, 24, 17);
-                ctx.restore();
-            }
-
-            ctx.fillStyle = getRarityColor(eqObj);
-            ctx.fillRect(eqx, eqy + eqSize - 4, eqSize, 4);
         }
     }
 
