@@ -925,41 +925,27 @@ async function drawPhase2LeftPanel(ctx, params) {
         }
     }
 
-    // 3. 指標總計 + [新紀錄] 標籤
+    // 3. 指標總計（放大左側圖標並移除新紀錄標籤）
     const totalY = 306;
-    let labelX = panelX + 10;
+    const totalIconSize = 36;
+    let labelX = panelX + 2;
     if (assets.indTotalImg) {
-        const tintedTotal = tintIcon(assets.indTotalImg, '#ffffff', 24);
-        ctx.drawImage(tintedTotal, labelX, totalY - 21, 24, 24);
-        labelX += 34;
+        const tintedTotal = tintIcon(assets.indTotalImg, '#ffffff', totalIconSize);
+        ctx.drawImage(tintedTotal, labelX, totalY - 27, totalIconSize, totalIconSize);
+        labelX += totalIconSize + 8;
     }
     ctx.fillStyle = '#ffffff';
     ctx.font = "bold 24px 'Noto Sans TC', sans-serif";
     ctx.fillText(text.totalIndicators, labelX, totalY);
 
-    if (isPass && isBest) {
-        const titleW = ctx.measureText(text.totalIndicators).width;
-        const badgeX = labelX + titleW + 14;
-        const badgeY = totalY - 18;
-        ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
-        const badgeTextW = ctx.measureText(text.newRecord).width;
-        const badgeW = Math.ceil(badgeTextW) + 8;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
-        ctx.fillRect(badgeX, badgeY, badgeW, 20);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(badgeX, badgeY, badgeW, 20);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(text.newRecord, badgeX + 4, badgeY + 15);
-    }
-
     // 4. 指標一覽網格 (預設 9 欄 × 2~3 列)
-    const listTitleY = 364;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
-    ctx.fillRect(panelX, listTitleY - 17, 3, 18);
-    ctx.fillStyle = 'rgba(235, 238, 242, 0.9)';
+    const listTitleY = 368;
     ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-    ctx.fillText(text.indicatorList, panelX + 12, listTitleY);
+    const listTitleW = ctx.measureText(text.indicatorList).width;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+    ctx.fillRect(panelX, listTitleY - 24, listTitleW, 2.5);
+    ctx.fillStyle = 'rgba(235, 238, 242, 0.9)';
+    ctx.fillText(text.indicatorList, panelX, listTitleY);
 
     const gridY = listTitleY + 18;
     const cols = 9;
@@ -1002,9 +988,9 @@ async function drawPhase2LeftPanel(ctx, params) {
 
     drawPhase2ContractBadge(ctx, panelX + 2, afterGridY + 90, contractName, isPass);
 
-    // 6. 聖所評喻橫幅（黑灰碳纖維斜紋背景＋實心白 i 徽章＋右側左紅右黑漸層圓角分數框與超框大圖標）
+    // 6. 聖所評喻橫幅（黑灰碳纖維斜紋背景＋緊貼邊框之實心白 i 徽章＋右側左紅右黑漸層圓角分數框與超框大圖標）
     const ratingY = afterGridY + 156;
-    const ratingH = 54;
+    const ratingH = 44;
     const ratingColors = getPhase2RatingColors(isPass, indicatorCount);
     const isHighRedTier = !isPass || indicatorCount >= 30;
     const accentStart = isHighRedTier ? '#f05a28' : ratingColors.start;
@@ -1058,21 +1044,22 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.fillStyle = barGrad;
     ctx.fillRect(panelX, ratingY + 1, 4, ratingH - 2);
 
-    // 左側白色實心圓形 i 圖示（緊靠左側邊框）
-    const infoCx = panelX + 22;
+    // 左側白色實心圓形 i 圖示（放大並上下緊貼橫幅邊框）
+    const infoR = 16;
+    const infoCx = panelX + 24;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(infoCx, ratingY + ratingH / 2, 11, 0, Math.PI * 2);
+    ctx.arc(infoCx, ratingY + ratingH / 2, infoR, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#1b1d22';
-    ctx.font = "900 15px 'Noto Sans TC', sans-serif";
+    ctx.font = "900 21px 'Noto Sans TC', sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText('i', infoCx, ratingY + ratingH / 2 + 5);
+    ctx.fillText('i', infoCx, ratingY + ratingH / 2 + 7);
     ctx.textAlign = 'left';
 
     ctx.fillStyle = '#e5e8ec';
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
-    ctx.fillText(text.sanctumRating, panelX + 44, ratingY + 35);
+    ctx.fillText(text.sanctumRating, panelX + 50, ratingY + 30);
 
     // 右側圓角框體（左紅右黑漸層底色＋緊貼數字上下緣＋超出框線的大尺寸圖標）
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
