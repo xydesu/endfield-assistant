@@ -1098,6 +1098,26 @@ async function preloadPhase2CardAssets(charObj, charMeta) {
 }
 
 /**
+ * 將 #RRGGBB 或 rgb/rgba 字串轉為同色相但透明度為 0 的 rgba()，避免漸層插值出現發黑問題
+ */
+function toTransparentRgba(color) {
+    if (typeof color === 'string') {
+        const hex = color.trim().match(/^#([0-9a-f]{6})$/i);
+        if (hex) {
+            const r = parseInt(hex[1].slice(0, 2), 16);
+            const g = parseInt(hex[1].slice(2, 4), 16);
+            const b = parseInt(hex[1].slice(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, 0)`;
+        }
+        const rgb = color.trim().match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+        if (rgb) {
+            return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, 0)`;
+        }
+    }
+    return 'rgba(0, 0, 0, 0)';
+}
+
+/**
  * 繪製 Z-4 裝備卡槽左上角懸浮升級徽章（深灰圓角投影底板＋亮天藍六角螺帽與右上三角形）
  */
 function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
@@ -1158,8 +1178,8 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, charObj, 
     ctx.save();
     ctx.translate(sectionX, sectionY);
 
-    const slotSize = 68;
-    const slotGap = 16;
+    const slotSize = 66;
+    const slotGap = 22;
     const gridW = slotSize * 2 + slotGap;
     const gridX = Math.floor((sectionW - gridW) / 2);
     const railW = gridW + 8;
@@ -1171,6 +1191,7 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, charObj, 
 
     const gridY = 13;
     const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
+    const pendingBadges = [];
 
     for (let row = 0; row < 2; row++) {
         for (let col = 0; col < 2; col++) {
@@ -1188,36 +1209,45 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, charObj, 
                 continue;
             }
 
-            // Z-2 錯位稀有度色塊（88% 尺寸嚴格貼齊外框上邊與右邊，左與底留出深色 L 型縫隙）
+            // Z-1 錯位稀有度背景色塊（88% 尺寸貼齊外框上邊與右邊；由左至右 0~50% 實色，50%~100% 漸變至透明）
             const innerSize = slotSize * 0.88;
             const innerX = sx + slotSize - innerSize;
             const innerY = sy;
-            ctx.fillStyle = getRarityColor(eqObj, '#E6A800', EQUIP_BLOCK_RARITY_COLORS);
+            const blockColor = getRarityColor(eqObj, '#E6A800', EQUIP_BLOCK_RARITY_COLORS);
+            const blockGrad = ctx.createLinearGradient(innerX, 0, innerX + innerSize, 0);
+            blockGrad.addColorStop(0, blockColor);
+            blockGrad.addColorStop(0.5, blockColor);
+            blockGrad.addColorStop(1, toTransparentRgba(blockColor));
+            ctx.fillStyle = blockGrad;
             ctx.fillRect(innerX, innerY, innerSize, innerSize);
 
-            // Z-1 最外層定位線框（淺灰銳角實線框壓在色塊外緣，確保上與右邊緣無黑色縫隙）
+            // Z-2 裝備立繪（放大至 114% 並向右下角偏移 16%，左上進入徽章覆蓋區、右下跨出外框線）
+            const targetSize = slotSize * 1.14;
+            const scale = Math.min(targetSize / eqImg.width, targetSize / eqImg.height);
+            const ew = eqImg.width * scale;
+            const eh = eqImg.height * scale;
+            const offsetX = slotSize * 0.16;
+            const offsetY = slotSize * 0.16;
+            ctx.drawImage(eqImg, sx + (slotSize - ew) / 2 + offsetX, sy + (slotSize - eh) / 2 + offsetY, ew, eh);
+
+            // Z-3 最外層定位線框（淺灰銳角實線框壓在色塊與裝備立繪之上，使框線覆蓋跨線的裝備圖標）
             ctx.strokeStyle = '#6E6E6E';
             ctx.lineWidth = 1.8;
             ctx.strokeRect(sx, sy, slotSize, slotSize);
 
-            // Z-3 前景裝備立繪（放大至 92% 並向右下角偏移 14%，自然壓過灰框右線與底線）
-            const targetSize = slotSize * 0.92;
-            const scale = Math.min(targetSize / eqImg.width, targetSize / eqImg.height);
-            const ew = eqImg.width * scale;
-            const eh = eqImg.height * scale;
-            const offsetX = slotSize * 0.14;
-            const offsetY = slotSize * 0.14;
-            ctx.drawImage(eqImg, sx + (slotSize - ew) / 2 + offsetX, sy + (slotSize - eh) / 2 + offsetY, ew, eh);
-
-            // Z-4 左上角懸浮升級徽章（依專案裝備升級次數欄位與已載入素材狀態顯示）
+            // Z-4 記錄左上角懸浮升級徽章位置，統一於最高圖層繪製以覆蓋裝備圖標左上局部
             const enhanceCount = Number(eqObj.enhanceStatus ?? eqObj.upgradeCount ?? 0);
             const hasCachedEnhanceAsset = Array.isArray(assets.enhanceImgs)
                 && enhanceCount >= 1
                 && Boolean(assets.enhanceImgs[Math.min(enhanceCount, assets.enhanceImgs.length) - 1]);
             if (enhanceCount >= 1 && (hasCachedEnhanceAsset || !assets.enhanceImgs?.length)) {
-                drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize);
+                pendingBadges.push({ sx, sy });
             }
         }
+    }
+
+    for (const { sx, sy } of pendingBadges) {
+        drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize);
     }
 
     ctx.restore();
