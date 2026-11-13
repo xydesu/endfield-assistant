@@ -61,7 +61,7 @@ async function testCharCanvasRender(dataJson) {
         const char = chars[i];
         const charName = char.charData?.name || `Index_${i}`;
         console.log(`   正在測試幹員 [${charName}] 繪製...`);
-        const buffer = await renderCharacter(char, '4866844507', 'zh_Hant');
+        const buffer = await renderCharacter(char, 'zh_Hant');
         assert(Buffer.isBuffer(buffer), '繪圖結果必須為 Buffer');
         assert(buffer.length > 50000, '生成的圖卡 Buffer 應大於 50KB');
         console.log(`   ✅ [${charName}] 繪製成功 (大小: ${buffer.length} bytes)`);

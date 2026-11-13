@@ -6,6 +6,8 @@ npm-debug.log*
 .github
 .agents
 tests
+scripts
+data
 docs
 PROJECT.md
 README.md

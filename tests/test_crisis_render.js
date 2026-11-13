@@ -201,6 +201,45 @@ async function runTests() {
     assertValidPng(bufP1, 'Phase 1 相容渲染');
     console.log(`   通過 (${bufP1.length} bytes)`);
 
+    console.log('5. 測試 Phase 2 英文版標題與 >27 指標溢出渲染...');
+    const indicators32 = makeIndicators(32);
+    const phase2EnBase = {
+        data: {
+            crisisContract: {
+                dungeon: { originalId: 'indie_contract002' },
+                history: {
+                    bestRecord: {
+                        id: 'indie_contract002-rec3',
+                        passTs: '310',
+                        isBest: true,
+                        passWave: 3,
+                        indicatorCount: 32,
+                    },
+                },
+            },
+        },
+    };
+    const phase2EnDetail = {
+        data: {
+            recordDetail: {
+                id: 'indie_contract002-rec3',
+                passTs: '310',
+                isBest: true,
+                passWave: 3,
+                indicatorCount: 32,
+                indicators: indicators32,
+                indicatorIds: indicators32.map(i => i.id),
+                chars: [
+                    makeChar('char_1', 90, 5, 'wpn_wand_0001', [9, 9, 9], 'rarity_6'),
+                    { charId: 'char_2', level: 80, potentialLevel: 1, weapon: null, equips: {} },
+                ],
+            },
+        },
+    };
+    const bufP2En = await drawCrisisUI(phase2EnBase, phase2EnDetail, '400000001', '3', 'Beta Contract', 'en');
+    assertValidPng(bufP2En, 'Phase 2 英文版與 >27 指標渲染');
+    console.log(`   通過 (${bufP2En.length} bytes)`);
+
     console.log('\n所有危機合約渲染測試全數通過！');
 }
 

@@ -4,7 +4,7 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "test": "node tests/verify_data_render.js",
+        "test": "node tests/verify_data_render.js && node tests/test_crisis_render.js && node tests/test_snapshot_and_enums.js && node tests/test_core_fixes.js && node scripts/test_crypto.js",
         "deploy": "node deploy-commands.js",
         "dev": "node --watch index.js",
         "start": "node index.js"
