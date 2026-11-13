@@ -1259,15 +1259,15 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
                 continue;
             }
 
-            // Z-1 稀有度背景色塊（91% 尺寸置中，保留色塊與框線間清晰微距；左至右 0~50% 漸變至完全透明）
-            const innerSize = slotSize * 0.91;
+            // Z-1 稀有度背景色塊（75% 尺寸置中，加大色塊與框線間距；左至右 0~75% 漸變至完全透明）
+            const innerSize = slotSize * 0.75;
             const innerX = sx + (slotSize - innerSize) / 2;
             const innerY = sy + (slotSize - innerSize) / 2;
             const blockColor = getRarityColor(eqObj, '#E6A800', EQUIP_BLOCK_RARITY_COLORS);
             const transparentColor = toTransparentRgba(blockColor);
             const blockGrad = ctx.createLinearGradient(innerX, 0, innerX + innerSize, 0);
             blockGrad.addColorStop(0, blockColor);
-            blockGrad.addColorStop(0.5, transparentColor);
+            blockGrad.addColorStop(0.75, transparentColor);
             blockGrad.addColorStop(1, transparentColor);
             ctx.fillStyle = blockGrad;
             ctx.fillRect(innerX, innerY, innerSize, innerSize);
