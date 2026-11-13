@@ -189,6 +189,40 @@ function tintIcon(img, color, size) {
 }
 
 /**
+ * 將反白鏤空方塊遮罩（外實內透）反轉為指定顏色的透明無框符號（用於 SKPort 武器類型圖標）
+ */
+function extractCutoutGlyph(img, size, rgb = [255, 255, 255]) {
+    const srcW = img.width;
+    const srcH = img.height;
+    const srcCanvas = createCanvas(srcW, srcH);
+    const sctx = srcCanvas.getContext('2d');
+    sctx.drawImage(img, 0, 0);
+    const imgData = sctx.getImageData(0, 0, srcW, srcH);
+    const d = imgData.data;
+
+    for (let y = 0; y < srcH; y++) {
+        for (let x = 0; x < srcW; x++) {
+            const idx = (y * srcW + x) * 4;
+            const inCorner = (x < 6 || x >= srcW - 6) && (y < 6 || y >= srcH - 6);
+            const invAlpha = inCorner ? 0 : Math.max(0, 255 - d[idx + 3]);
+            d[idx] = rgb[0];
+            d[idx + 1] = rgb[1];
+            d[idx + 2] = rgb[2];
+            d[idx + 3] = invAlpha;
+        }
+    }
+    sctx.putImageData(imgData, 0, 0);
+
+    const out = createCanvas(size, size);
+    const octx = out.getContext('2d');
+    const scale = Math.min(size / srcW, size / srcH);
+    const dw = srcW * scale;
+    const dh = srcH * scale;
+    octx.drawImage(srcCanvas, (size - dw) / 2, (size - dh) / 2, dw, dh);
+    return out;
+}
+
+/**
  * 格式化秒數為 mm:ss
  */
 function formatDuration(rawSeconds) {
@@ -963,49 +997,74 @@ async function drawPhase2LeftPanel(ctx, params) {
 
     drawPhase2ContractBadge(ctx, panelX + 2, afterGridY + 90, contractName, isPass);
 
-    // 6. 聖所評喻橫幅
+    // 6. 聖所評喻橫幅（1:1 還原實機左側光暈＋實心白 i 徽章與右側帶圖標方框分數）
     const ratingY = afterGridY + 156;
     const ratingH = 54;
     const ratingColors = getPhase2RatingColors(isPass, indicatorCount);
-    drawRoundedRect(ctx, panelX, ratingY, panelW, ratingH, 4, 'rgba(20, 22, 26, 0.90)', 'rgba(255, 255, 255, 0.14)', 1);
+    const bannerFill = 'rgba(20, 22, 26, 0.90)';
+    drawRoundedRect(ctx, panelX, ratingY, panelW, ratingH, 2, bannerFill, 'rgba(255, 255, 255, 0.14)', 1);
+
+    const isHighRedTier = !isPass || indicatorCount >= 30;
+    const accentStart = isHighRedTier ? '#f05a28' : ratingColors.start;
+    const accentEnd = isHighRedTier ? '#d92f2f' : ratingColors.end;
+
+    // 左側柔光暈 + 豎立色條
+    const leftGlow = ctx.createLinearGradient(panelX, ratingY, panelX + 95, ratingY);
+    leftGlow.addColorStop(0, isHighRedTier ? 'rgba(235, 82, 42, 0.28)' : 'rgba(130, 120, 245, 0.25)');
+    leftGlow.addColorStop(1, 'rgba(20, 22, 26, 0)');
+    ctx.fillStyle = leftGlow;
+    ctx.fillRect(panelX + 1, ratingY + 1, 95, ratingH - 2);
 
     const barGrad = ctx.createLinearGradient(panelX, ratingY, panelX, ratingY + ratingH);
-    barGrad.addColorStop(0, ratingColors.start);
-    barGrad.addColorStop(1, ratingColors.end);
+    barGrad.addColorStop(0, accentStart);
+    barGrad.addColorStop(1, accentEnd);
     ctx.fillStyle = barGrad;
-    ctx.fillRect(panelX, ratingY + 2, 5, ratingH - 4);
+    ctx.fillRect(panelX, ratingY + 1, 4, ratingH - 2);
 
-    // 左側 (i) 圖示
-    ctx.strokeStyle = 'rgba(220, 225, 232, 0.8)';
-    ctx.lineWidth = 2;
+    // 左側白色實心圓形 i 圖示
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(panelX + 34, ratingY + ratingH / 2, 12, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(220, 225, 232, 0.9)';
-    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.arc(panelX + 34, ratingY + ratingH / 2, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1b1d22';
+    ctx.font = "900 15px 'Noto Sans TC', sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText('i', panelX + 34, ratingY + ratingH / 2 + 6);
+    ctx.fillText('i', panelX + 34, ratingY + ratingH / 2 + 5);
     ctx.textAlign = 'left';
 
     ctx.fillStyle = '#e5e8ec';
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
     ctx.fillText(text.sanctumRating, panelX + 60, ratingY + 35);
 
-    // 右側斜切分數標記
-    const tagW = 86;
-    const tagH = 32;
+    // 右側 1:1 還原直角框體（暗紅底＋細紅框＋白字分數＋指標總計圖示）
+    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+    const numW = ctx.measureText(scoreStr).width;
+    const iconSize = 18;
+    const tagPadX = 14;
+    const tagGap = 6;
+    const tagW = Math.max(76, Math.round(tagPadX * 2 + numW + tagGap + iconSize));
+    const tagH = 28;
     const tagX = panelX + panelW - tagW - 18;
     const tagY = ratingY + (ratingH - tagH) / 2;
-    const tagGrad = ctx.createLinearGradient(tagX, tagY, tagX + tagW, tagY + tagH);
-    tagGrad.addColorStop(0, ratingColors.start);
-    tagGrad.addColorStop(1, ratingColors.end);
-    drawSkewedRect(ctx, tagX, tagY, tagW, tagH, -8, tagGrad);
 
+    const tagBg = isHighRedTier ? 'rgba(116, 22, 30, 0.75)' : 'rgba(54, 42, 95, 0.72)';
+    const tagBorder = isHighRedTier ? 'rgba(232, 86, 72, 0.85)' : ratingColors.end;
+    ctx.fillStyle = tagBg;
+    ctx.fillRect(tagX, tagY, tagW, tagH);
+    ctx.strokeStyle = tagBorder;
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(tagX, tagY, tagW, tagH);
+
+    const contentW = numW + tagGap + iconSize;
+    const contentStartX = tagX + (tagW - contentW) / 2;
     ctx.fillStyle = '#ffffff';
-    ctx.font = "900 22px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = 'center';
-    ctx.fillText(scoreStr, tagX + tagW / 2 - 2, tagY + 24);
-    ctx.textAlign = 'left';
+    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+    ctx.fillText(scoreStr, contentStartX, tagY + 21);
+
+    if (assets.indTotalImg) {
+        const whiteIndTotal = tintIcon(assets.indTotalImg, '#ffffff', iconSize);
+        ctx.drawImage(whiteIndTotal, contentStartX + numW + tagGap, tagY + (tagH - iconSize) / 2, iconSize, iconSize);
+    }
 }
 
 /**
@@ -1087,18 +1146,22 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = fadeGrad;
     ctx.fillRect(cx, cy + portraitH - 110, cw, 120);
 
-    // 左上角職業圖標（實底＋亮框＋純白著色提升對比度）
+    // 左上角職業圖標（無外框，純白放大並加陰影確保清晰）
     if (cardAssets.profImg) {
-        drawRoundedRect(ctx, cx + 8, cy + 13, 38, 38, 3, 'rgba(8, 10, 14, 0.90)', 'rgba(255, 255, 255, 0.55)', 1.5);
-        const whiteProf = tintIcon(cardAssets.profImg, '#ffffff', 30);
-        ctx.drawImage(whiteProf, cx + 12, cy + 17, 30, 30);
+        const whiteProf = tintIcon(cardAssets.profImg, '#ffffff', 40);
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.90)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 1;
+        ctx.drawImage(whiteProf, cx + 10, cy + 12, 40, 40);
+        ctx.restore();
     }
 
     // 右上細微角標
     ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
     ctx.fillRect(cx + cw - 12, cy + 13, 4, 26);
 
-    // 等級與潛能（命座）星芒（均附高對比襯底，避免亮髮背景遮蔽）
+    // 等級與潛能（命座）星芒（無外框，放大並加陰影確保清晰可辨）
     const lvTopY = cy + 72;
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
@@ -1115,10 +1178,12 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     if (cardAssets.potImg) {
         const potY = lvTopY + 42;
-        const potLevel = Number(charObj.potentialLevel) || 0;
-        const potBg = potLevel === 0 ? 'rgba(34, 38, 46, 0.90)' : 'rgba(8, 10, 14, 0.86)';
-        drawRoundedRect(ctx, cx + 10, potY, 36, 36, 4, potBg, 'rgba(255, 255, 255, 0.42)', 1.2);
-        ctx.drawImage(cardAssets.potImg, cx + 13, potY + 3, 30, 30);
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.92)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 1;
+        ctx.drawImage(cardAssets.potImg, cx + 8, potY, 38, 38);
+        ctx.restore();
     }
 
     // (B) 武器區域
@@ -1139,16 +1204,16 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         ctx.drawImage(wIconImg, cx + 6 + (maxW - ww) / 2, weaponY + 8 + (maxH - wh) / 2, ww, wh);
     }
 
-    // 武器類型圖標（優先使用 SKPort 官方鏤空徽章＋白底襯出剪影）
+    // 武器類型圖標（轉換為與幹員類型一致的純白無框符號）
     if (cardAssets.wTypeImg) {
-        if (cardAssets.isSkportWeaponType) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-            ctx.fillRect(cx + 10, weaponY + 10, 20, 20);
-            ctx.drawImage(cardAssets.wTypeImg, cx + 8, weaponY + 8, 24, 24);
-        } else {
-            const cleanWType = extractWhiteGlyph(cardAssets.wTypeImg, 24);
-            ctx.drawImage(cleanWType, cx + 8, weaponY + 8, 24, 24);
-        }
+        const wTypeGlyph = cardAssets.isSkportWeaponType
+            ? extractCutoutGlyph(cardAssets.wTypeImg, 28, [255, 255, 255])
+            : extractWhiteGlyph(cardAssets.wTypeImg, 28);
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+        ctx.shadowBlur = 5;
+        ctx.drawImage(wTypeGlyph, cx + 8, weaponY + 8, 28, 28);
+        ctx.restore();
     }
 
     const wLevel = charObj.weapon?.level ?? 1;
@@ -1220,15 +1285,10 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
             const enhanceLvl = Number(eqObj.enhanceStatus);
             if (enhanceLvl >= 1 && enhanceLvl <= 3 && assets.enhanceImgs[enhanceLvl - 1]) {
                 ctx.save();
-                ctx.fillStyle = 'rgba(10, 14, 20, 0.90)';
-                ctx.beginPath();
-                ctx.arc(eqx + 15, eqy + 15, 12.5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(110, 195, 255, 0.45)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+                ctx.shadowBlur = 4;
+                ctx.drawImage(assets.enhanceImgs[enhanceLvl - 1], eqx + 4, eqy + 5, 24, 17);
                 ctx.restore();
-                ctx.drawImage(assets.enhanceImgs[enhanceLvl - 1], eqx + 5, eqy + 8, 20, 14);
             }
 
             ctx.fillStyle = getRarityColor(eqObj);
