@@ -1311,7 +1311,7 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
  * 繪製 Phase 2 單張幹員出戰卡片（同步繪製以隔離 ctx.clip() 狀態）
  */
 function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass, assets) {
-    drawRoundedRect(ctx, cx, cy, cw, ch, 2, 'rgba(13, 15, 19, 0.88)', 'rgba(255, 255, 255, 0.10)', 1);
+    drawRoundedRect(ctx, cx, cy, cw, ch, 2, 'rgba(30, 31, 35, 0.90)', 'rgba(255, 255, 255, 0.10)', 1);
 
     // 幹員頂部色條依據幹員 rarity 著色，缺乏資料時退回通關/失敗主題色
     const topAccent = getRarityColor(charObj, isPass ? '#d8e622' : '#b34b33');
@@ -1345,8 +1345,8 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         pCtx.drawImage(assets.charTopMaskImg, 0, 0, cw, 90);
     }
 
-    const fadeStartStop = Math.max(0, (portraitH - 125) / portraitH);
-    const fadeMidStop = Math.max(fadeStartStop, (portraitH - 55) / portraitH);
+    const fadeStartStop = Math.max(0, (portraitH - 62) / portraitH);
+    const fadeMidStop = Math.max(fadeStartStop, (portraitH - 28) / portraitH);
     const alphaMask = pCtx.createLinearGradient(0, 0, 0, portraitH);
     alphaMask.addColorStop(0, 'rgba(0, 0, 0, 1)');
     alphaMask.addColorStop(fadeStartStop, 'rgba(0, 0, 0, 1)');
@@ -1390,45 +1390,59 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         drawImageWithShadow(ctx, cardAssets.potImg, cx + 8, potY, 44, 44, 'rgba(0, 0, 0, 0.95)', 9, 1);
     }
 
-    // (B) 武器區域
+    // (B) 武器區域（向左延伸超出卡片左緣、圓角外框與 0→70% 漸變至透明框線）
     const weaponY = cy + 404;
     const weaponH = 128;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
-    ctx.fillRect(cx, weaponY, cw, weaponH);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.fillRect(cx, weaponY, cw, 1);
+    const weaponExtLeft = 12;
+    const wx = cx - weaponExtLeft;
+    const weaponBoxW = cw + weaponExtLeft;
+    const wBoxRadius = 8;
 
-    const weaponIconMaxW = Math.min(116, cw - 54);
+    const wBgGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW, weaponY);
+    wBgGrad.addColorStop(0, 'rgba(42, 43, 47, 0.96)');
+    wBgGrad.addColorStop(0.7, 'rgba(34, 35, 39, 0.85)');
+    wBgGrad.addColorStop(1, 'rgba(30, 31, 35, 0.40)');
+
+    const wStrokeGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
+    wStrokeGrad.addColorStop(0, 'rgba(255, 255, 255, 0.52)');
+    wStrokeGrad.addColorStop(0.65, 'rgba(255, 255, 255, 0.24)');
+    wStrokeGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBgGrad, wStrokeGrad, 1.5);
+
+    const weaponIconMaxW = Math.min(116, weaponBoxW - 58);
     if (cardAssets.wIconImg) {
         const wIconImg = cardAssets.wIconImg;
         const maxW = weaponIconMaxW;
         const maxH = 112;
         const scale = Math.min(maxW / wIconImg.width, maxH / wIconImg.height);
-        const ww = wIconImg.width * scale;
-        const wh = wIconImg.height * scale;
-        ctx.drawImage(wIconImg, cx + 4 + (maxW - ww) / 2, weaponY + 4 + (maxH - wh) / 2, ww, wh);
+        const wImgW = wIconImg.width * scale;
+        const wImgH = wIconImg.height * scale;
+        ctx.drawImage(wIconImg, wx + 6 + (maxW - wImgW) / 2, weaponY + 4 + (maxH - wImgH) / 2, wImgW, wImgH);
     }
 
-    // 武器精煉等級圖示（與幹員命座同款，無外框加陰影）
+    // 武器精煉等級圖示（隨武器區塊左移，無外框加陰影）
     if (cardAssets.wRefineImg) {
-        drawImageWithShadow(ctx, cardAssets.wRefineImg, cx + 8, weaponY + 8, 30, 30, 'rgba(0, 0, 0, 0.92)', 6, 0);
+        drawImageWithShadow(ctx, cardAssets.wRefineImg, wx + 8, weaponY + 8, 30, 30, 'rgba(0, 0, 0, 0.92)', 6, 0);
     }
 
     const wLevel = charObj.weapon?.level ?? 1;
+    const wLvX = wx + 10;
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
     ctx.shadowBlur = 5;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
     ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText('Lv.', cx + 10, weaponY + 112);
+    ctx.fillText('Lv.', wLvX, weaponY + 86);
     ctx.fillStyle = '#ffffff';
     ctx.font = "900 28px 'Noto Sans TC', sans-serif";
-    ctx.fillText(String(wLevel), cx + 30, weaponY + 112);
+    ctx.fillText(String(wLevel), wLvX, weaponY + 114);
+    const weaponBarW = Math.ceil(ctx.measureText('999').width);
     ctx.restore();
 
-    // 武器下方稀有度色條（依據 weapon.rarity 變色）
+    // 武器下方稀有度色條（寬度固定為 3 位數字長度並對齊等級數值）
     ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
-    ctx.fillRect(cx + 4, weaponY + weaponH - 4, Math.min(114, cw - 54), 4);
+    ctx.fillRect(wLvX, weaponY + weaponH - 4, weaponBarW, 4);
 
     // 武器詞條（/9 /9 /4 樣式＋貼合字體寬高之斜切幾何背景底塊）
     const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
@@ -1736,7 +1750,7 @@ async function drawPhase2CrisisUI(baseData, recordData, uid, serverId, contractN
     const charH = 740;
     const charGap = 28;
 
-    await renderTiltedSection({ x: 1094, y: 112, w: 748, h: 760 }, 'right', (offCtx) => {
+    await renderTiltedSection({ x: 1084, y: 112, w: 758, h: 760 }, 'right', (offCtx) => {
         for (let i = 0; i < 4; i++) {
             const cx = charStartX + i * (charW + charGap);
             drawPhase2OperatorCard(offCtx, cx, charY, charW, charH, charsData[i] || null, cardAssetsList[i], isPass, assets);
