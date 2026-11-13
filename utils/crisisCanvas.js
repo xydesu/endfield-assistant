@@ -1456,15 +1456,15 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.shadowBlur = 5;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
     ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText('Lv.', wLvX, weaponY + 86);
+    ctx.fillText('Lv.', wLvX, weaponY + 83);
     ctx.fillStyle = '#ffffff';
     ctx.font = "900 28px 'Noto Sans TC', sans-serif";
-    ctx.fillText(String(wLevel), wLvX, weaponY + 114);
+    ctx.fillText(String(wLevel), wLvX, weaponY + 111);
     ctx.restore();
 
-    // 武器下方稀有度色條（寬度固定為 3 位數字長度並對齊等級數值）
+    // 武器下方稀有度色條（寬度固定為 3 位數字長度、對齊等級數值，並與底部邊框留出明確間距）
     ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
-    ctx.fillRect(wLvX, weaponY + weaponH - 4, weaponBarW, 4);
+    ctx.fillRect(wLvX, weaponY + 118, weaponBarW, 4);
 
     // 武器詞條（/9 /9 /4 樣式＋貼合字體寬高之斜切幾何背景底塊）
     const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
