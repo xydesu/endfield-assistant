@@ -1403,11 +1403,11 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     const weaponBoxW = cw + weaponExtLeft;
     const wBoxRadius = 8;
 
-    // 底層微弱灰白底色（與邊框色同色調）
-    const wBaseGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW, weaponY);
-    wBaseGrad.addColorStop(0, 'rgba(255, 255, 255, 0.14)');
-    wBaseGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.05)');
-    wBaseGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    // 底層武器外框背景（與邊框色同為中性灰 rgb(145, 148, 155)，自左至右 70% 漸變至透明）
+    const wBaseGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
+    wBaseGrad.addColorStop(0, 'rgba(145, 148, 155, 0.50)');
+    wBaseGrad.addColorStop(0.65, 'rgba(145, 148, 155, 0.22)');
+    wBaseGrad.addColorStop(1, 'rgba(145, 148, 155, 0)');
 
     drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBaseGrad, null, 0);
 
@@ -1427,16 +1427,16 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         ctx.restore();
     }
 
-    // 外框左至右整體漸變（與邊框色一致之灰白色系，層級大於武器圖片、小於 Lv 與命座）與 0→70% 漸隱框線
-    const wOverlayGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.85, weaponY);
-    wOverlayGrad.addColorStop(0, 'rgba(255, 255, 255, 0.34)');
-    wOverlayGrad.addColorStop(0.55, 'rgba(255, 255, 255, 0.12)');
-    wOverlayGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    // 外框左至右整體漸變（與邊框色一致之同色系灰色遮罩，層級大於武器圖片、小於 Lv 與命座）與 0→70% 漸隱框線
+    const wOverlayGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
+    wOverlayGrad.addColorStop(0, 'rgba(145, 148, 155, 0.52)');
+    wOverlayGrad.addColorStop(0.65, 'rgba(145, 148, 155, 0.22)');
+    wOverlayGrad.addColorStop(1, 'rgba(145, 148, 155, 0)');
 
     const wStrokeGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
-    wStrokeGrad.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
-    wStrokeGrad.addColorStop(0.65, 'rgba(255, 255, 255, 0.24)');
-    wStrokeGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    wStrokeGrad.addColorStop(0, 'rgba(165, 168, 175, 0.90)');
+    wStrokeGrad.addColorStop(0.65, 'rgba(165, 168, 175, 0.42)');
+    wStrokeGrad.addColorStop(1, 'rgba(165, 168, 175, 0)');
 
     drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wOverlayGrad, wStrokeGrad, 1.5);
 
