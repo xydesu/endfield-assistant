@@ -1241,12 +1241,15 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, sectionH,
     const railX = gridX - 4;
     const railH = 2.5;
 
+    // 武器欄底緣至導軌頂緣、導軌底緣至第一排裝備頂緣、第二排裝備底緣至卡片底線維持三段嚴格等距
+    const equalGap = (sectionH - railH - gridH) / 3;
+    const railY = equalGap;
+
     // 頂部分隔導軌（霧灰色橫槓，對齊裝備區左右邊界）
     ctx.fillStyle = '#4D4D4D';
-    ctx.fillRect(railX, 0, railW, railH);
+    ctx.fillRect(railX, railY, railW, railH);
 
-    // 導軌底緣至第一排裝備頂緣，與第二排裝備底緣至卡片底線維持嚴格等寬
-    const gridY = railH + (sectionH - railH - gridH) / 2;
+    const gridY = railY + railH + equalGap;
     const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
     const pendingBadges = [];
 
@@ -1518,8 +1521,8 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         }
     }
 
-    // (C) 2×2 裝備區塊（局部座標隔離＋扁平工業風多層次錯位渲染）
-    const equipSectionY = weaponY + weaponH + 8;
+    // (C) 2×2 裝備區塊（緊接武器欄底緣起算，使武器底緣→導軌→裝備→卡片底線維持三段等距）
+    const equipSectionY = weaponY + weaponH;
     const equipSectionH = cy + ch - 2 - equipSectionY;
     drawPhase2EquipmentSection(ctx, cx, equipSectionY, cw, equipSectionH, charObj, cardAssets, assets);
 
