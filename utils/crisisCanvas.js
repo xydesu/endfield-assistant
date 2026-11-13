@@ -1118,6 +1118,22 @@ function toTransparentRgba(color) {
 }
 
 /**
+ * 於無變換矩陣的離屏畫布先烘焙圖片陰影再貼回，規避 node-canvas 在 ctx.scale() 下使用 shadowBlur + drawImage 產生的偏移黑斑 bug
+ */
+function drawImageWithShadow(ctx, img, x, y, w, h, shadowColor, shadowBlur, shadowOffsetY = 0) {
+    const m = typeof ctx.getTransform === 'function' ? ctx.getTransform() : { a: 1, b: 0 };
+    const resScale = Math.max(1, Math.hypot(m.a, m.b));
+    const pad = Math.ceil(shadowBlur + Math.abs(shadowOffsetY) + 4);
+    const tmp = createCanvas(Math.ceil((w + pad * 2) * resScale), Math.ceil((h + pad * 2) * resScale));
+    const tCtx = tmp.getContext('2d');
+    tCtx.shadowColor = shadowColor;
+    tCtx.shadowBlur = shadowBlur * resScale;
+    tCtx.shadowOffsetY = shadowOffsetY * resScale;
+    tCtx.drawImage(img, pad * resScale, pad * resScale, w * resScale, h * resScale);
+    ctx.drawImage(tmp, x - pad, y - pad, w + pad * 2, h + pad * 2);
+}
+
+/**
  * 繪製 Z-4 裝備卡槽左上角懸浮升級徽章（深灰圓角投影底板＋亮天藍六角螺帽與右上三角形）
  */
 function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
@@ -1333,12 +1349,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     if (cardAssets.potImg) {
         const potY = lvTopY + 42;
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-        ctx.shadowBlur = 9;
-        ctx.shadowOffsetY = 1;
-        ctx.drawImage(cardAssets.potImg, cx + 8, potY, 44, 44);
-        ctx.restore();
+        drawImageWithShadow(ctx, cardAssets.potImg, cx + 8, potY, 44, 44, 'rgba(0, 0, 0, 0.95)', 9, 1);
     }
 
     // (B) 武器區域
@@ -1361,11 +1372,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     // 武器精煉等級圖示（與幹員命座同款，無外框加陰影）
     if (cardAssets.wRefineImg) {
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.92)';
-        ctx.shadowBlur = 6;
-        ctx.drawImage(cardAssets.wRefineImg, cx + 8, weaponY + 8, 30, 30);
-        ctx.restore();
+        drawImageWithShadow(ctx, cardAssets.wRefineImg, cx + 8, weaponY + 8, 30, 30, 'rgba(0, 0, 0, 0.92)', 6, 0);
     }
 
     const wLevel = charObj.weapon?.level ?? 1;
