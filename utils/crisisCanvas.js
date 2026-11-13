@@ -52,8 +52,8 @@ try {
     console.error('[crisisCanvas] 載入字體時發生錯誤', error);
 }
 
-// 輔助函式：繪製圓角矩形
-function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle, strokeWidth) {
+// 輔助函式：建立圓角矩形路徑
+function traceRoundedRectPath(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
     ctx.lineTo(x + width - radius, y);
@@ -65,6 +65,11 @@ function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyl
     ctx.lineTo(x, y + radius);
     ctx.quadraticCurveTo(x, y, x + radius, y);
     ctx.closePath();
+}
+
+// 輔助函式：繪製圓角矩形
+function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle, strokeWidth) {
+    traceRoundedRectPath(ctx, x, y, width, height, radius);
     if (fillStyle) {
         ctx.fillStyle = fillStyle;
         ctx.fill();
@@ -1398,63 +1403,41 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     const weaponBoxW = cw + weaponExtLeft;
     const wBoxRadius = 8;
 
-    const wBgGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW, weaponY);
-    wBgGrad.addColorStop(0, 'rgba(42, 43, 47, 0.96)');
-    wBgGrad.addColorStop(0.7, 'rgba(34, 35, 39, 0.85)');
-    wBgGrad.addColorStop(1, 'rgba(30, 31, 35, 0.40)');
+    const wBaseGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW, weaponY);
+    wBaseGrad.addColorStop(0, 'rgba(34, 35, 39, 0.94)');
+    wBaseGrad.addColorStop(0.7, 'rgba(32, 33, 37, 0.80)');
+    wBaseGrad.addColorStop(1, 'rgba(30, 31, 35, 0.40)');
+
+    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBaseGrad, null, 0);
+
+    // 武器圖片再度放大（1.25× 框高）並裁切於圓角外框內，超出部分不渲染
+    if (cardAssets.wIconImg) {
+        const wIconImg = cardAssets.wIconImg;
+        const scale = (weaponH * 1.25) / wIconImg.height;
+        const wImgW = wIconImg.width * scale;
+        const wImgH = wIconImg.height * scale;
+        const wImgX = wx + Math.round((weaponBoxW - 42 - wImgW) / 2);
+        const wImgY = weaponY + Math.round((weaponH - wImgH) / 2);
+
+        ctx.save();
+        traceRoundedRectPath(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius);
+        ctx.clip();
+        ctx.drawImage(wIconImg, wImgX, wImgY, wImgW, wImgH);
+        ctx.restore();
+    }
+
+    // 外框左至右整體淡化漸變層與 0→70% 漸隱框線（層級大於武器圖片、小於 Lv 與命座）
+    const wOverlayGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW, weaponY);
+    wOverlayGrad.addColorStop(0, 'rgba(38, 40, 44, 0.62)');
+    wOverlayGrad.addColorStop(0.55, 'rgba(32, 34, 38, 0.28)');
+    wOverlayGrad.addColorStop(1, 'rgba(30, 31, 35, 0)');
 
     const wStrokeGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
     wStrokeGrad.addColorStop(0, 'rgba(255, 255, 255, 0.52)');
     wStrokeGrad.addColorStop(0.65, 'rgba(255, 255, 255, 0.24)');
     wStrokeGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
-    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBgGrad, null, 0);
-
-    // 武器圖片放大至與邊框上下同高，並對外圍做 ~50% 徑向淡化；超出圓角邊框部分裁切不渲染
-    if (cardAssets.wIconImg) {
-        const wIconImg = cardAssets.wIconImg;
-        const scale = weaponH / wIconImg.height;
-        const wImgW = wIconImg.width * scale;
-        const wImgH = weaponH;
-        const wImgX = wx + Math.round((weaponBoxW - 42 - wImgW) / 2);
-        const wImgY = weaponY;
-
-        const wIconCanvas = createCanvas(Math.ceil(wImgW * resScale), Math.ceil(wImgH * resScale));
-        const wiCtx = wIconCanvas.getContext('2d');
-        wiCtx.scale(resScale, resScale);
-        wiCtx.drawImage(wIconImg, 0, 0, wImgW, wImgH);
-
-        const rCx = wImgW / 2;
-        const rCy = wImgH / 2;
-        const rInner = Math.min(wImgW, wImgH) * 0.14;
-        const rOuter = Math.max(wImgW, wImgH) * 0.46;
-        const radialFade = wiCtx.createRadialGradient(rCx, rCy, rInner, rCx, rCy, rOuter);
-        radialFade.addColorStop(0, 'rgba(0, 0, 0, 1)');
-        radialFade.addColorStop(0.55, 'rgba(0, 0, 0, 0.72)');
-        radialFade.addColorStop(1, 'rgba(0, 0, 0, 0.50)');
-        wiCtx.globalCompositeOperation = 'destination-in';
-        wiCtx.fillStyle = radialFade;
-        wiCtx.fillRect(0, 0, wImgW, wImgH);
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(wx + wBoxRadius, weaponY);
-        ctx.lineTo(wx + weaponBoxW - wBoxRadius, weaponY);
-        ctx.quadraticCurveTo(wx + weaponBoxW, weaponY, wx + weaponBoxW, weaponY + wBoxRadius);
-        ctx.lineTo(wx + weaponBoxW, weaponY + weaponH - wBoxRadius);
-        ctx.quadraticCurveTo(wx + weaponBoxW, weaponY + weaponH, wx + weaponBoxW - wBoxRadius, weaponY + weaponH);
-        ctx.lineTo(wx + wBoxRadius, weaponY + weaponH);
-        ctx.quadraticCurveTo(wx, weaponY + weaponH, wx, weaponY + weaponH - wBoxRadius);
-        ctx.lineTo(wx, weaponY + wBoxRadius);
-        ctx.quadraticCurveTo(wx, weaponY, wx + wBoxRadius, weaponY);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(wIconCanvas, wImgX, wImgY, wImgW, wImgH);
-        ctx.restore();
-    }
-
-    // 圓角框線壓在放大的武器圖片上層（自左至右 70% 漸變至透明）
-    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, null, wStrokeGrad, 1.5);
+    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wOverlayGrad, wStrokeGrad, 1.5);
 
     const wLevel = charObj.weapon?.level ?? 1;
     const wLvX = wx + 10;
