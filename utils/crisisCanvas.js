@@ -52,24 +52,28 @@ try {
     console.error('[crisisCanvas] 載入字體時發生錯誤', error);
 }
 
-// 輔助函式：建立圓角矩形路徑
-function traceRoundedRectPath(ctx, x, y, width, height, radius) {
+// 輔助函式：建立圓角矩形路徑（可獨立指定左側圓角半徑，設 0 則僅右側保留圓角）
+function traceRoundedRectPath(ctx, x, y, width, height, radius, leftRadius = radius) {
     ctx.beginPath();
-    ctx.moveTo(x + radius, y);
+    ctx.moveTo(x + leftRadius, y);
     ctx.lineTo(x + width - radius, y);
     ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
     ctx.lineTo(x + width, y + height - radius);
     ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.lineTo(x + leftRadius, y + height);
+    if (leftRadius > 0) {
+        ctx.quadraticCurveTo(x, y + height, x, y + height - leftRadius);
+        ctx.lineTo(x, y + leftRadius);
+        ctx.quadraticCurveTo(x, y, x + leftRadius, y);
+    } else {
+        ctx.lineTo(x, y);
+    }
     ctx.closePath();
 }
 
 // 輔助函式：繪製圓角矩形
-function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle, strokeWidth) {
-    traceRoundedRectPath(ctx, x, y, width, height, radius);
+function drawRoundedRect(ctx, x, y, width, height, radius, fillStyle, strokeStyle, strokeWidth, leftRadius = radius) {
+    traceRoundedRectPath(ctx, x, y, width, height, radius, leftRadius);
     if (fillStyle) {
         ctx.fillStyle = fillStyle;
         ctx.fill();
@@ -1412,13 +1416,14 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
     // (B) 武器區域（沿用上方定義之向左延伸圓角外框座標與 0→70% 漸變至透明框線）
 
-    // 武器基質（詞條 9/9/4）右側純灰色圓角區塊幾何（先定義以便限制武器圖片不重疊至基質下方）
+    // 武器外框基底暗底（防止透過挖空區渲染到後方黃色主背景，使第 1 張卡片與其餘 3 張表現一致）
+    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, 'rgba(20, 22, 26, 0.94)', null, 0);
+
+    // 武器基質（詞條 9/9/4）右側各獨立矩形之水平位置幾何（先定義以便限制武器圖片不重疊至基質下方）
     const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
     const termBoxW = 46;
     const termBoxX = cx + cw - termBoxW - 2;
-    const termBoxY = weaponY + 10;
-    const termBoxH = weaponH - 20;
-    const weaponClipW = terms.length > 0 ? Math.max(0, termBoxX - cx - 4) : cw;
+    const weaponClipW = terms.length > 0 ? Math.max(0, termBoxX - cx - 2) : cw;
 
     // 武器圖片再度放大（1.25× 框高）並限制裁切於原本角色卡片位置與基質左側之間，不超出原本卡片左緣且不渲染到基質下方
     if (cardAssets.wIconImg) {
@@ -1477,30 +1482,39 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = getRarityColor(charObj.weapon, '#f5b800');
     ctx.fillRect(wLvX, weaponY + 118, weaponBarW, 4);
 
-    // 武器基質（9/9/4）：純色灰色圓角方形外框，數字與斜橢圓圖標共用 #fff100 同色（層級於武器之上且不相重疊）
+    // 武器基質（9/9/4）：三項各自獨立緊湊矩形，左端淡化至透明不渲染左上/左下角，右側圓角，底色同武器外框色，數字與橢圓圖標共用 #fff100
     if (terms.length > 0) {
         const termColor = '#fff100';
-        drawRoundedRect(ctx, termBoxX, termBoxY, termBoxW, termBoxH, 6, '#464950', null, 0);
         const visibleCount = Math.min(terms.length, 3);
-        const rowPitch = 34;
-        const startY = termBoxY + Math.round((termBoxH - (visibleCount * 22 + (visibleCount - 1) * (rowPitch - 22))) / 2);
+        const termItemH = 22;
+        const rowPitch = 32;
+        const totalTermsH = visibleCount * termItemH + (visibleCount - 1) * (rowPitch - termItemH);
+        const startY = weaponY + Math.round((weaponH - totalTermsH) / 2);
+
         for (let t = 0; t < visibleCount; t++) {
             const ty = startY + t * rowPitch;
             const termStr = String(terms[t]);
-            ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+            const termBgGrad = ctx.createLinearGradient(termBoxX, ty, termBoxX + termBoxW, ty);
+            termBgGrad.addColorStop(0, 'rgba(165, 168, 175, 0)');
+            termBgGrad.addColorStop(0.42, 'rgba(165, 168, 175, 0.28)');
+            termBgGrad.addColorStop(1, 'rgba(165, 168, 175, 0.34)');
+
+            drawRoundedRect(ctx, termBoxX, ty, termBoxW, termItemH, 4, termBgGrad, null, 0, 0);
+
+            ctx.font = "bold 19px 'Noto Sans TC', sans-serif";
             const numWidth = ctx.measureText(termStr).width;
-            const itemW = 13 + 3 + numWidth;
-            const tx = termBoxX + Math.round((termBoxW - itemW) / 2);
+            const itemW = 12 + 3 + numWidth;
+            const tx = termBoxX + Math.round((termBoxW - itemW) / 2) + 3;
             if (assets.termSlashImg) {
-                ctx.drawImage(assets.termSlashImg, tx, ty + 2, 13, 18);
+                ctx.drawImage(assets.termSlashImg, tx, ty + 3, 12, 16);
             } else {
                 ctx.fillStyle = termColor;
-                ctx.font = "900 18px 'Noto Sans TC', sans-serif";
-                ctx.fillText('/', tx, ty + 18);
+                ctx.font = "900 17px 'Noto Sans TC', sans-serif";
+                ctx.fillText('/', tx, ty + 17);
             }
             ctx.fillStyle = termColor;
-            ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-            ctx.fillText(termStr, tx + 16, ty + 18);
+            ctx.font = "bold 19px 'Noto Sans TC', sans-serif";
+            ctx.fillText(termStr, tx + 15, ty + 17);
         }
     }
 
