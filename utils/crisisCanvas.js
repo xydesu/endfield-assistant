@@ -251,16 +251,16 @@ function applyLangFont(ctx, lang) {
 }
 
 /**
- * 依裝備稀有度鍵值取得對應色條顏色
+ * 依幹員或裝備稀有度鍵值取得對應色條顏色
  */
-function getEquipRarityColor(eqObj) {
-    if (eqObj?.rarity?.key) {
-        const match = eqObj.rarity.key.match(/\d+/);
+function getRarityColor(obj, fallback = 'rgba(255,255,255,0.2)') {
+    if (obj?.rarity?.key) {
+        const match = obj.rarity.key.match(/\d+/);
         if (match && RARITY_COLORS[match[0]]) {
             return RARITY_COLORS[match[0]];
         }
     }
-    return 'rgba(255,255,255,0.2)';
+    return fallback;
 }
 
 /**
@@ -852,7 +852,7 @@ async function drawPhase2LeftPanel(ctx, params) {
     const scoreY = 262;
     const scoreStr = String(indicatorCount);
     ctx.fillStyle = primaryColor;
-    ctx.font = "900 108px 'Noto Sans TC', sans-serif";
+    ctx.font = "normal 104px 'Noto Sans TC', sans-serif";
     ctx.fillText(scoreStr, panelX + 2, scoreY);
 
     const scoreW = ctx.measureText(scoreStr).width;
@@ -958,7 +958,7 @@ async function drawPhase2LeftPanel(ctx, params) {
     // 5. 行動成功 / 行動失敗 + CONTINGENCY CONTRACT INDIGO 徽章
     const statusText = isPass ? text.actionSuccess : text.actionFail;
     ctx.fillStyle = primaryColor;
-    ctx.font = "900 84px 'Noto Sans TC', sans-serif";
+    ctx.font = "normal 82px 'Noto Sans TC', sans-serif";
     ctx.fillText(statusText, panelX - 2, afterGridY + 70);
 
     drawPhase2ContractBadge(ctx, panelX + 2, afterGridY + 90, contractName, isPass);
@@ -1022,16 +1022,25 @@ async function preloadPhase2CardAssets(charObj, charMeta) {
     const weaponTypeKey = resolveWeaponTypeKey(charObj, charMeta);
     const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
 
-    const [avatarImg, profImg, potImg, wTypeImg, wIconImg, ...eqImgs] = await Promise.all([
+    const [avatarImg, profImg, potImg, skportWTypeImg, fallbackWTypeImg, wIconImg, ...eqImgs] = await Promise.all([
         safeLoadImage(charObj.avatarUrl),
         profKey ? safeLoadImage(path.join(__dirname, '../assets/images/character', `${profKey}.png`)) : Promise.resolve(null),
         safeLoadImage(path.join(__dirname, '../assets/images/character', `potential_${potLevel}.png`)),
+        weaponTypeKey ? safeLoadImage(path.join(__dirname, '../assets/images/ui/phase2', `${weaponTypeKey}.png`)) : Promise.resolve(null),
         weaponTypeKey ? safeLoadImage(path.join(__dirname, '../assets/images/weapon', `${weaponTypeKey}.png`)) : Promise.resolve(null),
         safeLoadImage(charObj.weapon?.icon),
         ...eqKeys.map(k => safeLoadImage(charObj.equips?.[k]?.icon)),
     ]);
 
-    return { avatarImg, profImg, potImg, wTypeImg, wIconImg, eqImgs };
+    return {
+        avatarImg,
+        profImg,
+        potImg,
+        wTypeImg: skportWTypeImg || fallbackWTypeImg,
+        isSkportWeaponType: Boolean(skportWTypeImg),
+        wIconImg,
+        eqImgs
+    };
 }
 
 /**
@@ -1040,9 +1049,10 @@ async function preloadPhase2CardAssets(charObj, charMeta) {
 function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass, assets) {
     drawRoundedRect(ctx, cx, cy, cw, ch, 2, 'rgba(13, 15, 19, 0.88)', 'rgba(255, 255, 255, 0.10)', 1);
 
-    const topAccent = isPass ? '#d8e622' : '#b34b33';
+    // 幹員頂部色條依據幹員 rarity 著色，缺乏資料時退回通關/失敗主題色
+    const topAccent = getRarityColor(charObj, isPass ? '#d8e622' : '#b34b33');
     ctx.fillStyle = topAccent;
-    ctx.fillRect(cx, cy, cw, 4);
+    ctx.fillRect(cx, cy, cw, 5);
 
     if (!charObj || !cardAssets) return;
 
@@ -1051,7 +1061,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     // (A) 幹員半身立繪
     ctx.save();
     ctx.beginPath();
-    ctx.rect(cx, cy + 4, cw, portraitH);
+    ctx.rect(cx, cy + 5, cw, portraitH);
     ctx.clip();
 
     if (cardAssets.avatarImg) {
@@ -1062,11 +1072,11 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         ctx.drawImage(avatarImg, cx + (cw - dw) / 2, cy + 16, dw, dh);
     } else {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-        ctx.fillRect(cx, cy + 4, cw, portraitH);
+        ctx.fillRect(cx, cy + 5, cw, portraitH);
     }
 
     if (assets.charTopMaskImg) {
-        ctx.drawImage(assets.charTopMaskImg, cx, cy + 4, cw, 90);
+        ctx.drawImage(assets.charTopMaskImg, cx, cy + 5, cw, 90);
     }
     ctx.restore();
 
@@ -1077,19 +1087,19 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = fadeGrad;
     ctx.fillRect(cx, cy + portraitH - 110, cw, 120);
 
-    // 左上角職業圖標（由 card/detail 查表取得）
+    // 左上角職業圖標（實底＋亮框＋純白著色提升對比度）
     if (cardAssets.profImg) {
-        ctx.fillStyle = 'rgba(10, 12, 16, 0.65)';
-        ctx.fillRect(cx + 8, cy + 12, 30, 30);
-        ctx.drawImage(cardAssets.profImg, cx + 10, cy + 14, 26, 26);
+        drawRoundedRect(ctx, cx + 8, cy + 13, 38, 38, 3, 'rgba(8, 10, 14, 0.90)', 'rgba(255, 255, 255, 0.55)', 1.5);
+        const whiteProf = tintIcon(cardAssets.profImg, '#ffffff', 30);
+        ctx.drawImage(whiteProf, cx + 12, cy + 17, 30, 30);
     }
 
     // 右上細微角標
     ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-    ctx.fillRect(cx + cw - 12, cy + 12, 4, 26);
+    ctx.fillRect(cx + cw - 12, cy + 13, 4, 26);
 
-    // 等級與潛能星芒（附陰影以確保亮色髮絲上清晰可辨）
-    const lvTopY = cy + 66;
+    // 等級與潛能（命座）星芒（均附高對比襯底，避免亮髮背景遮蔽）
+    const lvTopY = cy + 72;
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
     ctx.shadowBlur = 6;
@@ -1104,7 +1114,11 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.restore();
 
     if (cardAssets.potImg) {
-        ctx.drawImage(cardAssets.potImg, cx + 10, lvTopY + 42, 28, 28);
+        const potY = lvTopY + 42;
+        const potLevel = Number(charObj.potentialLevel) || 0;
+        const potBg = potLevel === 0 ? 'rgba(34, 38, 46, 0.90)' : 'rgba(8, 10, 14, 0.86)';
+        drawRoundedRect(ctx, cx + 10, potY, 36, 36, 4, potBg, 'rgba(255, 255, 255, 0.42)', 1.2);
+        ctx.drawImage(cardAssets.potImg, cx + 13, potY + 3, 30, 30);
     }
 
     // (B) 武器區域
@@ -1115,47 +1129,60 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.fillRect(cx, weaponY, cw, 1);
 
-    if (cardAssets.wTypeImg) {
-        const cleanWType = extractWhiteGlyph(cardAssets.wTypeImg, 22);
-        ctx.drawImage(cleanWType, cx + 8, weaponY + 8, 22, 22);
-    }
-
     if (cardAssets.wIconImg) {
         const wIconImg = cardAssets.wIconImg;
-        const maxW = 86;
-        const maxH = 74;
+        const maxW = 110;
+        const maxH = 94;
         const scale = Math.min(maxW / wIconImg.width, maxH / wIconImg.height);
         const ww = wIconImg.width * scale;
         const wh = wIconImg.height * scale;
-        ctx.drawImage(wIconImg, cx + 22 + (maxW - ww) / 2, weaponY + 14 + (maxH - wh) / 2, ww, wh);
+        ctx.drawImage(wIconImg, cx + 6 + (maxW - ww) / 2, weaponY + 8 + (maxH - wh) / 2, ww, wh);
+    }
+
+    // 武器類型圖標（優先使用 SKPort 官方鏤空徽章＋白底襯出剪影）
+    if (cardAssets.wTypeImg) {
+        if (cardAssets.isSkportWeaponType) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+            ctx.fillRect(cx + 10, weaponY + 10, 20, 20);
+            ctx.drawImage(cardAssets.wTypeImg, cx + 8, weaponY + 8, 24, 24);
+        } else {
+            const cleanWType = extractWhiteGlyph(cardAssets.wTypeImg, 24);
+            ctx.drawImage(cleanWType, cx + 8, weaponY + 8, 24, 24);
+        }
     }
 
     const wLevel = charObj.weapon?.level ?? 1;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
     ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
     ctx.fillText('Lv.', cx + 10, weaponY + 112);
     ctx.fillStyle = '#ffffff';
     ctx.font = "900 28px 'Noto Sans TC', sans-serif";
     ctx.fillText(String(wLevel), cx + 30, weaponY + 112);
+    ctx.restore();
 
     ctx.fillStyle = '#f5b800';
     ctx.fillRect(cx + 10, weaponY + 120, 68, 3);
 
-    // 武器詞條（/9 /9 /4 樣式）
+    // 武器詞條（/9 /9 /4 樣式＋顯眼斜切幾何背景底塊）
     const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
     for (let t = 0; t < Math.min(terms.length, 3); t++) {
-        const ty = weaponY + 18 + t * 32;
-        const tx = cx + cw - 48;
+        const ty = weaponY + 14 + t * 34;
+        const tx = cx + cw - 52;
+        drawSkewedRect(ctx, tx - 9, ty - 2, 55, 27, 5, 'rgba(255, 255, 255, 0.22)');
+        drawSkewedRect(ctx, tx - 9, ty - 2, 3, 27, 5, 'rgba(232, 245, 34, 0.85)');
         if (assets.termSlashImg) {
-            ctx.drawImage(assets.termSlashImg, tx, ty, 13, 18);
+            ctx.drawImage(assets.termSlashImg, tx, ty + 2, 13, 18);
         } else {
             ctx.fillStyle = '#e8f522';
             ctx.font = "900 18px 'Noto Sans TC', sans-serif";
-            ctx.fillText('/', tx, ty + 16);
+            ctx.fillText('/', tx, ty + 18);
         }
         ctx.fillStyle = '#ffffff';
-        ctx.font = "900 21px 'Noto Sans TC', sans-serif";
-        ctx.fillText(String(terms[t]), tx + 16, ty + 16);
+        ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+        ctx.fillText(String(terms[t]), tx + 16, ty + 18);
     }
 
     // (C) 2×2 裝備網格
@@ -1192,20 +1219,25 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
             const enhanceLvl = Number(eqObj.enhanceStatus);
             if (enhanceLvl >= 1 && enhanceLvl <= 3 && assets.enhanceImgs[enhanceLvl - 1]) {
-                ctx.fillStyle = 'rgba(12, 16, 22, 0.86)';
+                ctx.save();
+                ctx.fillStyle = 'rgba(10, 14, 20, 0.90)';
                 ctx.beginPath();
-                ctx.arc(eqx + 12, eqy + 12, 9, 0, Math.PI * 2);
+                ctx.arc(eqx + 15, eqy + 15, 12.5, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.drawImage(assets.enhanceImgs[enhanceLvl - 1], eqx + 5, eqy + 7, 14, 10);
+                ctx.strokeStyle = 'rgba(110, 195, 255, 0.45)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.restore();
+                ctx.drawImage(assets.enhanceImgs[enhanceLvl - 1], eqx + 5, eqy + 8, 20, 14);
             }
 
-            ctx.fillStyle = getEquipRarityColor(eqObj);
+            ctx.fillStyle = getRarityColor(eqObj);
             ctx.fillRect(eqx, eqy + eqSize - 4, eqSize, 4);
         }
     }
 
-    ctx.fillStyle = topAccent;
-    ctx.fillRect(cx, cy + ch - 3, cw, 3);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.fillRect(cx, cy + ch - 2, cw, 2);
 }
 
 /**

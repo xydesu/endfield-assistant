@@ -23,13 +23,14 @@ function makeIndicators(count) {
     }));
 }
 
-function makeChar(id, level, potentialLevel, weaponId, terms) {
+function makeChar(id, level, potentialLevel, weaponId, terms, rarityKey = 'rarity_6') {
+    const rarityNum = (rarityKey.match(/\d+/) || ['6'])[0];
     return {
         charId: id,
         level,
         potentialLevel,
         avatarUrl: '',
-        rarity: { key: 'rarity_6', value: '6' },
+        rarity: { key: rarityKey, value: rarityNum },
         weapon: {
             id: weaponId,
             icon: '',
@@ -112,10 +113,10 @@ async function runTests() {
                 indicators: indicators18,
                 indicatorIds: indicators18.map(i => i.id),
                 chars: [
-                    makeChar('char_1', 90, 1, 'wpn_wand_0001', [9, 9, 7]),
-                    makeChar('char_2', 90, 0, 'wpn_lance_0007', [9, 9, 4]),
-                    makeChar('char_3', 90, 2, 'wpn_sword_0003', [9, 9, 4]),
-                    makeChar('char_4', 90, 5, 'wpn_wand_0002', [4, 4, 7]),
+                    makeChar('char_1', 90, 1, 'wpn_wand_0001', [9, 9, 7], 'rarity_6'),
+                    makeChar('char_2', 90, 0, 'wpn_lance_0007', [9, 9, 4], 'rarity_6'),
+                    makeChar('char_3', 90, 2, 'wpn_sword_0003', [9, 9, 4], 'rarity_6'),
+                    makeChar('char_4', 90, 5, 'wpn_pistol_0002', [4, 4, 7], 'rarity_5'),
                 ],
             },
         },
