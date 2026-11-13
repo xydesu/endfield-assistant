@@ -87,7 +87,7 @@ const UI_TEXT = {
         actionDuration: '行動時長',
         indicatorList: '指標一覽',
         actionSuccess: '行動成功',
-        actionFail: '行動失敗',
+        actionFail: '行動中斷',
         sanctumRating: '聖所已予以您的評喻',
         assistant: '終末地簽到小助手',
     },
@@ -97,7 +97,7 @@ const UI_TEXT = {
         actionDuration: '行动时长',
         indicatorList: '指标一览',
         actionSuccess: '行动成功',
-        actionFail: '行动失败',
+        actionFail: '行动中断',
         sanctumRating: '圣所已予以您的评喻',
         assistant: '终末地签到小助手',
     },
@@ -107,7 +107,7 @@ const UI_TEXT = {
         actionDuration: '行動時間',
         indicatorList: '指標一覧',
         actionSuccess: '行動成功',
-        actionFail: '行動失敗',
+        actionFail: '行動中断',
         sanctumRating: '聖所からの評価',
         assistant: 'エンドフィールドサインインアシスタント',
     },
@@ -117,7 +117,7 @@ const UI_TEXT = {
         actionDuration: 'Time Elapsed',
         indicatorList: 'Indicators',
         actionSuccess: 'OPERATION SUCCESS',
-        actionFail: 'OPERATION FAILED',
+        actionFail: 'OPERATION INTERRUPTED',
         sanctumRating: 'Sanctum Assessment',
         assistant: 'Endfield Assistant',
     }
@@ -944,7 +944,7 @@ async function drawPhase2LeftPanel(ctx, params) {
     const rowsUsed = Math.max(2, Math.ceil(visibleIndicators.length / cols));
     const afterGridY = gridY + rowsUsed * (cellSize + cellGap) + 30;
 
-    // 5. 行動成功 / 行動失敗 + CONTINGENCY CONTRACT INDIGO 徽章（依 panelW 自適應縮放防止長英文截斷）
+    // 5. 行動成功 / 行動中斷 + CONTINGENCY CONTRACT INDIGO 徽章（依 panelW 自適應縮放防止長英文截斷）
     const statusText = isPass ? text.actionSuccess : text.actionFail;
     const baseStatusFontSize = 82;
     ctx.font = `normal ${baseStatusFontSize}px 'Noto Sans TC', sans-serif`;
@@ -958,11 +958,13 @@ async function drawPhase2LeftPanel(ctx, params) {
 
     drawPhase2ContractBadge(ctx, panelX + 2, afterGridY + 90, contractName, isPass);
 
-    // 6. 聖所評喻橫幅（黑灰碳纖維斜紋背景＋緊貼邊框之實心白 i 徽章＋右側左紅右黑漸層圓角分數框與超框大圖標）
+    // 6. 聖所評喻橫幅（僅在行動成功時顯示；失敗不予評喻）
+    if (!isPass) return;
+
     const ratingY = afterGridY + 156;
     const ratingH = 44;
     const ratingColors = getPhase2RatingColors(isPass, indicatorCount);
-    const isHighRedTier = !isPass || indicatorCount >= 30;
+    const isHighRedTier = indicatorCount >= 30;
     const accentStart = isHighRedTier ? '#f05a28' : ratingColors.start;
     const accentEnd = isHighRedTier ? '#d92f2f' : ratingColors.end;
 

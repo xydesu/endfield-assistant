@@ -4,6 +4,7 @@
  */
 
 const assert = require('assert');
+const { createCanvas, loadImage } = require('canvas');
 const { drawCrisisUI, detectCrisisPhase } = require('../utils/crisisCanvas');
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -126,6 +127,21 @@ async function runTests() {
         charMetaMap,
     });
     assertValidPng(bufP2Pass, 'Phase 2 通關渲染');
+
+    const countBrightPixels = async (pngBuf, x, y, w, h) => {
+        const img = await loadImage(pngBuf);
+        const cvs = createCanvas(img.width, img.height);
+        const ctx = cvs.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const data = ctx.getImageData(x, y, w, h).data;
+        let count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] > 240 && data[i + 1] > 240 && data[i + 2] > 240) count++;
+        }
+        return count;
+    };
+    const passSanctumWhite = await countBrightPixels(bufP2Pass, 100, 675, 55, 55);
+    assert(passSanctumWhite > 200, `Phase 2 通關時應顯示聖所評喻白色徽章 (white=${passSanctumWhite})`);
     console.log(`   通過 (${bufP2Pass.length} bytes)`);
 
     console.log('3. 測試 Phase 2 失敗／殘缺資料容錯渲染（22 指標／缺武器裝備）...');
@@ -166,6 +182,8 @@ async function runTests() {
     };
     const bufP2Fail = await drawCrisisUI(phase2FailBase, phase2FailDetail, '400000001', '3', '危機合約 浸藍測試作戰', 'en');
     assertValidPng(bufP2Fail, 'Phase 2 失敗與容錯渲染');
+    const failSanctumWhite = await countBrightPixels(bufP2Fail, 100, 745, 55, 55);
+    assert(failSanctumWhite < 30, `Phase 2 失敗時不應渲染聖所評喻橫幅 (white=${failSanctumWhite})`);
     console.log(`   通過 (${bufP2Fail.length} bytes)`);
 
     console.log('4. 測試 Phase 1（重燃測試）相容渲染...');
