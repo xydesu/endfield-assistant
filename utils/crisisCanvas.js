@@ -1408,26 +1408,66 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     wStrokeGrad.addColorStop(0.65, 'rgba(255, 255, 255, 0.24)');
     wStrokeGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
-    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBgGrad, wStrokeGrad, 1.5);
+    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBgGrad, null, 0);
 
-    const weaponIconMaxW = Math.min(116, weaponBoxW - 58);
+    // 武器圖片放大至與邊框上下同高，並對外圍做 ~50% 徑向淡化；超出圓角邊框部分裁切不渲染
     if (cardAssets.wIconImg) {
         const wIconImg = cardAssets.wIconImg;
-        const maxW = weaponIconMaxW;
-        const maxH = 112;
-        const scale = Math.min(maxW / wIconImg.width, maxH / wIconImg.height);
+        const scale = weaponH / wIconImg.height;
         const wImgW = wIconImg.width * scale;
-        const wImgH = wIconImg.height * scale;
-        ctx.drawImage(wIconImg, wx + 6 + (maxW - wImgW) / 2, weaponY + 4 + (maxH - wImgH) / 2, wImgW, wImgH);
+        const wImgH = weaponH;
+        const wImgX = wx + Math.round((weaponBoxW - 42 - wImgW) / 2);
+        const wImgY = weaponY;
+
+        const wIconCanvas = createCanvas(Math.ceil(wImgW * resScale), Math.ceil(wImgH * resScale));
+        const wiCtx = wIconCanvas.getContext('2d');
+        wiCtx.scale(resScale, resScale);
+        wiCtx.drawImage(wIconImg, 0, 0, wImgW, wImgH);
+
+        const rCx = wImgW / 2;
+        const rCy = wImgH / 2;
+        const rInner = Math.min(wImgW, wImgH) * 0.14;
+        const rOuter = Math.max(wImgW, wImgH) * 0.46;
+        const radialFade = wiCtx.createRadialGradient(rCx, rCy, rInner, rCx, rCy, rOuter);
+        radialFade.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        radialFade.addColorStop(0.55, 'rgba(0, 0, 0, 0.72)');
+        radialFade.addColorStop(1, 'rgba(0, 0, 0, 0.50)');
+        wiCtx.globalCompositeOperation = 'destination-in';
+        wiCtx.fillStyle = radialFade;
+        wiCtx.fillRect(0, 0, wImgW, wImgH);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(wx + wBoxRadius, weaponY);
+        ctx.lineTo(wx + weaponBoxW - wBoxRadius, weaponY);
+        ctx.quadraticCurveTo(wx + weaponBoxW, weaponY, wx + weaponBoxW, weaponY + wBoxRadius);
+        ctx.lineTo(wx + weaponBoxW, weaponY + weaponH - wBoxRadius);
+        ctx.quadraticCurveTo(wx + weaponBoxW, weaponY + weaponH, wx + weaponBoxW - wBoxRadius, weaponY + weaponH);
+        ctx.lineTo(wx + wBoxRadius, weaponY + weaponH);
+        ctx.quadraticCurveTo(wx, weaponY + weaponH, wx, weaponY + weaponH - wBoxRadius);
+        ctx.lineTo(wx, weaponY + wBoxRadius);
+        ctx.quadraticCurveTo(wx, weaponY, wx + wBoxRadius, weaponY);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(wIconCanvas, wImgX, wImgY, wImgW, wImgH);
+        ctx.restore();
     }
 
-    // 武器精煉等級圖示（隨武器區塊左移，無外框加陰影）
-    if (cardAssets.wRefineImg) {
-        drawImageWithShadow(ctx, cardAssets.wRefineImg, wx + 8, weaponY + 8, 30, 30, 'rgba(0, 0, 0, 0.92)', 6, 0);
-    }
+    // 圓角框線壓在放大的武器圖片上層（自左至右 70% 漸變至透明）
+    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, null, wStrokeGrad, 1.5);
 
     const wLevel = charObj.weapon?.level ?? 1;
     const wLvX = wx + 10;
+    ctx.font = "900 28px 'Noto Sans TC', sans-serif";
+    const wLevelNumW = ctx.measureText(String(wLevel)).width;
+    const weaponBarW = Math.ceil(ctx.measureText('999').width);
+
+    // 武器精煉（命座）圖示：放大至視覺寬度與下方等級數字同寬，並對齊左緣
+    if (cardAssets.wRefineImg) {
+        const wRefineSize = Math.round(Math.max(28, wLevelNumW) * 1.28);
+        drawImageWithShadow(ctx, cardAssets.wRefineImg, wLvX - 4, weaponY + 8, wRefineSize, wRefineSize, 'rgba(0, 0, 0, 0.92)', 6, 0);
+    }
+
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
     ctx.shadowBlur = 5;
@@ -1437,7 +1477,6 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = '#ffffff';
     ctx.font = "900 28px 'Noto Sans TC', sans-serif";
     ctx.fillText(String(wLevel), wLvX, weaponY + 114);
-    const weaponBarW = Math.ceil(ctx.measureText('999').width);
     ctx.restore();
 
     // 武器下方稀有度色條（寬度固定為 3 位數字長度並對齊等級數值）
