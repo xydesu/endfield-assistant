@@ -11,6 +11,16 @@ const RARITY_COLORS = {
     '1': 'rgba(178,178,178,1)',  // dark_rank_gray
 };
 
+// 裝備卡槽錯位底塊高飽和度對應色表
+const EQUIP_BLOCK_RARITY_COLORS = {
+    '6': '#FF6F00',
+    '5': '#E6A800',
+    '4': '#9E6BFF',
+    '3': '#29B6F6',
+    '2': '#9CCC65',
+    '1': '#9E9E9E',
+};
+
 const SERVER_ID_TO_NAME = {
     '1': 'China Mainland',
     '57': 'China Mainland',
@@ -225,31 +235,14 @@ function applyLangFont(ctx, lang) {
 /**
  * 依幹員、武器或裝備稀有度鍵值取得對應色條顏色
  */
-function getRarityColor(obj, fallback = 'rgba(255,255,255,0.2)') {
+function getRarityColor(obj, fallback = 'rgba(255,255,255,0.2)', palette = RARITY_COLORS) {
     if (obj?.rarity?.key) {
         const match = obj.rarity.key.match(/\d+/);
-        if (match && RARITY_COLORS[match[0]]) {
-            return RARITY_COLORS[match[0]];
+        if (match && palette[match[0]]) {
+            return palette[match[0]];
         }
     }
     return fallback;
-}
-
-/**
- * 調整 rgba() 或 #rrggbb 顏色透明度，用於稀有度底光漸層
- */
-function withAlpha(color, alpha) {
-    if (typeof color !== 'string') return `rgba(255,255,255,${alpha})`;
-    if (color.startsWith('rgba(')) {
-        return color.replace(/[\d.]+\)$/, `${alpha})`);
-    }
-    if (color.startsWith('#') && color.length === 7) {
-        const r = parseInt(color.slice(1, 3), 16);
-        const g = parseInt(color.slice(3, 5), 16);
-        const b = parseInt(color.slice(5, 7), 16);
-        return `rgba(${r},${g},${b},${alpha})`;
-    }
-    return color;
 }
 
 /**
@@ -1105,6 +1098,128 @@ async function preloadPhase2CardAssets(charObj, charMeta) {
 }
 
 /**
+ * 繪製 Z-4 裝備卡槽左上角懸浮升級徽章（深灰圓角投影底板＋亮天藍六角螺帽與右上三角形）
+ */
+function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
+    const badgeSize = Math.round(slotSize * 0.30);
+    const badgeX = sx - Math.round(slotSize * 0.08);
+    const badgeY = sy - Math.round(slotSize * 0.08);
+
+    // 深灰圓角底板（獨立狀態與投影，畫完立刻清除）
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = '#2E2E2E';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeSize, badgeSize, 6);
+    ctx.fill();
+    ctx.restore();
+
+    // 亮天藍幾何向量圖示（#29B6F6）
+    ctx.save();
+    const iconColor = '#29B6F6';
+    const hexCx = badgeX + badgeSize * 0.42;
+    const hexCy = badgeY + badgeSize * 0.56;
+    const hexR = badgeSize * 0.23;
+
+    ctx.strokeStyle = iconColor;
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = 'miter';
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+        const angle = -Math.PI / 2 + i * (Math.PI / 3);
+        const vx = hexCx + hexR * Math.cos(angle);
+        const vy = hexCy + hexR * Math.sin(angle);
+        if (i === 0) ctx.moveTo(vx, vy);
+        else ctx.lineTo(vx, vy);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
+    // 右上角外側緊鄰實心小三角形（尖端朝右上）
+    const tipX = badgeX + badgeSize * 0.87;
+    const tipY = badgeY + badgeSize * 0.13;
+    ctx.fillStyle = iconColor;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - badgeSize * 0.27, tipY + badgeSize * 0.08);
+    ctx.lineTo(tipX - badgeSize * 0.08, tipY + badgeSize * 0.27);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
+/**
+ * 局部重構：扁平工業風＋多層次錯位 2×2 裝備區塊（使用獨立局部座標隔離狀態）
+ */
+function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, charObj, cardAssets, assets) {
+    ctx.save();
+    ctx.translate(sectionX, sectionY);
+
+    const slotSize = 68;
+    const slotGap = 16;
+    const gridW = slotSize * 2 + slotGap;
+    const gridX = Math.floor((sectionW - gridW) / 2);
+    const railW = gridW + 8;
+    const railX = gridX - 4;
+
+    // 頂部分隔導軌（霧灰色橫槓，對齊裝備區左右邊界）
+    ctx.fillStyle = '#4D4D4D';
+    ctx.fillRect(railX, 0, railW, 2.5);
+
+    const gridY = 13;
+    const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
+
+    for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 2; col++) {
+            const idx = row * 2 + col;
+            const eqObj = charObj.equips ? charObj.equips[eqKeys[idx]] : null;
+            const sx = gridX + col * (slotSize + slotGap);
+            const sy = gridY + row * (slotSize + slotGap);
+
+            // Z-1 最外層定位線框（淺灰銳角實線框，無圓角）
+            ctx.strokeStyle = '#6E6E6E';
+            ctx.lineWidth = 1.8;
+            ctx.strokeRect(sx, sy, slotSize, slotSize);
+
+            // Z-2 錯位稀有度色塊（88% 尺寸貼齊右上角，左側與底部透出 L 型深色內凹縫隙）
+            const innerSize = slotSize * 0.88;
+            const blockX = sx + (slotSize - innerSize);
+            const blockY = sy;
+            ctx.fillStyle = eqObj
+                ? getRarityColor(eqObj, '#E6A800', EQUIP_BLOCK_RARITY_COLORS)
+                : 'rgba(255, 255, 255, 0.04)';
+            ctx.fillRect(blockX, blockY, innerSize, innerSize);
+
+            if (!eqObj) continue;
+
+            // Z-3 前景裝備立繪（微幅放大並向右下偏移，壓過灰框邊緣）
+            const eqImg = cardAssets.eqImgs[idx];
+            if (eqImg) {
+                const targetSize = slotSize * 0.96;
+                const scale = Math.min(targetSize / eqImg.width, targetSize / eqImg.height);
+                const ew = eqImg.width * scale;
+                const eh = eqImg.height * scale;
+                const shift = slotSize * 0.08;
+                ctx.drawImage(eqImg, sx + (slotSize - ew) / 2 + shift, sy + (slotSize - eh) / 2 + shift, ew, eh);
+            }
+
+            // Z-4 左上角懸浮升級徽章（依專案裝備升級次數欄位與已載入素材狀態顯示）
+            const enhanceCount = Number(eqObj.enhanceStatus ?? eqObj.upgradeCount ?? 0);
+            const hasCachedEnhanceAsset = Array.isArray(assets.enhanceImgs)
+                && enhanceCount >= 1
+                && Boolean(assets.enhanceImgs[Math.min(enhanceCount, assets.enhanceImgs.length) - 1]);
+            if (enhanceCount >= 1 && (hasCachedEnhanceAsset || !assets.enhanceImgs?.length)) {
+                drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize);
+            }
+        }
+    }
+
+    ctx.restore();
+}
+
+/**
  * 繪製 Phase 2 單張幹員出戰卡片（同步繪製以隔離 ctx.clip() 狀態）
  */
 function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass, assets) {
@@ -1251,63 +1366,8 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         ctx.fillText(termStr, tx + 14, ty + 18);
     }
 
-    // (C) 2×2 裝備網格（1:1 復刻實機深灰漸層磚底＋極細白線外框＋稀有度底條與微光）
-    const equipY = weaponY + weaponH + 10;
-    const eqSize = 82;
-    const eqGap = 6;
-    const eqStartX = cx + Math.floor((cw - (eqSize * 2 + eqGap)) / 2);
-    const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
-
-    for (let eqRow = 0; eqRow < 2; eqRow++) {
-        for (let eqCol = 0; eqCol < 2; eqCol++) {
-            const idx = eqRow * 2 + eqCol;
-            const eqKey = eqKeys[idx];
-            const eqObj = charObj.equips ? charObj.equips[eqKey] : null;
-            const eqx = eqStartX + eqCol * (eqSize + eqGap);
-            const eqy = equipY + eqRow * (eqSize + eqGap);
-
-            const eqBgGrad = ctx.createLinearGradient(eqx, eqy, eqx, eqy + eqSize);
-            eqBgGrad.addColorStop(0, 'rgba(54, 58, 66, 0.72)');
-            eqBgGrad.addColorStop(1, 'rgba(22, 24, 28, 0.88)');
-            ctx.fillStyle = eqBgGrad;
-            ctx.fillRect(eqx, eqy, eqSize, eqSize);
-
-            if (eqObj) {
-                const eqRarityColor = getRarityColor(eqObj);
-                const glowH = 22;
-                const rarityGlow = ctx.createLinearGradient(eqx, eqy + eqSize - glowH, eqx, eqy + eqSize - 4);
-                rarityGlow.addColorStop(0, withAlpha(eqRarityColor, 0));
-                rarityGlow.addColorStop(1, withAlpha(eqRarityColor, 0.24));
-                ctx.fillStyle = rarityGlow;
-                ctx.fillRect(eqx, eqy + eqSize - glowH, eqSize, glowH - 4);
-
-                const eqImg = cardAssets.eqImgs[idx];
-                if (eqImg) {
-                    const maxEq = eqSize - 4;
-                    const scale = Math.min(maxEq / eqImg.width, maxEq / eqImg.height);
-                    const ew = eqImg.width * scale;
-                    const eh = eqImg.height * scale;
-                    ctx.drawImage(eqImg, eqx + (eqSize - ew) / 2, eqy + (eqSize - eh) / 2, ew, eh);
-                }
-
-                const enhanceLvl = Number(eqObj.enhanceStatus);
-                if (enhanceLvl >= 1 && enhanceLvl <= 3 && assets.enhanceImgs[enhanceLvl - 1]) {
-                    ctx.save();
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-                    ctx.shadowBlur = 4;
-                    ctx.drawImage(assets.enhanceImgs[enhanceLvl - 1], eqx + 4, eqy + 5, 24, 17);
-                    ctx.restore();
-                }
-
-                ctx.fillStyle = eqRarityColor;
-                ctx.fillRect(eqx, eqy + eqSize - 4, eqSize, 4);
-            }
-
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(eqx, eqy, eqSize, eqSize);
-        }
-    }
+    // (C) 2×2 裝備區塊（局部座標隔離＋扁平工業風多層次錯位渲染）
+    drawPhase2EquipmentSection(ctx, cx, weaponY + weaponH + 8, cw, charObj, cardAssets, assets);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
     ctx.fillRect(cx, cy + ch - 2, cw, 2);
