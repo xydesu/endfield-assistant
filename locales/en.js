@@ -263,5 +263,11 @@ module.exports = {
     crisis_no_activity_desc: 'There is currently no ongoing Crisis Contract.',
     crisis_no_record_title: 'ℹ️ No Record',
     crisis_no_record_desc: 'You do not have any Crisis Contract challenge records yet.',
+    crisis_no_record_season_desc: (name) => `You do not have any challenge records for "${name}" yet.`,
+    crisis_select_season_placeholder: 'Select Crisis Contract Season',
+    crisis_season_desc: (highest, count) => `Max Indicators ${highest} | ${count} Runs`,
+    crisis_panel_expired: 'This Crisis Contract panel has expired. Please run /crisis again.',
+    crisis_panel_owner_only: 'Only the command user can interact with this panel.',
+    crisis_panel_invalid_option: 'Invalid season option.',
     crisis_embed_title: (name) => `📊 ${name} Battle Record`,
 };

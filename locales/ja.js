@@ -263,5 +263,11 @@ module.exports = {
     crisis_no_activity_desc: '現在進行中の危機契約はありません。',
     crisis_no_record_title: 'ℹ️ 記録なし',
     crisis_no_record_desc: '現在、危機契約の挑戦記録はありません。',
+    crisis_no_record_season_desc: (name) => `「${name}」の挑戦記録はまだありません。`,
+    crisis_select_season_placeholder: '危機契約シーズンを選択',
+    crisis_season_desc: (highest, count) => `最高指標 ${highest}｜挑戦 ${count} 回`,
+    crisis_panel_expired: 'この危機契約パネルは期限切れです。もう一度 /crisis を実行してください。',
+    crisis_panel_owner_only: 'コマンド実行者のみがこのパネルを操作できます。',
+    crisis_panel_invalid_option: '無効なシーズン選択です。',
     crisis_embed_title: (name) => `📊 ${name} 作戦記録`,
 };
