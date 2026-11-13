@@ -1403,15 +1403,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     const weaponBoxW = cw + weaponExtLeft;
     const wBoxRadius = 8;
 
-    // 底層武器外框背景（與邊框色同為中性灰 rgb(145, 148, 155)，自左至右 70% 漸變至透明）
-    const wBaseGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
-    wBaseGrad.addColorStop(0, 'rgba(145, 148, 155, 0.50)');
-    wBaseGrad.addColorStop(0.65, 'rgba(145, 148, 155, 0.22)');
-    wBaseGrad.addColorStop(1, 'rgba(145, 148, 155, 0)');
-
-    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBaseGrad, null, 0);
-
-    // 武器圖片再度放大（1.25× 框高）並裁切於圓角外框內，超出部分不渲染
+    // 武器圖片再度放大（1.25× 框高）並裁切於圓角外框內，超出部分不渲染（位於武器外框背景色下層）
     if (cardAssets.wIconImg) {
         const wIconImg = cardAssets.wIconImg;
         const scale = (weaponH * 1.25) / wIconImg.height;
@@ -1427,18 +1419,18 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         ctx.restore();
     }
 
-    // 外框左至右整體漸變（與邊框色一致之同色系灰色遮罩，層級大於武器圖片、小於 Lv 與命座）與 0→70% 漸隱框線
-    const wOverlayGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
-    wOverlayGrad.addColorStop(0, 'rgba(145, 148, 155, 0.52)');
-    wOverlayGrad.addColorStop(0.65, 'rgba(145, 148, 155, 0.22)');
-    wOverlayGrad.addColorStop(1, 'rgba(145, 148, 155, 0)');
+    // 武器外框背景色（層級高於武器圖片、低於 Lv 與命座；與邊框同色 rgb(165, 168, 175)，自左至右 35% 淡化結束）與 0→70% 漸隱框線
+    const wBgGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.35, weaponY);
+    wBgGrad.addColorStop(0, 'rgba(165, 168, 175, 0.78)');
+    wBgGrad.addColorStop(0.60, 'rgba(165, 168, 175, 0.35)');
+    wBgGrad.addColorStop(1, 'rgba(165, 168, 175, 0)');
 
     const wStrokeGrad = ctx.createLinearGradient(wx, weaponY, wx + weaponBoxW * 0.70, weaponY);
     wStrokeGrad.addColorStop(0, 'rgba(165, 168, 175, 0.90)');
     wStrokeGrad.addColorStop(0.65, 'rgba(165, 168, 175, 0.42)');
     wStrokeGrad.addColorStop(1, 'rgba(165, 168, 175, 0)');
 
-    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wOverlayGrad, wStrokeGrad, 1.5);
+    drawRoundedRect(ctx, wx, weaponY, weaponBoxW, weaponH, wBoxRadius, wBgGrad, wStrokeGrad, 1.5);
 
     const wLevel = charObj.weapon?.level ?? 1;
     const wLvX = wx + 10;
