@@ -797,23 +797,30 @@ function drawPhase2ContractBadge(ctx, x, y, contractName, isPass) {
     ctx.font = "900 20px 'Noto Sans TC', sans-serif";
     ctx.fillText('CONTRACT', x + 38, y + 39);
 
-    // 右側邊框徽章
+    // 右側邊框徽章（框體寬高貼齊文字內容，無過多留白）
     const boxX = x + 168;
-    const boxY = y + 2;
-    const boxW = 248;
-    const boxH = 40;
+    const boxY = y + 4;
+    const mainTag = isIndigo ? 'INDIGO' : (contractName || 'OPERATION').slice(0, 18);
+    const subTag = 'EXPERIMENTAL OPERATION';
+
+    ctx.font = "bold 17px 'Noto Sans TC', sans-serif";
+    const mainTagW = ctx.measureText(mainTag).width;
+    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
+    const subTagW = ctx.measureText(subTag).width;
+
+    const boxW = Math.ceil(Math.max(mainTagW, subTagW)) + 10;
+    const boxH = 34;
     ctx.strokeStyle = isPass ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 160, 140, 0.6)';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(boxX, boxY, boxW, boxH);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = "bold 17px 'Noto Sans TC', sans-serif";
-    const mainTag = isIndigo ? 'INDIGO' : (contractName || 'OPERATION').slice(0, 18);
-    ctx.fillText(mainTag, boxX + 10, boxY + 19);
+    ctx.fillText(mainTag, boxX + 5, boxY + 16);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText('EXPERIMENTAL OPERATION', boxX + 10, boxY + 34);
+    ctx.fillText(subTag, boxX + 5, boxY + 30);
     ctx.restore();
 }
 
@@ -916,17 +923,17 @@ async function drawPhase2LeftPanel(ctx, params) {
     if (isPass && isBest) {
         const titleW = ctx.measureText(text.totalIndicators).width;
         const badgeX = labelX + titleW + 14;
-        const badgeY = totalY - 21;
+        const badgeY = totalY - 18;
         ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
         const badgeTextW = ctx.measureText(text.newRecord).width;
-        const badgeW = badgeTextW + 16;
+        const badgeW = Math.ceil(badgeTextW) + 8;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
-        ctx.fillRect(badgeX, badgeY, badgeW, 24);
+        ctx.fillRect(badgeX, badgeY, badgeW, 20);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
         ctx.lineWidth = 1;
-        ctx.strokeRect(badgeX, badgeY, badgeW, 24);
+        ctx.strokeRect(badgeX, badgeY, badgeW, 20);
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(text.newRecord, badgeX + 8, badgeY + 17);
+        ctx.fillText(text.newRecord, badgeX + 4, badgeY + 15);
     }
 
     // 4. 指標一覽網格 (預設 9 欄 × 2~3 列)
@@ -958,7 +965,7 @@ async function drawPhase2LeftPanel(ctx, params) {
 
         const iconImg = indIconImgs[i];
         if (iconImg) {
-            const maxS = cellSize - 12;
+            const maxS = cellSize - 4;
             const scale = Math.min(maxS / iconImg.width, maxS / iconImg.height);
             const dw = iconImg.width * scale;
             const dh = iconImg.height * scale;
@@ -1017,14 +1024,14 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
     ctx.fillText(text.sanctumRating, panelX + 60, ratingY + 35);
 
-    // 右側 1:1 還原直角框體（暗紅底＋細紅框＋白字分數＋指標總計圖示）
+    // 右側 1:1 還原直角框體（貼齊內容寬高，暗紅底＋細紅框＋白字分數＋指標總計圖示）
     ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
     const numW = ctx.measureText(scoreStr).width;
-    const iconSize = 18;
-    const tagPadX = 14;
-    const tagGap = 6;
-    const tagW = Math.max(76, Math.round(tagPadX * 2 + numW + tagGap + iconSize));
-    const tagH = 28;
+    const iconSize = 19;
+    const tagPadX = 6;
+    const tagGap = 4;
+    const tagW = Math.ceil(tagPadX * 2 + numW + tagGap + iconSize);
+    const tagH = 24;
     const tagX = panelX + panelW - tagW - 18;
     const tagY = ratingY + (ratingH - tagH) / 2;
 
@@ -1040,7 +1047,7 @@ async function drawPhase2LeftPanel(ctx, params) {
     const contentStartX = tagX + (tagW - contentW) / 2;
     ctx.fillStyle = '#ffffff';
     ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-    ctx.fillText(scoreStr, contentStartX, tagY + 21);
+    ctx.fillText(scoreStr, contentStartX, tagY + 19);
 
     if (assets.indTotalImg) {
         const whiteIndTotal = tintIcon(assets.indTotalImg, '#ffffff', iconSize);
@@ -1124,12 +1131,12 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = fadeGrad;
     ctx.fillRect(cx, cy + portraitH - 110, cw, 120);
 
-    // 左上角職業圖標（無外框，貼合圖標大小的深色半透明純背景 + 純白職業符號）
+    // 左上角職業圖標（無外框，圖標可視區域與深底大小貼合，無過多留白）
     if (cardAssets.profImg) {
         ctx.fillStyle = 'rgba(10, 12, 16, 0.78)';
-        ctx.fillRect(cx + 10, cy + 12, 38, 38);
-        const whiteProf = tintIcon(cardAssets.profImg, '#ffffff', 34);
-        ctx.drawImage(whiteProf, cx + 12, cy + 14, 34, 34);
+        ctx.fillRect(cx + 10, cy + 12, 36, 36);
+        const whiteProf = tintIcon(cardAssets.profImg, '#ffffff', 40);
+        ctx.drawImage(whiteProf, cx + 8, cy + 10, 40, 40);
     }
 
     // 右上細微角標
@@ -1203,13 +1210,17 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
     ctx.fillStyle = '#f5b800';
     ctx.fillRect(cx + 10, weaponY + 120, 68, 3);
 
-    // 武器詞條（/9 /9 /4 樣式＋斜切幾何背景底塊）
+    // 武器詞條（/9 /9 /4 樣式＋貼合字體寬高之斜切幾何背景底塊）
     const terms = Array.isArray(charObj.weapon?.weaponTerms) ? charObj.weapon.weaponTerms : [];
     for (let t = 0; t < Math.min(terms.length, 3); t++) {
         const ty = weaponY + 14 + t * 34;
-        const tx = cx + cw - 48;
-        drawSkewedRect(ctx, tx - 8, ty - 2, 50, 27, 5, 'rgba(255, 255, 255, 0.22)');
-        drawSkewedRect(ctx, tx - 8, ty - 2, 3, 27, 5, 'rgba(232, 245, 34, 0.85)');
+        const tx = cx + cw - 42;
+        const termStr = String(terms[t]);
+        ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+        const numWidth = ctx.measureText(termStr).width;
+        const bgW = Math.ceil(22 + numWidth);
+        drawSkewedRect(ctx, tx - 5, ty, bgW, 21, 4, 'rgba(255, 255, 255, 0.22)');
+        drawSkewedRect(ctx, tx - 5, ty, 3, 21, 4, 'rgba(232, 245, 34, 0.85)');
         if (assets.termSlashImg) {
             ctx.drawImage(assets.termSlashImg, tx, ty + 2, 13, 18);
         } else {
@@ -1219,13 +1230,13 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
         }
         ctx.fillStyle = '#ffffff';
         ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-        ctx.fillText(String(terms[t]), tx + 15, ty + 18);
+        ctx.fillText(termStr, tx + 14, ty + 18);
     }
 
     // (C) 2×2 裝備網格
-    const equipY = weaponY + weaponH + 12;
-    const eqSize = 76;
-    const eqGap = 8;
+    const equipY = weaponY + weaponH + 10;
+    const eqSize = 82;
+    const eqGap = 6;
     const eqStartX = cx + Math.floor((cw - (eqSize * 2 + eqGap)) / 2);
     const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
 
@@ -1247,7 +1258,7 @@ function drawPhase2OperatorCard(ctx, cx, cy, cw, ch, charObj, cardAssets, isPass
 
             const eqImg = cardAssets.eqImgs[idx];
             if (eqImg) {
-                const maxEq = eqSize - 14;
+                const maxEq = eqSize - 4;
                 const scale = Math.min(maxEq / eqImg.width, maxEq / eqImg.height);
                 const ew = eqImg.width * scale;
                 const eh = eqImg.height * scale;
