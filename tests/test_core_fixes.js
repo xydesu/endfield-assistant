@@ -20,14 +20,21 @@ function testEncryptionSecurity() {
     assert(cipher.startsWith('gcm:'), '加密輸出必須採用 gcm: 前綴');
     assert.strictEqual(decrypt(cipher), secret, '解密結果必須還原原文');
 
-    // 竄改 AuthTag / 密文不得靜默通過
+    // 竄改 AuthTag / 密文 / 異常長度 IV 或 Tag 不得靜默通過
     const parts = cipher.split(':');
     const tamperedTag = `${parts[0]}:${parts[1]}:${'f'.repeat(parts[2].length)}:${parts[3]}`;
     assert.throws(() => decrypt(tamperedTag), /unable to authenticate|auth/i, '竄改 AuthTag 應拋出例外');
     assert.throws(() => decrypt('gcm:deadbeef'), /Invalid|format/i, '破損 GCM 格式應拋出例外');
+    assert.throws(() => decrypt(`gcm:abcd:${parts[2]}:${parts[3]}`), /Invalid GCM ciphertext component/i, '過短 GCM IV 應拋出例外');
+    assert.throws(() => decrypt(`gcm:${parts[1]}:abcd:${parts[3]}`), /Invalid GCM ciphertext component/i, '過短 GCM AuthTag 應拋出例外');
 
-    // 明文向下相容
+    // 明文向下相容（未啟用 STRICT_ENCRYPTION）
     assert.strictEqual(decrypt('plain_legacy_value'), 'plain_legacy_value', '明文應保留向下相容');
+
+    // 啟用 STRICT_ENCRYPTION 時應拒絕未加密明文
+    process.env.STRICT_ENCRYPTION = 'true';
+    assert.throws(() => decrypt('plain_legacy_value'), /STRICT_ENCRYPTION/i, '嚴格模式應拒絕明文憑證');
+    delete process.env.STRICT_ENCRYPTION;
 
     // 錯誤金鑰應拋錯而非回傳亂碼
     process.env.ENCRYPTION_KEY = crypto.randomBytes(32).toString('hex');
@@ -85,35 +92,64 @@ async function testHttpCacheAndDownloads() {
     const badDest = path.resolve(__dirname, '..', 'assets', 'images', 'dynamic', badFilename);
 
     try {
-        // 大小上限保護
+        // SSRF 防護：預設拒絕明文 http、Loopback、私網與雲端 Metadata 位址
         await assert.rejects(
-            () => fetchBufferWithLimit(`http://127.0.0.1:${port}/large`, { maxBytes: 512 }),
+            () => fetchBufferWithLimit(`http://127.0.0.1:${port}/ok.png`),
+            /protocol|private|blocked/i,
+            '預設必須拒絕明文 HTTP 與 Loopback 位址'
+        );
+        await assert.rejects(
+            () => fetchBufferWithLimit('https://169.254.169.254/latest/meta-data/'),
+            /private|reserved/i,
+            '必須拒絕雲端 Metadata IP'
+        );
+        await assert.rejects(
+            () => fetchBufferWithLimit('https://10.0.0.1/secret.png'),
+            /private|reserved/i,
+            '必須拒絕 RFC 1918 私網 IP'
+        );
+        await assert.rejects(
+            () => fetchBufferWithLimit('https://[::1]/secret.png'),
+            /private|reserved/i,
+            '必須拒絕 IPv6 Loopback'
+        );
+        await assert.rejects(
+            () => fetchBufferWithLimit('https://localhost/secret.png'),
+            /internal hostname/i,
+            '必須拒絕 localhost'
+        );
+
+        // 大小上限保護（顯式允許測試用本地 Server）
+        await assert.rejects(
+            () => fetchBufferWithLimit(`http://127.0.0.1:${port}/large`, { maxBytes: 512, allowUnsafeLocalForTest: true }),
             /maxBytes|large/i,
             '超過 maxBytes 的回應必須拒絕'
         );
 
         // 404 不得遺留 0-byte 或殘缺本地檔案
         const badUrl = `http://127.0.0.1:${port}/not_found/${badFilename}`;
-        const badRes = await resolveImagePath(badUrl);
+        const badRes = await resolveImagePath(badUrl, { allowUnsafeLocalForTest: true });
         assert.strictEqual(badRes, badUrl, '下載失敗時應回退原網址');
         assert.strictEqual(fs.existsSync(badDest), false, 'HTTP 404 不可於 dynamic 目錄殘留空檔案');
 
         // 併發相同 URL 應去重為單次實際下載
-        const okUrl = `http://127.0.0.1:${port}/ok.png?v=1`;
         const okDest = path.resolve(__dirname, '..', 'assets', 'images', 'dynamic', 'ok.png');
         const existedBefore = fs.existsSync(okDest);
         // 改用專屬測試檔名避免與現有檔案碰撞
         const serverUrl = `http://127.0.0.1:${port}/ok.png`;
         if (!existedBefore) {
             // 若無既有 ok.png 才測併發
-            const [r1, r2] = await Promise.all([resolveImagePath(serverUrl), resolveImagePath(serverUrl)]);
+            const [r1, r2] = await Promise.all([
+                resolveImagePath(serverUrl, { allowUnsafeLocalForTest: true }),
+                resolveImagePath(serverUrl, { allowUnsafeLocalForTest: true }),
+            ]);
             assert.strictEqual(r1, 'assets/images/dynamic/ok.png');
             assert.strictEqual(r2, 'assets/images/dynamic/ok.png');
             assert.strictEqual(hitCount, 1, '相同 URL 併發下載應僅發起一次請求');
             await fs.promises.unlink(okDest).catch(() => {});
         } else {
             // 測試路徑遍歷防護：含 .. 的 URL 不會寫出動態目錄外
-            const evilPath = await resolveImagePath(`http://127.0.0.1:${port}/..`);
+            const evilPath = await resolveImagePath(`http://127.0.0.1:${port}/..`, { allowUnsafeLocalForTest: true });
             assert(typeof evilPath === 'string');
         }
     } finally {

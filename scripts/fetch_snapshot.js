@@ -5,23 +5,39 @@
 
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const http = require('http');
+const crypto = require('crypto');
 const { getBindingList, getCardDetail, getIndieHardDetail } = require('../utils/attendance');
 const { encrypt } = require('../utils/encryption');
+const { fetchBufferWithLimit } = require('../utils/httpCache');
 const User = require('../models/User');
 
 const PROJ_ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(PROJ_ROOT, 'data');
 const DYNAMIC_DIR = path.join(PROJ_ROOT, 'assets', 'images', 'dynamic');
 
+function sanitizeDynamicFilename(url) {
+    let rawName = '';
+    try {
+        const parsedUrl = new URL(url);
+        rawName = path.posix.basename(parsedUrl.pathname || '');
+    } catch {
+        rawName = path.posix.basename(String(url).split(/[?#]/)[0]);
+    }
+    const baseName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    if (!baseName || baseName === '.' || baseName === '..' || !/[a-zA-Z0-9]/.test(baseName)) {
+        const hash = crypto.createHash('sha1').update(String(url)).digest('hex').slice(0, 12);
+        return `img_${hash}.png`;
+    }
+    return baseName;
+}
+
 function printUsage() {
     console.log(`
 使用方式:
-  node scripts/fetch_snapshot.js [選項]
+  SK_CRED=<CRED> node scripts/fetch_snapshot.js [選項]
 
 選項:
-  --cred <CRED>         指定森空島憑證 (cred)
+  --cred <CRED>         指定森空島憑證（不建議於共用主機使用；建議改用 SK_CRED 環境變數）
   --uid <UID>           指定目標角色 UID (選填，若未指定將抓取首個有效角色)
   --server <SERVER_ID>  指定伺服器代號 (預設為 2 - Asia)
   --save                將擷取結果安全儲存至 data/data.json 與 data/indie-hard.json (採用原子覆蓋)
@@ -95,83 +111,42 @@ function extractAllImageUrls(obj, set = new Set()) {
 }
 
 /**
- * 下載單一圖片檔案，支援原子替換與超時防護
+ * 下載單一圖片檔案，具備 SSRF 防護、大小與重導向限制、原子替換與超時防護
  */
-function downloadImageFile(url, destPath, retries = 2) {
-    return new Promise((resolve, reject) => {
-        const dir = path.dirname(destPath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+async function downloadImageFile(url, destPath, retries = 2) {
+    const resolvedDest = path.resolve(destPath);
+    const dir = path.dirname(resolvedDest);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        const tmpPath = `${resolvedDest}.tmp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        try {
+            const buffer = await fetchBufferWithLimit(url, { timeoutMs: 12000 });
+            if (!buffer || buffer.length === 0) {
+                throw new Error(`下載檔案為空 (0 byte): ${url}`);
+            }
+            fs.writeFileSync(tmpPath, buffer);
+            try {
+                fs.renameSync(tmpPath, resolvedDest);
+            } catch {
+                fs.copyFileSync(tmpPath, resolvedDest);
+                fs.unlinkSync(tmpPath);
+            }
+            return resolvedDest;
+        } catch (err) {
+            lastError = err;
+            if (fs.existsSync(tmpPath)) {
+                fs.unlinkSync(tmpPath);
+            }
+            if (attempt < retries) {
+                await new Promise((r) => setTimeout(r, 500));
+            }
         }
-
-        const tmpPath = `${destPath}.tmp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-        const file = fs.createWriteStream(tmpPath);
-        let isAborted = false;
-
-        const client = url.startsWith('https') ? https : http;
-        const req = client.get(url, (res) => {
-            // 處理 301 / 302 重定向
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                file.close();
-                if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
-                return downloadImageFile(res.headers.location, destPath, retries).then(resolve).catch(reject);
-            }
-
-            if (res.statusCode !== 200) {
-                file.close();
-                if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
-                if (retries > 0) {
-                    return setTimeout(() => downloadImageFile(url, destPath, retries - 1).then(resolve).catch(reject), 500);
-                }
-                return reject(new Error(`HTTP ${res.statusCode} 下載失敗: ${url}`));
-            }
-
-            res.pipe(file);
-            file.on('finish', () => {
-                file.close(() => {
-                    try {
-                        const stat = fs.statSync(tmpPath);
-                        if (stat.size === 0) {
-                            if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
-                            return reject(new Error(`下載檔案為空 (0 byte): ${url}`));
-                        }
-                        // 原子替換
-                        try {
-                            fs.renameSync(tmpPath, destPath);
-                        } catch (renameErr) {
-                            fs.copyFileSync(tmpPath, destPath);
-                            fs.unlinkSync(tmpPath);
-                        }
-                        resolve(destPath);
-                    } catch (err) {
-                        reject(err);
-                    }
-                });
-            });
-        });
-
-        req.on('error', (err) => {
-            isAborted = true;
-            file.close();
-            if (fs.existsSync(tmpPath)) fs.unlink(tmpPath, () => {});
-            if (retries > 0) {
-                return setTimeout(() => downloadImageFile(url, destPath, retries - 1).then(resolve).catch(reject), 500);
-            }
-            reject(err);
-        });
-
-        req.setTimeout(12000, () => {
-            if (!isAborted) {
-                req.destroy();
-                file.close();
-                if (fs.existsSync(tmpPath)) fs.unlink(tmpPath, () => {});
-                if (retries > 0) {
-                    return setTimeout(() => downloadImageFile(url, destPath, retries - 1).then(resolve).catch(reject), 500);
-                }
-                reject(new Error(`下載超時 (12s): ${url}`));
-            }
-        });
-    });
+    }
+    throw lastError;
 }
 
 /**
@@ -197,24 +172,11 @@ async function warmupAssets(detail, indieHard, options = {}) {
     let alreadyCachedCount = 0;
 
     for (const url of allUrls) {
-        let filename;
-        try {
-            const parsedUrl = new URL(url);
-            const pathname = parsedUrl.pathname;
-            filename = pathname.substring(pathname.lastIndexOf('/') + 1);
-        } catch (e) {
-            filename = url.substring(url.lastIndexOf('/') + 1);
+        const filename = sanitizeDynamicFilename(url);
+        const destPath = path.resolve(DYNAMIC_DIR, filename);
+        if (!destPath.startsWith(DYNAMIC_DIR + path.sep)) {
+            continue;
         }
-
-        if (filename.includes('?')) {
-            filename = filename.split('?')[0];
-        }
-
-        if (!filename) {
-            filename = `img_${Date.now()}.png`;
-        }
-
-        const destPath = path.join(DYNAMIC_DIR, filename);
         if (fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
             alreadyCachedCount++;
         } else {
@@ -299,7 +261,7 @@ function atomicWriteJson(filePath, dataObj) {
 async function main() {
     const opts = await parseArgs();
 
-    let rawCred = opts.cred;
+    let rawCred = opts.cred || process.env.SK_CRED || null;
 
     // 若未手動提供憑證，嘗試自資料庫尋找使用者
     if (!rawCred) {

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, ApplicationIntegrationType, InteractionContextType } = require('discord.js');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas } = require('canvas');
 const path = require('path');
 const fs = require('fs');
 const User = require('../../models/User');
@@ -7,6 +7,7 @@ const { getCardDetail } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
 const { ensureFontsRegistered } = require('../../utils/fonts');
+const { loadCachedImage } = require('../../utils/httpCache');
 
 // ==========================================
 // 初始化：動態註冊多語言字體 (TC, SC, JP)
@@ -175,10 +176,17 @@ async function generateProfileImage(detail, user, lang) {
     const avatarX = 60, avatarY = 160, avatarSize = 80;
     ctx.strokeStyle = colors.textSub; ctx.lineWidth = 2; ctx.strokeRect(avatarX, avatarY, avatarSize, avatarSize);
 
-    let avatarImg;
+    let avatarImg = null;
     try {
-        if (base.avatarUrl) avatarImg = await loadImage(base.avatarUrl); 
-        else avatarImg = await loadImage(path.resolve(__dirname, '../../avatar.png')); 
+        if (base.avatarUrl) {
+            avatarImg = await loadCachedImage(base.avatarUrl);
+        }
+        if (!avatarImg) {
+            const fallbackAvatarPath = path.resolve(__dirname, '../../avatar.png');
+            if (fs.existsSync(fallbackAvatarPath)) {
+                avatarImg = await loadCachedImage(fallbackAvatarPath);
+            }
+        }
     } catch (e) { console.error('頭像載入失敗', e); }
 
     if (avatarImg) {

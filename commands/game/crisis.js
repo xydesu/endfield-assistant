@@ -243,12 +243,8 @@ module.exports = {
                 });
             }
         } catch (error) {
-            console.error('[Crisis Command Error]', error);
-            const embed = new EmbedBuilder()
-                .setColor(EMBED_COLOR)
-                .setTitle(t(lang, 'error_title'))
-                .setDescription(error.message || t(lang, 'error_query'));
-            await interaction.editReply({ content: null, embeds: [embed], files: [], components: [] }).catch(() => {});
+            const { replyWithError } = require('../../utils/errorHelper');
+            await replyWithError(interaction, error, lang);
         }
     },
 
@@ -301,12 +297,8 @@ module.exports = {
             state.expiresAt = Date.now() + VIEW_TTL_MS;
             await interaction.editReply(payload);
         } catch (error) {
-            console.error('[Crisis Select Error]', error);
-            const embed = new EmbedBuilder()
-                .setColor(EMBED_COLOR)
-                .setTitle(t(activeLang, 'error_title'))
-                .setDescription(error.message || t(activeLang, 'error_query'));
-            await interaction.editReply({ content: null, embeds: [embed], files: [], components: [] }).catch(() => {});
+            const { replyWithError } = require('../../utils/errorHelper');
+            await replyWithError(interaction, error, activeLang);
         }
     },
 };

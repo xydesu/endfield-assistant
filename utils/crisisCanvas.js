@@ -503,7 +503,8 @@ async function drawPhase1CrisisUI(baseData, recordData, uid, serverId, contractN
         ctx.fillRect(cx, weaponY, charW, 110);
 
         if (charObj.weapon) {
-            const rLevel = charObj.weapon.refineLevel ?? 0;
+            const rawRLevel = Number(charObj.weapon.refineLevel ?? 0);
+            const rLevel = Number.isFinite(rawRLevel) ? Math.max(0, Math.min(10, Math.trunc(rawRLevel))) : 0;
             const potentialImgPath = path.join(__dirname, '../assets/images/character', `potential_${rLevel}.png`);
             const pImg = await safeLoadImage(potentialImgPath);
             if (pImg) {
@@ -1113,11 +1114,12 @@ async function drawPhase2LeftPanel(ctx, params) {
 async function preloadPhase2CardAssets(charObj, charMeta) {
     if (!charObj) return null;
 
-    const profKey = charMeta?.profession?.key;
+    const rawProfKey = typeof charMeta?.profession?.key === 'string' ? charMeta.profession.key.trim() : '';
+    const profKey = /^[a-zA-Z0-9_-]+$/.test(rawProfKey) ? rawProfKey : '';
     const rawPot = Number(charObj.potentialLevel);
-    const potLevel = Number.isFinite(rawPot) ? Math.max(0, Math.min(5, rawPot)) : 0;
+    const potLevel = Number.isFinite(rawPot) ? Math.max(0, Math.min(5, Math.trunc(rawPot))) : 0;
     const rawRefine = Number(charObj.weapon?.refineLevel);
-    const refineLevel = Number.isFinite(rawRefine) ? Math.max(0, Math.min(5, rawRefine)) : 0;
+    const refineLevel = Number.isFinite(rawRefine) ? Math.max(0, Math.min(5, Math.trunc(rawRefine))) : 0;
     const eqKeys = ['bodyEquip', 'armEquip', 'firstAccessory', 'secondAccessory'];
 
     const [avatarImg, profImg, potImg, wRefineImg, wIconImg, ...eqImgs] = await Promise.all([

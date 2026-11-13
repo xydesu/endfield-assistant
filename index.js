@@ -16,4 +16,12 @@ client.commands = new Collection();
 require('./handlers/commandHandler')(client);
 require('./handlers/eventHandler')(client);
 
+process.on('unhandledRejection', (reason) => {
+    console.error('[Process] Unhandled Rejection:', reason instanceof Error ? reason.stack : reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('[Process] Uncaught Exception:', error);
+});
+
 client.login(process.env.DISCORD_AUTH || process.env.DISCORD_TOKEN);

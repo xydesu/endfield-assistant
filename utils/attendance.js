@@ -221,6 +221,25 @@ function formatRequestError(error) {
     return String(errorMsg);
 }
 
+function getSafeUserErrorDetail(error) {
+    if (process.env.NODE_ENV === 'development') {
+        return formatRequestError(error).substring(0, 500);
+    }
+    if (error?.statusCode) {
+        return `HTTP ${error.statusCode}`;
+    }
+    return error?.code ? `Request Error (${error.code})` : 'API Request Failed';
+}
+
+function getSafeApiFailureDetail(result) {
+    if (process.env.NODE_ENV === 'development') {
+        return JSON.stringify(result).substring(0, 500);
+    }
+    const code = result?.code ?? 'unknown';
+    const msg = typeof result?.message === 'string' ? result.message.slice(0, 120) : '';
+    return msg ? `Code ${code}: ${msg}` : `Code ${code}`;
+}
+
 async function signIn(user) {
     const lang = user.language || 'zh_Hant';
     try {
@@ -259,14 +278,13 @@ async function signIn(user) {
             await user.update({ lastSignDate: today });
             return { success: true, message: t(lang, 'attendance_already') };
         } else {
-            const resultStr = JSON.stringify(result).substring(0, 1000);
-            return { success: false, message: t(lang, 'attendance_fail')(resultStr) };
+            return { success: false, message: t(lang, 'attendance_fail')(getSafeApiFailureDetail(result)) };
         }
 
     } catch (error) {
         const errorMsg = formatRequestError(error);
         console.error(`[signIn] uid=${user.uid}`, errorMsg);
-        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 1000)) };
+        return { success: false, message: t(lang, 'attendance_error')(getSafeUserErrorDetail(error)) };
     }
 }
 
@@ -304,12 +322,12 @@ async function getCardDetail(user) {
         if (result.code === 0 && result.data && result.data.detail) {
             return { success: true, detail: result.data.detail };
         } else {
-            return { success: false, message: t(lang, 'attendance_api_error')(result.message ?? JSON.stringify(result).substring(0, 200)) };
+            return { success: false, message: t(lang, 'attendance_api_error')(getSafeApiFailureDetail(result)) };
         }
     } catch (error) {
         const errorMsg = formatRequestError(error);
         console.error(`[getCardDetail] uid=${user.uid}`, errorMsg);
-        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 500)) };
+        return { success: false, message: t(lang, 'attendance_error')(getSafeUserErrorDetail(error)) };
     }
 }
 
@@ -323,12 +341,12 @@ async function getIndieHardDetail(user) {
         if (result.code === 0 && result.data && result.data.indieHard) {
             return { success: true, indieHard: result.data.indieHard };
         } else {
-            return { success: false, message: t(lang, 'attendance_api_error')(result.message ?? JSON.stringify(result).substring(0, 200)) };
+            return { success: false, message: t(lang, 'attendance_api_error')(getSafeApiFailureDetail(result)) };
         }
     } catch (error) {
         const errorMsg = formatRequestError(error);
         console.error(`[getIndieHardDetail] uid=${user.uid}`, errorMsg);
-        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 500)) };
+        return { success: false, message: t(lang, 'attendance_error')(getSafeUserErrorDetail(error)) };
     }
 }
 
@@ -411,12 +429,12 @@ async function getCrisisSummary(user, contractId) {
         if (result.code === 0 && result.data) {
             return { success: true, data: result.data };
         } else {
-            return { success: false, message: t(lang, 'attendance_api_error')(result.message ?? JSON.stringify(result).substring(0, 200)) };
+            return { success: false, message: t(lang, 'attendance_api_error')(getSafeApiFailureDetail(result)) };
         }
     } catch (error) {
         const errorMsg = formatRequestError(error);
         console.error(`[getCrisisSummary] uid=${user.uid}`, errorMsg);
-        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 500)) };
+        return { success: false, message: t(lang, 'attendance_error')(getSafeUserErrorDetail(error)) };
     }
 }
 
@@ -430,12 +448,12 @@ async function getCrisisDetail(user, recordId, contractId) {
         if (result.code === 0 && result.data) {
             return { success: true, data: result.data };
         } else {
-            return { success: false, message: t(lang, 'attendance_api_error')(result.message ?? JSON.stringify(result).substring(0, 200)) };
+            return { success: false, message: t(lang, 'attendance_api_error')(getSafeApiFailureDetail(result)) };
         }
     } catch (error) {
         const errorMsg = formatRequestError(error);
         console.error(`[getCrisisDetail] uid=${user.uid}`, errorMsg);
-        return { success: false, message: t(lang, 'attendance_error')(errorMsg.substring(0, 500)) };
+        return { success: false, message: t(lang, 'attendance_error')(getSafeUserErrorDetail(error)) };
     }
 }
 

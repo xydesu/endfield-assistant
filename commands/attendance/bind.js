@@ -128,12 +128,20 @@ module.exports = {
             let cred = inputText;
             try {
                 const parsed = JSON.parse(inputText);
-                if (parsed && parsed.cred) cred = parsed.cred;
+                if (parsed && typeof parsed === 'object' && 'cred' in parsed) {
+                    cred = parsed.cred;
+                }
             } catch {
                 // Not JSON — treat the whole string as the raw cred value
             }
 
-            if (!cred) {
+            if (typeof cred !== 'string') {
+                cred = '';
+            }
+            cred = cred.trim();
+
+            // 拒絕過長或含控制字元（避免 HTTP Header 注入或異常輸入）
+            if (!cred || cred.length > 2048 || /[\x00-\x1f\x7f]/.test(cred)) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
                     .setTitle(t(lang, 'bind_input_error_title'))
@@ -174,17 +182,27 @@ module.exports = {
                 pendingCredentials.delete(oldestKey);
             }
 
-            // Store cred temporarily while user picks a role (encrypted at rest)
-            const userId = interaction.user.id;
-            pendingCredentials.set(userId, { encryptedCred: encrypt(cred), expiresAt: now + PENDING_TTL_MS });
-
+            const allowedRoles = new Map();
             const options = roles.slice(0, MAX_SELECT_OPTIONS).map(role => {
                 const sid = resolveServerId(role);
+                const roleIdStr = String(role.roleId || '');
+                const valueKey = `${roleIdStr}_${sid ?? 'unknown'}`.substring(0, 100);
+                if (roleIdStr && sid) {
+                    allowedRoles.set(valueKey, { roleId: roleIdStr, serverId: String(sid) });
+                }
                 return {
                     label: `${role.serverName} | ${role.nickname}`.substring(0, 100),
-                    description: `${t(lang, 'bind_role_level')(role.level)} | RoleID: ${role.roleId}`.substring(0, 100),
-                    value: `${role.roleId}_${sid ?? 'unknown'}`.substring(0, 100),
+                    description: `${t(lang, 'bind_role_level')(role.level)} | RoleID: ${roleIdStr}`.substring(0, 100),
+                    value: valueKey,
                 };
+            });
+
+            // Store cred and server-verified role mapping temporarily while user picks a role (encrypted at rest)
+            const userId = interaction.user.id;
+            pendingCredentials.set(userId, {
+                encryptedCred: encrypt(cred),
+                allowedRoles,
+                expiresAt: now + PENDING_TTL_MS,
             });
 
             const selectMenu = new StringSelectMenuBuilder()
@@ -222,21 +240,9 @@ module.exports = {
                 return interaction.update({ embeds: [embed], components: [] });
             }
 
-            const selectedValue = interaction.values[0];
-            // Value format: "{roleId}_{serverId}"  (both are numeric strings, no underscores)
-            const lastUnderscore = selectedValue.lastIndexOf('_');
-            if (lastUnderscore === -1) {
-                const embed = new EmbedBuilder()
-                    .setColor(EMBED_COLOR)
-                    .setTitle(t(lang, 'bind_invalid_title'))
-                    .setDescription(t(lang, 'bind_invalid_desc'))
-                    .setTimestamp();
-                return interaction.update({ embeds: [embed], components: [] });
-            }
-            const roleId = selectedValue.substring(0, lastUnderscore);
-            const serverId = selectedValue.substring(lastUnderscore + 1);
-
-            if (!roleId || serverId === 'unknown') {
+            const selectedValue = interaction.values?.[0];
+            const verifiedRole = selectedValue ? pending.allowedRoles?.get(selectedValue) : null;
+            if (!verifiedRole) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
                     .setTitle(t(lang, 'bind_invalid_title'))
@@ -244,6 +250,8 @@ module.exports = {
                     .setTimestamp();
                 return interaction.update({ embeds: [embed], components: [] });
             }
+
+            const { roleId, serverId } = verifiedRole;
 
             try {
                 const upsertData = {

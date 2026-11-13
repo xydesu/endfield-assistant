@@ -4,6 +4,20 @@ require('dotenv').config();
 const GCM_ALGORITHM = 'aes-256-gcm';
 const CBC_ALGORITHM = 'aes-256-cbc';
 const KEY_BYTES = 32;
+const GCM_IV_BYTES = 12;
+const GCM_TAG_BYTES = 16;
+const CBC_IV_BYTES = 16;
+const HEX_REGEX = /^[0-9a-f]+$/i;
+
+function isValidHex(str, expectedBytes = null) {
+    if (typeof str !== 'string' || str.length === 0 || str.length % 2 !== 0 || !HEX_REGEX.test(str)) {
+        return false;
+    }
+    if (expectedBytes !== null && str.length !== expectedBytes * 2) {
+        return false;
+    }
+    return true;
+}
 
 // Helper to get and validate 32-byte key buffer
 function getKey() {
@@ -11,18 +25,24 @@ function getKey() {
     if (!keyHex) {
         throw new Error('ENCRYPTION_KEY is missing in .env');
     }
-    const key = Buffer.from(keyHex, 'hex');
-    if (key.length !== KEY_BYTES) {
-        throw new Error(`Invalid ENCRYPTION_KEY length: expected ${KEY_BYTES} bytes (${KEY_BYTES * 2} hex chars), got ${key.length}`);
+    if (!isValidHex(keyHex, KEY_BYTES)) {
+        throw new Error(`Invalid ENCRYPTION_KEY format or length: expected ${KEY_BYTES * 2} hex chars`);
     }
-    return key;
+    return Buffer.from(keyHex, 'hex');
+}
+
+function isGcmEncrypted(text) {
+    return typeof text === 'string' && text.startsWith('gcm:');
 }
 
 function encrypt(text) {
     if (!text) return text;
+    if (typeof text !== 'string') {
+        throw new TypeError('encrypt() expects a string');
+    }
 
     try {
-        const iv = crypto.randomBytes(12);
+        const iv = crypto.randomBytes(GCM_IV_BYTES);
         const key = getKey();
         const cipher = crypto.createCipheriv(GCM_ALGORITHM, key, iv);
         let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -39,6 +59,9 @@ function encrypt(text) {
 
 function decrypt(text) {
     if (!text) return text;
+    if (typeof text !== 'string') {
+        throw new TypeError('decrypt() expects a string');
+    }
 
     if (text.startsWith('gcm:')) {
         const parts = text.split(':');
@@ -46,6 +69,9 @@ function decrypt(text) {
             throw new Error('Invalid GCM ciphertext format');
         }
         const [, ivHex, authTagHex, encryptedHex] = parts;
+        if (!isValidHex(ivHex, GCM_IV_BYTES) || !isValidHex(authTagHex, GCM_TAG_BYTES) || !isValidHex(encryptedHex)) {
+            throw new Error('Invalid GCM ciphertext component length or encoding');
+        }
         const iv = Buffer.from(ivHex, 'hex');
         const authTag = Buffer.from(authTagHex, 'hex');
         const key = getKey();
@@ -64,8 +90,13 @@ function decrypt(text) {
             throw new Error('Invalid legacy CBC ciphertext format');
         }
 
-        const iv = Buffer.from(text.slice(firstColon + 1, secondColon), 'hex');
+        const ivHex = text.slice(firstColon + 1, secondColon);
         const encryptedText = text.slice(secondColon + 1);
+        if (!isValidHex(ivHex, CBC_IV_BYTES) || !isValidHex(encryptedText)) {
+            throw new Error('Invalid legacy CBC ciphertext length or encoding');
+        }
+
+        const iv = Buffer.from(ivHex, 'hex');
         const key = getKey();
 
         const decipher = crypto.createDecipheriv(CBC_ALGORITHM, key, iv);
@@ -74,8 +105,12 @@ function decrypt(text) {
         return decrypted;
     }
 
+    if (process.env.STRICT_ENCRYPTION === 'true') {
+        throw new Error('Unencrypted credential rejected in STRICT_ENCRYPTION mode');
+    }
+
     // Legacy plain text fallback
     return text;
 }
 
-module.exports = { encrypt, decrypt };
+module.exports = { encrypt, decrypt, isGcmEncrypted };

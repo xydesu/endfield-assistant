@@ -30,8 +30,14 @@ let cssContentCache = null;
 
 // ─── 輔助函式與繪圖邏輯 ────────────────────────────────────────────────────────
 
+const ALLOWED_ACHIEVE_HOST_SUFFIXES = ['skport.com', 'skland.com', 'hycdn.cn', 'hypergryph.com', 'gryphline.com'];
+
 async function fetchText(url) {
-    const buffer = await fetchBufferWithLimit(url, { timeoutMs: 10000, maxBytes: 2 * 1024 * 1024 });
+    const buffer = await fetchBufferWithLimit(url, {
+        timeoutMs: 10000,
+        maxBytes: 2 * 1024 * 1024,
+        allowedHostSuffixes: ['gist.githubusercontent.com'],
+    });
     return buffer.toString('utf8');
 }
 
@@ -46,12 +52,22 @@ async function getCssContent() {
     return cssContentCache;
 }
 
-// 動態從 CSS 中提取 class 對應的 background-image 網格資源
+// 動態從 CSS 中提取 class 對應的 background-image 網格資源並驗證網域白名單
 function extractUrlFromCss(css, className) {
     if (!css) return null;
     const regex = new RegExp(`\\.${className}[^{]*\\{[^}]*background-image:\\s*url\\(["\']?([^"\')]+)["\']?\\)`, 'i');
     const match = css.match(regex);
-    return match ? match[1] : null;
+    if (!match?.[1]) return null;
+    try {
+        const parsed = new URL(match[1]);
+        const host = parsed.hostname.toLowerCase();
+        const isAllowed = parsed.protocol === 'https:' && ALLOWED_ACHIEVE_HOST_SUFFIXES.some(
+            (s) => host === s || host.endsWith(`.${s}`)
+        );
+        return isAllowed ? match[1] : null;
+    } catch {
+        return null;
+    }
 }
 
 async function getCanvasImage(url) {

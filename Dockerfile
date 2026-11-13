@@ -28,8 +28,22 @@ RUN npm ci --omit=dev \
     && find node_modules -type d \( -name "test" -o -name "tests" -o -name "examples" -o -name "docs" \) -exec rm -rf {} + 2>/dev/null || true \
     && find node_modules -type f \( -name "*.d.ts" -o -name "*.map" -o -name "*.md" -o -name "CHANGELOG*" \) -delete 2>/dev/null || true
 
-# 複製專案原始碼
-COPY . .
+# 僅複製執行期必要檔案與目錄，避免無關檔案或憑證誤入映像檔
+COPY index.js deploy-commands.js ./
+COPY commands ./commands
+COPY events ./events
+COPY handlers ./handlers
+COPY models ./models
+COPY database/db.js ./database/db.js
+COPY utils ./utils
+COPY locales ./locales
+COPY assets ./assets
+
+# 建立可寫入執行期目錄並切換為非特權 node 使用者
+RUN mkdir -p /app/database /app/assets/images/dynamic \
+    && chown -R node:node /app
+
+USER node
 
 # 啟動應用程式
 CMD ["npm", "run", "start"]

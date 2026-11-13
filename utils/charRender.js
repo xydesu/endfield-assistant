@@ -10,7 +10,20 @@ const toTraditional = toTraditionalOrig;
 ensureFontsRegistered();
 
 const DYNAMIC_ASSETS_DIR = path.resolve(__dirname, '..', 'assets', 'images', 'dynamic');
+const ASSETS_ROOT_DIR = path.resolve(__dirname, '..', 'assets');
 const inFlightDownloads = new Map();
+
+function sanitizeAssetKey(raw, fallback = '') {
+    if (typeof raw !== 'string') return fallback;
+    const trimmed = raw.trim();
+    return /^[a-zA-Z0-9_-]+$/.test(trimmed) ? trimmed : fallback;
+}
+
+function sanitizeBoundedInt(raw, min, max, fallback = 0) {
+    const num = Number.parseInt(raw, 10);
+    if (!Number.isFinite(num)) return fallback;
+    return Math.max(min, Math.min(max, num));
+}
 
 /**
  * 清理並驗證動態資源檔名，防止路徑遍歷或非法字元
@@ -36,7 +49,7 @@ function sanitizeDynamicFilename(urlOrPath) {
 }
 
 // 輔助函數：從網路下載檔案（併發去重＋暫存檔原子寫入）
-async function downloadFile(url, dest) {
+async function downloadFile(url, dest, options = {}) {
     const resolvedDest = path.resolve(dest);
     if (inFlightDownloads.has(resolvedDest)) {
         return inFlightDownloads.get(resolvedDest);
@@ -48,7 +61,7 @@ async function downloadFile(url, dest) {
 
         const tmpDest = `${resolvedDest}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
         try {
-            const buffer = await fetchBufferWithLimit(url, { timeoutMs: 10000 });
+            const buffer = await fetchBufferWithLimit(url, { timeoutMs: 10000, ...options });
             if (!buffer || buffer.length === 0) {
                 throw new Error(`下載內容為空: ${url}`);
             }
@@ -67,7 +80,7 @@ async function downloadFile(url, dest) {
 }
 
 // 輔助函數：解析圖片路徑 (自動處理網路 URL 下載快取，零硬編碼對接)
-async function resolveImagePath(urlOrPath) {
+async function resolveImagePath(urlOrPath, options = {}) {
     if (!urlOrPath) return null;
 
     // 如果是網路 URL
@@ -92,7 +105,7 @@ async function resolveImagePath(urlOrPath) {
         if (!hasValidLocalFile) {
             console.warn(`[下載中] 偵測到新資源，開始下載: ${urlOrPath}`);
             try {
-                await downloadFile(urlOrPath, localAbsPath);
+                await downloadFile(urlOrPath, localAbsPath, options);
                 console.warn(`[下載成功] 資源已存入: ${localRelPath}`);
             } catch (e) {
                 console.error(`[下載失敗] 無法下載 ${urlOrPath}，將嘗試返回原始網址`, e);
@@ -365,23 +378,25 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     ];
 
     // 動態收集角色職業與屬性圖標
-    if (data.charData.profession && data.charData.profession.key) {
-        pathsToLoad.push(`assets/images/character/${data.charData.profession.key}.png`);
+    const safeProfKey = sanitizeAssetKey(data.charData?.profession?.key);
+    if (safeProfKey) {
+        pathsToLoad.push(`assets/images/character/${safeProfKey}.png`);
     }
-    if (data.charData.property && data.charData.property.key) {
-        pathsToLoad.push(`assets/images/character/${data.charData.property.key}_active.png`);
+    const safePropKey = sanitizeAssetKey(data.charData?.property?.key);
+    if (safePropKey) {
+        pathsToLoad.push(`assets/images/character/${safePropKey}_active.png`);
     }
 
     // 動態收集養成/潛能徽章
-    const evolvePhase = data.evolvePhase || 0;
-    const potentialLevel = data.potentialLevel || 0;
+    const evolvePhase = sanitizeBoundedInt(data.evolvePhase, 0, 10, 0);
+    const potentialLevel = sanitizeBoundedInt(data.potentialLevel, 0, 10, 0);
     pathsToLoad.push(`assets/images/character/evolve_${evolvePhase}.png`);
     pathsToLoad.push(`assets/images/character/potential_${potentialLevel}.png`);
     // 載入備用技能圖示以防載入失敗
     pathsToLoad.push('assets/images/character/potential_1.png');
     // 載入武器精煉等級對應的潛能圖示
     if (data.weapon) {
-        const refineLevel = data.weapon.refineLevel || 0;
+        const refineLevel = sanitizeBoundedInt(data.weapon.refineLevel, 0, 10, 0);
         pathsToLoad.push(`assets/images/character/potential_${refineLevel}.png`);
     }
 
@@ -445,23 +460,28 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
 
     // 7. 寶石底板
     if (data.weapon && data.weapon.gem && data.weapon.gem.gemData) {
-        const gemRarity = data.weapon.gem.gemData.rarity || 5;
+        const gemRarity = sanitizeBoundedInt(data.weapon.gem.gemData.rarity, 1, 6, 5);
         pathsToLoad.push(`assets/images/gem/item_gem_rarity_${gemRarity}.png`);
     }
 
     // 8. 武器類型圖標
-    let wpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
+    let wpnTypeKey = sanitizeAssetKey(data.weapon?.weaponData?.type?.key, 'weapon_type_sword');
     wpnTypeKey = wpnTypeKey.replace(/claymores$/, 'claymore');
     pathsToLoad.push(`assets/images/weapon/${wpnTypeKey}.png`);
     pathsToLoad.push('assets/images/weapon/weapon_type_sword.png'); // 總是載入 fallback
 
-    // 併發載入所有唯一的圖片路徑
+    // 併發載入所有唯一的本地圖片路徑（遠端 URL 已於 resolveImagePath 受控快取，失敗時不再繞過限制重抓）
     const uniquePaths = Array.from(new Set(pathsToLoad));
     await Promise.all(uniquePaths.map(async (relPath) => {
-        const isUrl = relPath.startsWith('http://') || relPath.startsWith('https://');
-        const absPath = isUrl ? relPath : path.join(__dirname, '..', relPath);
+        if (!relPath || relPath.startsWith('http://') || relPath.startsWith('https://')) {
+            return;
+        }
+        const absPath = path.resolve(__dirname, '..', relPath);
+        if (!absPath.startsWith(ASSETS_ROOT_DIR + path.sep)) {
+            return;
+        }
         try {
-            if (isUrl || fs.existsSync(absPath)) {
+            if (fs.existsSync(absPath)) {
                 const img = await loadImage(absPath);
                 imageCache.set(relPath, img);
             }
@@ -511,7 +531,8 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const profBoxX = leftX + 45;
     const profBoxY = leftY + 110;
     drawRoundRect(ctx, profBoxX, profBoxY, 96, 96, 0, '#1A1A1ACC', '#EEF0F280', 1.5);
-    const profIcon = getImage(`images/character/${data.charData.profession.key}.png`);
+    const profKeySafe = sanitizeAssetKey(data.charData?.profession?.key);
+    const profIcon = profKeySafe ? getImage(`images/character/${profKeySafe}.png`) : null;
     if (profIcon) {
         ctx.drawImage(profIcon, profBoxX + 6, profBoxY + 6, 84, 84);
     }
@@ -541,7 +562,8 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
 
     // 屬性方框 (32x32)
     drawRoundRect(ctx, propRowX, propRowY, 32, 32, 4, themeColor);
-    const propIcon = getImage(`images/character/${data.charData.property.key}_active.png`);
+    const propKeySafe = sanitizeAssetKey(data.charData?.property?.key);
+    const propIcon = propKeySafe ? getImage(`images/character/${propKeySafe}_active.png`) : null;
     if (propIcon) {
         ctx.drawImage(propIcon, propRowX + 4, propRowY + 4, 24, 24);
     }
@@ -571,7 +593,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     ctx.fillText("LEVEL", lvlBlockX + 51, lvlBlockY + 20);
 
     // 底部徽章：Elite 與 Potential (放至 75x75)，中間有灰色分隔線
-    const evolve = getImage(`images/character/evolve_${data.evolvePhase || 0}.png`);
+    const evolve = getImage(`images/character/evolve_${sanitizeBoundedInt(data.evolvePhase, 0, 10, 0)}.png`);
     if (evolve) {
         ctx.drawImage(evolve, lvlBlockX + 14, lvlBlockY + 46, 75, 75);
     }
@@ -583,7 +605,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     ctx.lineTo(lvlBlockX + 101, lvlBlockY + 108);
     ctx.stroke();
 
-    const potential = getImage(`images/character/potential_${data.potentialLevel || 0}.png`);
+    const potential = getImage(`images/character/potential_${sanitizeBoundedInt(data.potentialLevel, 0, 10, 0)}.png`);
     if (potential) {
         ctx.drawImage(potential, lvlBlockX + 114, lvlBlockY + 46, 74, 75);
     }
@@ -1109,7 +1131,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
 
     // 潛能圖示
     // 動態載入潛能圖示
-    const potIcon = getImage(`images/character/potential_${data.weapon?.refineLevel || 0}.png`);
+    const potIcon = getImage(`images/character/potential_${sanitizeBoundedInt(data.weapon?.refineLevel, 0, 10, 0)}.png`);
     if (potIcon) {
         ctx.drawImage(potIcon, wpnX + 182, wpnY + 45, 51, 51);
     }
@@ -1147,7 +1169,7 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     const centerY = wpnIconBoxY + 24; // 垂直中心 Y 座標 (48/2 = 24)
     
     // 優先加載對應的武器類型圖標，fallback 使用單手劍圖標
-    let renderWpnTypeKey = data.weapon?.weaponData?.type?.key || 'weapon_type_sword';
+    let renderWpnTypeKey = sanitizeAssetKey(data.weapon?.weaponData?.type?.key, 'weapon_type_sword');
     renderWpnTypeKey = renderWpnTypeKey.replace(/claymores$/, 'claymore');
     const swordIcon = getImage(`images/weapon/${renderWpnTypeKey}.png`, 'images/weapon/weapon_type_sword.png');
     if (swordIcon) {
@@ -1180,7 +1202,8 @@ async function renderCharacter(charData, lang = 'zh_Hant') {
     ctx.closePath();
 
     if (data.weapon?.gem?.gemData) {
-        const gemBaseRel = `images/gem/item_gem_rarity_${data.weapon.gem.gemData.rarity || 5}.png`;
+        const gemRaritySafe = sanitizeBoundedInt(data.weapon.gem.gemData.rarity, 1, 6, 5);
+        const gemBaseRel = `images/gem/item_gem_rarity_${gemRaritySafe}.png`;
         const gemBase = getImage(gemBaseRel);
         if (gemBase) {
             ctx.drawImage(gemBase, gemSlotX + 16, gemSlotY + 16, 80, 80);

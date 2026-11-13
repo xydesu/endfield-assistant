@@ -5,6 +5,23 @@ const { getBindingList } = require('../../utils/attendance');
 const { EMBED_COLOR } = require('../../utils/constants');
 const { t } = require('../../utils/i18n');
 
+const pendingSwitches = new Map();
+const SWITCH_TTL_MS = 10 * 60 * 1000;
+const MAX_PENDING_SWITCHES = 500;
+
+function cacheAllowedSwitches(userId, allowedRoles) {
+    const now = Date.now();
+    for (const [k, v] of pendingSwitches) {
+        if (v.expiresAt < now) pendingSwitches.delete(k);
+    }
+    while (pendingSwitches.size >= MAX_PENDING_SWITCHES) {
+        const oldestKey = pendingSwitches.keys().next().value;
+        if (!oldestKey) break;
+        pendingSwitches.delete(oldestKey);
+    }
+    pendingSwitches.set(userId, { allowedRoles, expiresAt: now + SWITCH_TTL_MS });
+}
+
 // 映射伺服器展示名稱至數值 ID，作為 API 請求的參數
 const SERVER_NAME_TO_ID = {
     'china mainland': '1',
@@ -99,20 +116,28 @@ module.exports = {
         }
 
         // 建立角色選單選項，並標記當前選取之角色（受限 Discord 單一選單最多 25 項）
+        const allowedRoles = new Map();
         const options = roles.slice(0, 25).map(role => {
             const sid = resolveServerId(role);
-            const isCurrent = (role.roleId === user.uid && sid === user.serverId);
+            const roleIdStr = String(role.roleId || '');
+            const valueKey = `${roleIdStr}_${sid ?? 'unknown'}`.substring(0, 100);
+            if (roleIdStr && sid) {
+                allowedRoles.set(valueKey, { roleId: roleIdStr, serverId: String(sid) });
+            }
+            const isCurrent = (roleIdStr === user.uid && sid === user.serverId);
             const currentLabelSuffix = isCurrent 
                 ? (lang === 'en' ? ' (Current)' : lang === 'ja' ? ' (現在)' : ' (當前)') 
                 : '';
             
             return {
                 label: `${role.serverName} | ${role.nickname}${currentLabelSuffix}`.substring(0, 100),
-                description: `${t(lang, 'bind_role_level')(role.level)} | RoleID: ${role.roleId}`.substring(0, 100),
-                value: `${role.roleId}_${sid ?? 'unknown'}`.substring(0, 100),
+                description: `${t(lang, 'bind_role_level')(role.level)} | RoleID: ${roleIdStr}`.substring(0, 100),
+                value: valueKey,
                 default: isCurrent
             };
         });
+
+        cacheAllowedSwitches(userId, allowedRoles);
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('switch-server:select')
@@ -148,21 +173,32 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed], components: [] });
             }
 
-            const selectedValue = interaction.values[0];
-            const lastUnderscore = selectedValue.lastIndexOf('_');
-            if (lastUnderscore === -1) {
-                const embed = new EmbedBuilder()
-                    .setColor(EMBED_COLOR)
-                    .setTitle(t(lang, 'bind_invalid_title'))
-                    .setDescription(t(lang, 'bind_invalid_desc'))
-                    .setTimestamp();
-                return interaction.followUp({ embeds: [embed], ephemeral: true });
+            const selectedValue = interaction.values?.[0];
+            const cached = pendingSwitches.get(userId);
+            let verifiedRole = (cached && cached.expiresAt >= Date.now())
+                ? cached.allowedRoles.get(selectedValue)
+                : null;
+
+            // 若快取過期或重啟後遺失，重新向官方 API 驗證該選項確實屬於此使用者帳號
+            if (!verifiedRole && selectedValue) {
+                try {
+                    const roles = await getBindingList(decrypt(user.cred));
+                    const freshAllowed = new Map();
+                    for (const role of roles.slice(0, 25)) {
+                        const sid = resolveServerId(role);
+                        const roleIdStr = String(role.roleId || '');
+                        const valueKey = `${roleIdStr}_${sid ?? 'unknown'}`.substring(0, 100);
+                        if (roleIdStr && sid) {
+                            freshAllowed.set(valueKey, { roleId: roleIdStr, serverId: String(sid) });
+                        }
+                    }
+                    verifiedRole = freshAllowed.get(selectedValue) || null;
+                } catch {
+                    verifiedRole = null;
+                }
             }
 
-            const roleId = selectedValue.substring(0, lastUnderscore);
-            const serverId = selectedValue.substring(lastUnderscore + 1);
-
-            if (!roleId || serverId === 'unknown') {
+            if (!verifiedRole) {
                 const embed = new EmbedBuilder()
                     .setColor(EMBED_COLOR)
                     .setTitle(t(lang, 'bind_invalid_title'))
@@ -170,6 +206,9 @@ module.exports = {
                     .setTimestamp();
                 return interaction.followUp({ embeds: [embed], ephemeral: true });
             }
+
+            const { roleId, serverId } = verifiedRole;
+            pendingSwitches.delete(userId);
 
             try {
                 const updateData = {

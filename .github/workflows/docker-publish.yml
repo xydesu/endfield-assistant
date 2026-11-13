@@ -24,7 +24,9 @@ jobs:
 
       # 確保映像檔名稱為全小寫，以符合 Docker 命名規範
       - name: Prepare IMAGE_NAME
-        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+        env:
+          GITHUB_REPO: ${{ github.repository }}
+        run: echo "IMAGE_NAME=$(echo "$GITHUB_REPO" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

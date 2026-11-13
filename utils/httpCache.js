@@ -1,12 +1,135 @@
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
+const dns = require('dns');
+const net = require('net');
 const { loadImage } = require('canvas');
 
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 const DEFAULT_MAX_CACHE_ENTRIES = 300;
 const MAX_REDIRECTS = 3;
+
+function isPrivateOrReservedIpv4(ip) {
+    const parts = ip.split('.').map(Number);
+    if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
+        return true;
+    }
+    const [a, b] = parts;
+    if (a === 0) return true; // 0.0.0.0/8
+    if (a === 10) return true; // 10.0.0.0/8
+    if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 (CGNAT)
+    if (a === 127) return true; // 127.0.0.0/8 Loopback
+    if (a === 169 && b === 254) return true; // 169.254.0.0/16 Link-local / Metadata
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+    if (a === 192 && b === 0 && parts[2] === 0) return true; // 192.0.0.0/24
+    if (a === 192 && b === 0 && parts[2] === 2) return true; // 192.0.2.0/24 TEST-NET-1
+    if (a === 192 && b === 168) return true; // 192.168.0.0/16
+    if (a === 198 && (b === 18 || b === 19)) return true; // 198.18.0.0/15
+    if (a >= 224) return true; // Multicast & Reserved (224.0.0.0+)
+    return false;
+}
+
+function isPrivateOrReservedIp(ip) {
+    if (!ip || typeof ip !== 'string') return true;
+    const cleaned = ip.split('%')[0].toLowerCase();
+    const ipType = net.isIP(cleaned);
+    if (ipType === 4) {
+        return isPrivateOrReservedIpv4(cleaned);
+    }
+    if (ipType === 6) {
+        if (cleaned === '::' || cleaned === '::1') return true;
+        if (cleaned.startsWith('::ffff:')) {
+            const v4Part = cleaned.slice('::ffff:'.length);
+            if (net.isIP(v4Part) === 4) {
+                return isPrivateOrReservedIpv4(v4Part);
+            }
+        }
+        // fc00::/7 (Unique local), fe80::/10 (Link-local), ff00::/8 (Multicast)
+        const firstHextet = parseInt(cleaned.split(':')[0] || '0', 16);
+        if ((firstHextet & 0xfe00) === 0xfc00) return true;
+        if ((firstHextet & 0xffc0) === 0xfe80) return true;
+        if ((firstHextet & 0xff00) === 0xff00) return true;
+        return false;
+    }
+    return true;
+}
+
+function matchesAllowedHostSuffix(hostname, allowedHostSuffixes) {
+    if (!Array.isArray(allowedHostSuffixes) || allowedHostSuffixes.length === 0) return true;
+    const host = hostname.toLowerCase();
+    return allowedHostSuffixes.some((suffix) => {
+        const norm = suffix.toLowerCase().replace(/^\./, '');
+        return host === norm || host.endsWith(`.${norm}`);
+    });
+}
+
+async function resolveAndValidateRemoteUrl(targetUrl, options = {}) {
+    const {
+        allowUnsafeLocalForTest = false,
+        allowedHostSuffixes = null,
+    } = options;
+
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(targetUrl);
+    } catch {
+        throw new Error(`Invalid URL: ${targetUrl}`);
+    }
+
+    if (parsedUrl.username || parsedUrl.password) {
+        throw new Error('URL userinfo is not allowed');
+    }
+
+    if (!allowUnsafeLocalForTest) {
+        if (parsedUrl.protocol !== 'https:') {
+            throw new Error(`Unsupported or insecure protocol: ${parsedUrl.protocol}`);
+        }
+    } else if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+        throw new Error(`Unsupported protocol: ${parsedUrl.protocol}`);
+    }
+
+    const hostname = parsedUrl.hostname.replace(/^\[|\]$/g, '');
+    if (!hostname) {
+        throw new Error('URL hostname is missing');
+    }
+
+    if (!matchesAllowedHostSuffix(hostname, allowedHostSuffixes)) {
+        throw new Error(`Disallowed remote host: ${hostname}`);
+    }
+
+    if (allowUnsafeLocalForTest) {
+        return { parsedUrl, resolvedAddress: null, resolvedFamily: undefined };
+    }
+
+    const lowerHost = hostname.toLowerCase();
+    if (lowerHost === 'localhost' || lowerHost.endsWith('.local') || lowerHost.endsWith('.internal') || lowerHost.endsWith('.localhost')) {
+        throw new Error(`Blocked internal hostname: ${hostname}`);
+    }
+
+    if (net.isIP(hostname) !== 0) {
+        if (isPrivateOrReservedIp(hostname)) {
+            throw new Error(`Blocked private or reserved IP address: ${hostname}`);
+        }
+        return { parsedUrl, resolvedAddress: hostname, resolvedFamily: net.isIP(hostname) };
+    }
+
+    const records = await dns.promises.lookup(hostname, { all: true });
+    if (!Array.isArray(records) || records.length === 0) {
+        throw new Error(`Failed to resolve hostname: ${hostname}`);
+    }
+    for (const rec of records) {
+        if (isPrivateOrReservedIp(rec.address)) {
+            throw new Error(`Blocked private or reserved resolved IP for ${hostname}`);
+        }
+    }
+
+    return {
+        parsedUrl,
+        resolvedAddress: records[0].address,
+        resolvedFamily: records[0].family,
+    };
+}
 
 /**
  * 簡易具容量上限的 LRU Map（以插入／存取順序淘汰最舊鍵值）
@@ -60,9 +183,9 @@ class LruCache {
 }
 
 /**
- * 帶逾時、回應大小上限與重導向限制的 HTTP/HTTPS Buffer 下載
+ * 帶逾時、回應大小上限、SSRF 防護與重導向限制的 HTTP/HTTPS Buffer 下載
  * @param {string} targetUrl
- * @param {{ timeoutMs?: number, maxBytes?: number, redirectsLeft?: number, headers?: Object }} options
+ * @param {{ timeoutMs?: number, maxBytes?: number, redirectsLeft?: number, headers?: Object, allowUnsafeLocalForTest?: boolean, allowedHostSuffixes?: string[] }} options
  * @returns {Promise<Buffer>}
  */
 function fetchBufferWithLimit(targetUrl, options = {}) {
@@ -71,96 +194,110 @@ function fetchBufferWithLimit(targetUrl, options = {}) {
         maxBytes = DEFAULT_MAX_BYTES,
         redirectsLeft = MAX_REDIRECTS,
         headers = { 'User-Agent': 'Mozilla/5.0' },
+        allowUnsafeLocalForTest = false,
+        allowedHostSuffixes = null,
     } = options;
 
-    return new Promise((resolve, reject) => {
-        let parsedUrl;
-        try {
-            parsedUrl = new URL(targetUrl);
-        } catch (err) {
-            return reject(new Error(`Invalid URL: ${targetUrl}`));
-        }
+    return (async () => {
+        const { parsedUrl, resolvedAddress, resolvedFamily } = await resolveAndValidateRemoteUrl(targetUrl, {
+            allowUnsafeLocalForTest,
+            allowedHostSuffixes,
+        });
 
-        if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
-            return reject(new Error(`Unsupported protocol: ${parsedUrl.protocol}`));
-        }
-
-        const transport = parsedUrl.protocol === 'https:' ? https : http;
-        const req = transport.request(
-            {
+        return new Promise((resolve, reject) => {
+            const transport = parsedUrl.protocol === 'https:' ? https : http;
+            const requestOptions = {
                 hostname: parsedUrl.hostname,
                 port: parsedUrl.port || undefined,
                 path: parsedUrl.pathname + parsedUrl.search,
                 method: 'GET',
                 headers,
-            },
-            (res) => {
-                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                    res.resume();
-                    if (redirectsLeft <= 0) {
-                        return reject(new Error(`Too many redirects for ${targetUrl}`));
+            };
+
+            if (resolvedAddress) {
+                requestOptions.lookup = (_host, opts, cb) => {
+                    if (typeof opts === 'function') {
+                        return opts(null, resolvedAddress, resolvedFamily);
                     }
-                    const nextUrl = new URL(res.headers.location, parsedUrl).toString();
-                    return resolve(
-                        fetchBufferWithLimit(nextUrl, {
-                            timeoutMs,
-                            maxBytes,
-                            redirectsLeft: redirectsLeft - 1,
-                            headers,
-                        })
-                    );
-                }
-
-                if (res.statusCode < 200 || res.statusCode >= 300) {
-                    res.resume();
-                    return reject(new Error(`HTTP ${res.statusCode} fetching ${targetUrl}`));
-                }
-
-                const contentLength = Number(res.headers['content-length']);
-                if (Number.isFinite(contentLength) && contentLength > maxBytes) {
-                    res.destroy();
-                    return reject(new Error(`Response too large (${contentLength} bytes > ${maxBytes})`));
-                }
-
-                const chunks = [];
-                let totalBytes = 0;
-                let exceeded = false;
-
-                res.on('data', (chunk) => {
-                    if (exceeded) return;
-                    totalBytes += chunk.length;
-                    if (totalBytes > maxBytes) {
-                        exceeded = true;
-                        res.destroy();
-                        reject(new Error(`Response exceeded maxBytes (${maxBytes})`));
-                        return;
+                    if (opts && opts.all) {
+                        return cb(null, [{ address: resolvedAddress, family: resolvedFamily }]);
                     }
-                    chunks.push(chunk);
-                });
-
-                res.on('end', () => {
-                    if (!exceeded) {
-                        resolve(Buffer.concat(chunks, totalBytes));
-                    }
-                });
-
-                res.on('error', (err) => {
-                    if (!exceeded) reject(err);
-                });
+                    return cb(null, resolvedAddress, resolvedFamily);
+                };
             }
-        );
 
-        const timer = setTimeout(() => {
-            req.destroy(new Error(`Request timed out after ${timeoutMs}ms`));
-        }, timeoutMs);
+            const req = transport.request(
+                requestOptions,
+                (res) => {
+                    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                        res.resume();
+                        if (redirectsLeft <= 0) {
+                            return reject(new Error(`Too many redirects for ${targetUrl}`));
+                        }
+                        const nextUrl = new URL(res.headers.location, parsedUrl).toString();
+                        return resolve(
+                            fetchBufferWithLimit(nextUrl, {
+                                timeoutMs,
+                                maxBytes,
+                                redirectsLeft: redirectsLeft - 1,
+                                headers,
+                                allowUnsafeLocalForTest,
+                                allowedHostSuffixes,
+                            })
+                        );
+                    }
 
-        req.on('error', (err) => {
-            clearTimeout(timer);
-            reject(err);
+                    if (res.statusCode < 200 || res.statusCode >= 300) {
+                        res.resume();
+                        return reject(new Error(`HTTP ${res.statusCode} fetching ${targetUrl}`));
+                    }
+
+                    const contentLength = Number(res.headers['content-length']);
+                    if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+                        res.destroy();
+                        return reject(new Error(`Response too large (${contentLength} bytes > ${maxBytes})`));
+                    }
+
+                    const chunks = [];
+                    let totalBytes = 0;
+                    let exceeded = false;
+
+                    res.on('data', (chunk) => {
+                        if (exceeded) return;
+                        totalBytes += chunk.length;
+                        if (totalBytes > maxBytes) {
+                            exceeded = true;
+                            res.destroy();
+                            reject(new Error(`Response exceeded maxBytes (${maxBytes})`));
+                            return;
+                        }
+                        chunks.push(chunk);
+                    });
+
+                    res.on('end', () => {
+                        if (!exceeded) {
+                            resolve(Buffer.concat(chunks, totalBytes));
+                        }
+                    });
+
+                    res.on('error', (err) => {
+                        if (!exceeded) reject(err);
+                    });
+                }
+            );
+
+            const timer = setTimeout(() => {
+                req.destroy(new Error(`Request timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+
+            req.on('error', (err) => {
+                clearTimeout(timer);
+                reject(err);
+            });
+            req.on('close', () => clearTimeout(timer));
+            req.end();
         });
-        req.on('close', () => clearTimeout(timer));
-        req.end();
-    });
+    })();
 }
 
 // 全域共用的有限圖片快取與併發去重表
@@ -228,4 +365,6 @@ module.exports = {
     fetchBufferWithLimit,
     loadCachedImage,
     sharedImageCache,
+    isPrivateOrReservedIp,
+    resolveAndValidateRemoteUrl,
 };

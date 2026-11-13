@@ -5,6 +5,11 @@ services:
     build: .
     container_name: endfield-bot
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 1g
     env_file:
       - .env
     volumes:

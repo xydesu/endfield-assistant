@@ -15,9 +15,9 @@ module.exports = {
             } catch (error) {
                 console.error(error);
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: '執行此指令時發生錯誤！', ephemeral: true });
+                    await interaction.followUp({ content: '執行此指令時發生錯誤！', ephemeral: true }).catch(() => {});
                 } else {
-                    await interaction.reply({ content: '執行此指令時發生錯誤！', ephemeral: true });
+                    await interaction.reply({ content: '執行此指令時發生錯誤！', ephemeral: true }).catch(() => {});
                 }
             }
             return;
@@ -45,9 +45,9 @@ module.exports = {
             } catch (error) {
                 console.error(error);
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: '處理操作時發生錯誤！', ephemeral: true });
+                    await interaction.followUp({ content: '處理操作時發生錯誤！', ephemeral: true }).catch(() => {});
                 } else {
-                    await interaction.reply({ content: '處理操作時發生錯誤！', ephemeral: true });
+                    await interaction.reply({ content: '處理操作時發生錯誤！', ephemeral: true }).catch(() => {});
                 }
             }
         }

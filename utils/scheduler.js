@@ -11,7 +11,35 @@ const dailyJobs = new Map();
 
 const AMERICAS_EUROPE_SERVER_ID = '3';
 const STAMINA_CONCURRENCY = 5;
+const JOB_CONCURRENCY = 5;
 let isCheckingStamina = false;
+let activeJobCount = 0;
+const jobQueue = [];
+
+function runWithJobLimit(fn) {
+    return new Promise((resolve, reject) => {
+        const execute = async () => {
+            activeJobCount++;
+            try {
+                resolve(await fn());
+            } catch (err) {
+                reject(err);
+            } finally {
+                activeJobCount--;
+                if (jobQueue.length > 0) {
+                    const next = jobQueue.shift();
+                    next();
+                }
+            }
+        };
+
+        if (activeJobCount < JOB_CONCURRENCY) {
+            execute();
+        } else {
+            jobQueue.push(execute);
+        }
+    });
+}
 
 /**
  * 取得有設定通知頻道的伺服器查表（GuildId -> ChannelId）
@@ -28,7 +56,7 @@ async function loadNotifyChannelMap() {
 }
 
 /**
- * 共用的伺服器頻道通知分發邏輯，支援指定單一伺服器或查表過濾共屬伺服器
+ * 共用的伺服器頻道通知分發邏輯：僅發送至使用者綁定時指定的通知伺服器，若無指定則改以私訊送達
  */
 async function dispatchGuildNotification(user, client, buildMessage, serverChannelMap = null) {
     let discordUser = null;
@@ -38,37 +66,48 @@ async function dispatchGuildNotification(user, client, buildMessage, serverChann
         // 無法取得 Discord 使用者時，僅略過標題使用者標記
     }
 
-    const channelMap = serverChannelMap || await loadNotifyChannelMap();
-    const targetGuildIds = user.notifyGuildId
-        ? [user.notifyGuildId]
-        : Array.from(channelMap.keys());
-
-    for (const guildId of targetGuildIds) {
-        const notifyChannelId = channelMap.get(guildId);
-        if (!notifyChannelId) continue;
-
-        const guild = client.guilds.cache.get(guildId);
-        if (!guild) continue;
-
-        try {
-            await guild.members.fetch(user.discordId);
-        } catch {
-            // 使用者不在此伺服器內，略過
-            continue;
-        }
-
-        try {
-            let channel = guild.channels.cache.get(notifyChannelId);
-            if (!channel) {
-                channel = await guild.channels.fetch(notifyChannelId).catch(() => null);
+    // 若使用者未綁定特定通知伺服器（例如於私訊中設定），不得廣播至所有共同伺服器以免外洩個人資訊
+    if (!user.notifyGuildId) {
+        if (discordUser) {
+            try {
+                const payload = buildMessage(discordUser);
+                await discordUser.send(payload);
+            } catch (err) {
+                console.error(`[Scheduler] Failed sending DM notification to user=${user.discordId}:`, err.message);
             }
-            if (!channel || typeof channel.send !== 'function') continue;
-
-            const payload = buildMessage(discordUser);
-            await channel.send(payload);
-        } catch (err) {
-            console.error(`[Scheduler] Failed sending notification to guild=${guildId} user=${user.discordId}:`, err.message);
         }
+        return;
+    }
+
+    const guildId = user.notifyGuildId;
+    let notifyChannelId = serverChannelMap ? serverChannelMap.get(guildId) : null;
+    if (!notifyChannelId && !serverChannelMap) {
+        const serverRecord = await Server.findByPk(guildId);
+        notifyChannelId = serverRecord?.notifyChannelId || null;
+    }
+    if (!notifyChannelId) return;
+
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return;
+
+    try {
+        await guild.members.fetch(user.discordId);
+    } catch {
+        // 使用者已不在該伺服器內，略過
+        return;
+    }
+
+    try {
+        let channel = guild.channels.cache.get(notifyChannelId);
+        if (!channel) {
+            channel = await guild.channels.fetch(notifyChannelId).catch(() => null);
+        }
+        if (!channel || typeof channel.send !== 'function') return;
+
+        const payload = buildMessage(discordUser);
+        await channel.send(payload);
+    } catch (err) {
+        console.error(`[Scheduler] Failed sending notification to guild=${guildId} user=${user.discordId}:`, err.message);
     }
 }
 
@@ -126,7 +165,7 @@ function scheduleUser(user, client) {
     rule.hour = parts.hour;
     rule.minute = parts.minute;
 
-    const job = schedule.scheduleJob(rule, () => runSignIn(user.discordId, client));
+    const job = schedule.scheduleJob(rule, () => runWithJobLimit(() => runSignIn(user.discordId, client)));
     if (!job) {
         console.warn(`[Scheduler] Failed to create sign-in job for ${user.discordId}`);
         return;
@@ -212,7 +251,7 @@ function scheduleDailyNotifyUser(user, client) {
     rule.minute = parts.minute;
     rule.tz = 'UTC';
 
-    const job = schedule.scheduleJob(rule, () => checkAndSendDailyNotification(user.discordId, client));
+    const job = schedule.scheduleJob(rule, () => runWithJobLimit(() => checkAndSendDailyNotification(user.discordId, client)));
     if (!job) {
         console.warn(`[DailyNotify] Failed to create notify job for ${user.discordId}`);
         return;
