@@ -1002,7 +1002,7 @@ async function drawPhase2LeftPanel(ctx, params) {
 
     drawPhase2ContractBadge(ctx, panelX + 2, afterGridY + 90, contractName, isPass);
 
-    // 6. 聖所評喻橫幅（左紅右黑漸層＋黑灰碳纖維斜紋＋實心白 i 徽章＋圓角分數框與超框大圖標）
+    // 6. 聖所評喻橫幅（黑灰碳纖維斜紋背景＋實心白 i 徽章＋右側左紅右黑漸層圓角分數框與超框大圖標）
     const ratingY = afterGridY + 156;
     const ratingH = 54;
     const ratingColors = getPhase2RatingColors(isPass, indicatorCount);
@@ -1015,19 +1015,13 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.roundRect(panelX, ratingY, panelW, ratingH, 2);
     ctx.clip();
 
-    // 左至右紅轉黑漸層底色
-    const bannerGrad = ctx.createLinearGradient(panelX, ratingY, panelX + panelW, ratingY);
-    bannerGrad.addColorStop(0, isHighRedTier ? 'rgba(138, 22, 26, 0.94)' : 'rgba(65, 52, 145, 0.92)');
-    bannerGrad.addColorStop(0.4, isHighRedTier ? 'rgba(54, 15, 19, 0.94)' : 'rgba(30, 26, 56, 0.92)');
-    bannerGrad.addColorStop(0.8, 'rgba(18, 20, 24, 0.94)');
-    bannerGrad.addColorStop(1, 'rgba(14, 16, 20, 0.95)');
-    ctx.fillStyle = bannerGrad;
+    // 純黑灰底色＋45° 黑灰斜線條碳纖維紋理
+    ctx.fillStyle = 'rgba(18, 20, 24, 0.94)';
     ctx.fillRect(panelX, ratingY, panelW, ratingH);
 
-    // 45° 黑灰斜線條碳纖維紋理
     const stripeStep = 8;
     ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.34)';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.36)';
     ctx.beginPath();
     for (let sx = panelX - ratingH; sx < panelX + panelW + ratingH; sx += stripeStep) {
         ctx.moveTo(sx, ratingY + ratingH);
@@ -1072,7 +1066,7 @@ async function drawPhase2LeftPanel(ctx, params) {
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
     ctx.fillText(text.sanctumRating, panelX + 60, ratingY + 35);
 
-    // 右側圓角框體（緊貼數字上下緣＋超出框線的大尺寸圖標）
+    // 右側圓角框體（左紅右黑漸層底色＋緊貼數字上下緣＋超出框線的大尺寸圖標）
     ctx.font = "bold 21px 'Noto Sans TC', sans-serif";
     const numW = ctx.measureText(scoreStr).width;
     const iconSize = 34;
@@ -1083,9 +1077,12 @@ async function drawPhase2LeftPanel(ctx, params) {
     const tagX = panelX + panelW - tagW - 18;
     const tagY = ratingY + (ratingH - tagH) / 2;
 
-    const tagBg = isHighRedTier ? 'rgba(116, 22, 30, 0.80)' : 'rgba(54, 42, 95, 0.78)';
+    const tagGrad = ctx.createLinearGradient(tagX, tagY, tagX + tagW, tagY);
+    tagGrad.addColorStop(0, 'rgba(188, 34, 38, 0.95)');
+    tagGrad.addColorStop(0.5, 'rgba(92, 20, 24, 0.92)');
+    tagGrad.addColorStop(1, 'rgba(14, 15, 18, 0.95)');
     const tagBorder = isHighRedTier ? 'rgba(232, 86, 72, 0.90)' : ratingColors.end;
-    drawRoundedRect(ctx, tagX, tagY, tagW, tagH, 5, tagBg, tagBorder, 1.5);
+    drawRoundedRect(ctx, tagX, tagY, tagW, tagH, 5, tagGrad, tagBorder, 1.5);
 
     const contentW = numW + tagGap + iconSize;
     const contentStartX = tagX + (tagW - contentW) / 2;
