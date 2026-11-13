@@ -1101,9 +1101,10 @@ async function preloadPhase2CardAssets(charObj, charMeta) {
  * 繪製 Z-4 裝備卡槽左上角懸浮升級徽章（深灰圓角投影底板＋亮天藍六角螺帽與右上三角形）
  */
 function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
-    const badgeSize = Math.round(slotSize * 0.30);
-    const badgeX = sx - Math.round(slotSize * 0.08);
-    const badgeY = sy - Math.round(slotSize * 0.08);
+    const badgeSize = slotSize * 0.34;
+    const badgeRadius = slotSize * 0.08;
+    const badgeX = sx - slotSize * 0.08;
+    const badgeY = sy - slotSize * 0.08;
 
     // 深灰圓角底板（獨立狀態與投影，畫完立刻清除）
     ctx.save();
@@ -1112,19 +1113,19 @@ function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
     ctx.shadowOffsetY = 3;
     ctx.fillStyle = '#2E2E2E';
     ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY, badgeSize, badgeSize, 6);
+    ctx.roundRect(badgeX, badgeY, badgeSize, badgeSize, badgeRadius);
     ctx.fill();
     ctx.restore();
 
     // 亮天藍幾何向量圖示（#29B6F6）
     ctx.save();
     const iconColor = '#29B6F6';
-    const hexCx = badgeX + badgeSize * 0.42;
-    const hexCy = badgeY + badgeSize * 0.56;
-    const hexR = badgeSize * 0.23;
+    const hexCx = badgeX + badgeSize * 0.40;
+    const hexCy = badgeY + badgeSize * 0.58;
+    const hexR = badgeSize * 0.24;
 
     ctx.strokeStyle = iconColor;
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = Math.max(2.2, slotSize * 0.045);
     ctx.lineJoin = 'miter';
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
@@ -1137,14 +1138,14 @@ function drawEquipmentUpgradeBadge(ctx, sx, sy, slotSize) {
     ctx.closePath();
     ctx.stroke();
 
-    // 右上角外側緊鄰實心小三角形（尖端朝右上）
-    const tipX = badgeX + badgeSize * 0.87;
-    const tipY = badgeY + badgeSize * 0.13;
+    // 右上角外側緊鄰實心小三角形（尖端朝右上，與六角形保持清晰間距）
+    const tipX = badgeX + badgeSize * 0.90;
+    const tipY = badgeY + badgeSize * 0.10;
     ctx.fillStyle = iconColor;
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
-    ctx.lineTo(tipX - badgeSize * 0.27, tipY + badgeSize * 0.08);
-    ctx.lineTo(tipX - badgeSize * 0.08, tipY + badgeSize * 0.27);
+    ctx.lineTo(tipX - badgeSize * 0.25, tipY + badgeSize * 0.07);
+    ctx.lineTo(tipX - badgeSize * 0.07, tipY + badgeSize * 0.25);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -1175,35 +1176,38 @@ function drawPhase2EquipmentSection(ctx, sectionX, sectionY, sectionW, charObj, 
         for (let col = 0; col < 2; col++) {
             const idx = row * 2 + col;
             const eqObj = charObj.equips ? charObj.equips[eqKeys[idx]] : null;
+            const eqImg = cardAssets.eqImgs[idx];
             const sx = gridX + col * (slotSize + slotGap);
             const sy = gridY + row * (slotSize + slotGap);
 
-            // Z-1 最外層定位線框（淺灰銳角實線框，無圓角）
+            // 空白卡槽狀態：僅繪製最外層淺灰色定位線框，不畫色塊與徽章
+            if (!eqObj || !eqImg) {
+                ctx.strokeStyle = '#6E6E6E';
+                ctx.lineWidth = 1.8;
+                ctx.strokeRect(sx, sy, slotSize, slotSize);
+                continue;
+            }
+
+            // Z-2 錯位稀有度色塊（88% 尺寸嚴格貼齊外框上邊與右邊，左與底留出深色 L 型縫隙）
+            const innerSize = slotSize * 0.88;
+            const innerX = sx + slotSize - innerSize;
+            const innerY = sy;
+            ctx.fillStyle = getRarityColor(eqObj, '#E6A800', EQUIP_BLOCK_RARITY_COLORS);
+            ctx.fillRect(innerX, innerY, innerSize, innerSize);
+
+            // Z-1 最外層定位線框（淺灰銳角實線框壓在色塊外緣，確保上與右邊緣無黑色縫隙）
             ctx.strokeStyle = '#6E6E6E';
             ctx.lineWidth = 1.8;
             ctx.strokeRect(sx, sy, slotSize, slotSize);
 
-            // Z-2 錯位稀有度色塊（88% 尺寸貼齊右上角，左側與底部透出 L 型深色內凹縫隙）
-            const innerSize = slotSize * 0.88;
-            const blockX = sx + (slotSize - innerSize);
-            const blockY = sy;
-            ctx.fillStyle = eqObj
-                ? getRarityColor(eqObj, '#E6A800', EQUIP_BLOCK_RARITY_COLORS)
-                : 'rgba(255, 255, 255, 0.04)';
-            ctx.fillRect(blockX, blockY, innerSize, innerSize);
-
-            if (!eqObj) continue;
-
-            // Z-3 前景裝備立繪（微幅放大並向右下偏移，壓過灰框邊緣）
-            const eqImg = cardAssets.eqImgs[idx];
-            if (eqImg) {
-                const targetSize = slotSize * 0.96;
-                const scale = Math.min(targetSize / eqImg.width, targetSize / eqImg.height);
-                const ew = eqImg.width * scale;
-                const eh = eqImg.height * scale;
-                const shift = slotSize * 0.08;
-                ctx.drawImage(eqImg, sx + (slotSize - ew) / 2 + shift, sy + (slotSize - eh) / 2 + shift, ew, eh);
-            }
+            // Z-3 前景裝備立繪（放大至 92% 並向右下角偏移 14%，自然壓過灰框右線與底線）
+            const targetSize = slotSize * 0.92;
+            const scale = Math.min(targetSize / eqImg.width, targetSize / eqImg.height);
+            const ew = eqImg.width * scale;
+            const eh = eqImg.height * scale;
+            const offsetX = slotSize * 0.14;
+            const offsetY = slotSize * 0.14;
+            ctx.drawImage(eqImg, sx + (slotSize - ew) / 2 + offsetX, sy + (slotSize - eh) / 2 + offsetY, ew, eh);
 
             // Z-4 左上角懸浮升級徽章（依專案裝備升級次數欄位與已載入素材狀態顯示）
             const enhanceCount = Number(eqObj.enhanceStatus ?? eqObj.upgradeCount ?? 0);
